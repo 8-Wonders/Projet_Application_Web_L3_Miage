@@ -28,15 +28,24 @@ async function init() {
     canvas.height = map.level.length * TILE_SIZE;
   }
 
-  resize();
-  window.addEventListener("resize", resize);
-
   player = new Player(40, 100, TILE_SIZE, TILE_SIZE * 2, "black");
   player.x = 100;
   player.y = 100;
 
+  resize();
+  window.addEventListener("resize", resize);
+
   window.addEventListener("keydown", (e) => (keys[e.key] = true));
   window.addEventListener("keyup", (e) => (keys[e.key] = false));
+
+  window.addEventListener("keydown", (e) => {
+    keys[e.key] = true;
+
+    // NEW: Single trigger for shooting
+    if (e.key === "x" || e.key === "X") {
+      player.shoot();
+    }
+  });
 
   gameLoop();
 }
