@@ -43,7 +43,13 @@ async function init() {
 
     // NEW: Single trigger for shooting
     if (e.key === "x" || e.key === "X") {
-      player.shoot();
+	  if (player.isAiming == true) {
+        player.shoot();
+	  }
+    }
+
+	if (e.key === "t" || e.key === "T") {
+      player.toggleAim();
     }
   });
 
