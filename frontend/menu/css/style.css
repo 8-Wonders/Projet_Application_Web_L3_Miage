@@ -1,0 +1,374 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+}
+
+@font-face {
+  font-family: "Press Start 2P";
+  src: url("../assets/PixelifySans-VariableFont_wght.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+body {
+    font-family: "Press Start 2P", sans-serif;
+    background: linear-gradient(180deg, #1a0a3e 0%, #0d0527 50%, #1a0f3e 100%);
+    color: white;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+}
+
+/* Canvas pour le damier aléatoire */
+#random-checkerboard {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.5;
+    z-index: -2;
+    pointer-events: none;
+}
+
+/* Effet étoiles pixelisées en arrière-plan */
+body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        radial-gradient(circle, white 2px, transparent 1px),
+        radial-gradient(circle, white 3px, transparent 1px),
+        radial-gradient(circle, white 3px, transparent 2px);
+    background-size: 300px 300px, 400px 400px, 500px 500px;
+    background-position: 0 0, 50px 50px, 100px 100px;
+    opacity: 0.6;
+    z-index: -1;
+}
+
+/* Header */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 30px;
+    position: relative;
+}
+
+/* Logo container avec bordures pixelisées */
+.logo-container {
+    padding: 6px;
+    background: rgb(92, 0, 92);
+    position: relative;
+    clip-path: polygon(
+        0 12px, 6px 12px, 6px 6px, 12px 6px, 12px 0,
+        calc(100% - 12px) 0, calc(100% - 12px) 6px, calc(100% - 6px) 6px, calc(100% - 6px) 12px, 100% 12px,
+        100% calc(100% - 12px), calc(100% - 6px) calc(100% - 12px), calc(100% - 6px) calc(100% - 6px), calc(100% - 12px) calc(100% - 6px), calc(100% - 12px) 100%,
+        12px 100%, 12px calc(100% - 6px), 6px calc(100% - 6px), 6px calc(100% - 12px), 0 calc(100% - 12px)
+    );
+}
+
+.logo {
+    font-size: 40px;
+    color: #00c010;
+    padding: 15px 30px;
+    text-shadow: 2px 0 0 #007c0a, 4px 0 0 #007c0a, 0 0 20px rgba(0, 192, 16, 0.8), 0 0 40px rgba(0, 124, 10, 0.4);
+    letter-spacing: 3px;
+}
+
+/* Navigation avec bordures pixelisées */
+.nav-menu {
+    display: flex;
+    justify-content: end;
+    gap: 30px;
+    list-style: none;
+}
+
+.nav-menu li a {
+    font-size: 26px;
+    letter-spacing: 3px;
+    color: #00c010;
+    text-decoration: none;
+    text-shadow: 2px 0 0 #007c0a, 4px 0 0 #007c0a, 0 0 20px rgba(0, 192, 16, 0.8), 0 0 40px rgba(0, 124, 10, 0.4);
+    padding: 15px 30px;
+    background: rgb(92, 0, 92);
+    clip-path: polygon(
+        0 12px, 6px 12px, 6px 6px, 12px 6px, 12px 0,
+        calc(100% - 12px) 0, calc(100% - 12px) 6px, calc(100% - 6px) 6px, calc(100% - 6px) 12px, 100% 12px,
+        100% calc(100% - 12px), calc(100% - 6px) calc(100% - 12px), calc(100% - 6px) calc(100% - 6px), calc(100% - 12px) calc(100% - 6px), calc(100% - 12px) 100%,
+        12px 100%, 12px calc(100% - 6px), 6px calc(100% - 6px), 6px calc(100% - 12px), 0 calc(100% - 12px)
+    );
+}
+
+.nav-menu li a:hover {
+    background: repeating-conic-gradient(
+        #3a2a7e 0% 25%,
+        #2a1d6a 0% 50%
+    );
+}
+
+/* Bannière slogan avec bordures pixelisées */
+.slogan-banner {
+    text-align: center;
+    margin: 30px auto;
+    max-width: 900px;
+}
+
+.slogan-banner p {
+    text-shadow: 2px 0 0 #67007c, 4px 0 0 #67007c, 0 0 20px rgba(103, 0, 124, 0.8), 0 0 40px rgba(103, 0, 124, 0.4);
+    padding: 20px 40px;
+    font-size: 40px;
+    position: relative;
+    letter-spacing: 2px;
+    font-weight: bold;
+}
+
+.slogan-banner p::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    right: -6px;
+    bottom: -6px;
+    background: #0ea500;
+    clip-path: polygon(
+        0 6px, 6px 6px, 6px 0,
+        calc(100% - 6px) 0, calc(100% - 6px) 6px, 100% 6px,
+        100% calc(100% - 6px), calc(100% - 6px) calc(100% - 6px), calc(100% - 6px) 100%,
+        6px 100%, 6px calc(100% - 6px), 0 calc(100% - 6px)
+    );
+    z-index: -1;
+}
+
+/* Section hero avec scène pixel et bordures pixelisées */
+.hero-section {
+    text-align: center;
+    margin: 0;
+    padding: 50px 0;
+    width: 100vw;
+    position: relative;
+    left: 50%;
+    right: 50%;
+    margin-left: -50vw;
+    margin-right: -50vw;
+    min-height: 300px;
+}
+
+.pixel-scene {
+    width: 100%;
+    min-height: 250px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.scene-image {
+    width: 100vw;
+    height: auto;
+    display: block;
+}
+
+/* Section connexion avec bordures pixelisées */
+.login-section {
+    display: flex;
+    justify-content: center;
+    margin: 50px auto;
+    padding: 20px;
+}
+
+.login-box {
+    background: #6f0883;
+    padding: 8px;
+    max-width: 500px;
+    width: 100%;
+    position: relative;
+    clip-path: polygon(
+        0 32px, 16px 32px, 16px 16px, 32px 16px, 32px 0,
+        calc(100% - 32px) 0, calc(100% - 32px) 16px, calc(100% - 16px) 16px, calc(100% - 16px) 32px, 100% 32px,
+        100% calc(100% - 32px), calc(100% - 16px) calc(100% - 32px), calc(100% - 16px) calc(100% - 16px), calc(100% - 32px) calc(100% - 16px), calc(100% - 32px) 100%,
+        32px 100%, 32px calc(100% - 16px), 16px calc(100% - 16px), 16px calc(100% - 32px), 0 calc(100% - 32px)
+    );
+}
+
+.login-box h2 {
+    text-align: center;
+    font-size: 3rem;
+    margin-bottom: 30px;
+}
+
+.login-box form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.input-field {
+    background: white;
+    border: 5px solid #7b07be;
+    padding: 15px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 2rem;
+    color: #000066;
+    clip-path: polygon(
+        0 4px, 2px 4px, 2px 2px, 4px 2px, 4px 0,
+        calc(100% - 4px) 0, calc(100% - 4px) 2px, calc(100% - 2px) 2px, calc(100% - 2px) 4px, 100% 4px,
+        100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%,
+        4px 100%, 4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px)
+    );
+}
+
+.btn-connect {
+    color: white;
+    padding: 15px 30px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 2rem;
+    cursor: pointer;
+    background: #00c010;
+    width: 80%;
+    align-self: center;
+    border: 7px solid #007c0a;
+    clip-path: polygon(
+        0 6px, 6px 6px, 6px 0,
+        calc(100% - 6px) 0, calc(100% - 6px) 6px, 100% 6px,
+        100% calc(100% - 6px), calc(100% - 6px) calc(100% - 6px), calc(100% - 6px) 100%,
+        6px 100%, 6px calc(100% - 6px), 0 calc(100% - 6px)
+    );
+}
+
+/* Responsive */
+
+@media (max-width: 768px) {
+    header {
+        flex-direction: column;
+        gap: 15px;
+        padding: 15px;
+    }
+    
+    .logo {
+        font-size: 24px;
+        padding: 10px 15px;
+        letter-spacing: 2px;
+    }
+    
+    .logo-container {
+        padding: 4px;
+    }
+    
+    .nav-menu {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 15px;
+        width: 100%;
+    }
+    
+    .nav-menu li {
+        flex: 1 1 auto;
+    }
+    
+    .nav-menu li a {
+        font-size: 16px;
+        padding: 10px 15px;
+        letter-spacing: 1px;
+        text-align: center;
+        display: block;
+    }
+    
+    .slogan-banner {
+        margin: 20px auto;
+        padding: 0 15px;
+    }
+    
+    .slogan-banner p {
+        font-size: 20px;
+        padding: 12px 20px;
+        letter-spacing: 1px;
+    }
+    
+    .hero-section {
+        padding: 30px 0;
+    }
+    
+    .scene-image {
+        width: 120vw;
+        margin-left: -10vw;
+    }
+    
+    .login-section {
+        margin: 30px auto;
+        padding: 15px;
+    }
+    
+    .login-box {
+        padding: 6px;
+        max-width: 100%;
+    }
+    
+    .login-box h2 {
+        font-size: 2rem;
+        margin-bottom: 20px;
+    }
+    
+    .input-field {
+        padding: 12px;
+        font-size: 1.4rem;
+        border: 3px solid #7b07be;
+    }
+    
+    .btn-connect {
+        padding: 12px 20px;
+        font-size: 1.4rem;
+        width: 100%;
+        border: 5px solid #007c0a;
+    }
+}
+
+@media (max-width: 480px) {
+    .logo {
+        font-size: 18px;
+        padding: 8px 12px;
+        letter-spacing: 1px;
+    }
+    
+    .nav-menu {
+        gap: 10px;
+    }
+    
+    .nav-menu li a {
+        font-size: 12px;
+        padding: 8px 12px;
+        letter-spacing: 0.5px;
+    }
+    
+    .slogan-banner p {
+        font-size: 14px;
+        padding: 10px 15px;
+    }
+    
+    .scene-image {
+        width: 130vw;
+        margin-left: -15vw;
+    }
+    
+    .login-box h2 {
+        font-size: 1.5rem;
+        margin-bottom: 15px;
+    }
+    
+    .input-field {
+        padding: 10px;
+        font-size: 1.1rem;
+    }
+    
+    .btn-connect {
+        padding: 10px 15px;
+        font-size: 1.1rem;
+    }
+}
