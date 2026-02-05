@@ -28,6 +28,9 @@ async function init() {
     canvas.height = map.level.length * TILE_SIZE;
   }
 
+  resize();
+  window.addEventListener("resize", resize);
+
   player = new Player(40, 100, TILE_SIZE, TILE_SIZE * 2, "black");
   player.x = 100;
   player.y = 100;
@@ -36,6 +39,26 @@ async function init() {
   window.addEventListener("keyup", (e) => (keys[e.key] = false));
 
   gameLoop();
+}
+
+function resize() {
+  const windowWidth = window.innerWidth;
+  const windowHeight = window.innerHeight;
+
+  const scale = Math.min(
+    windowWidth / canvas.width,
+    windowHeight / canvas.height,
+  );
+
+  canvas.style.width = `${canvas.width * scale}px`;
+  canvas.style.height = `${canvas.height * scale}px`;
+
+  // Center the canvas
+  canvas.style.position = "absolute";
+  canvas.style.left = "50%";
+  canvas.style.top = "50%";
+  canvas.style.transform = "translate(-50%, -50%)";
+  canvas.style.margin = "0";
 }
 
 function gameLoop() {
