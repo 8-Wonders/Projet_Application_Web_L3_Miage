@@ -12,10 +12,6 @@ export class Player {
     this.grounded = false;
   }
 
-  static new() {
-    return new Player(40, 100, 100, 100, "black");
-  }
-
   draw(ctx) {
     ctx.fillStyle = this.color;
     ctx.fillRect(this.x, this.y, this.w, this.h);

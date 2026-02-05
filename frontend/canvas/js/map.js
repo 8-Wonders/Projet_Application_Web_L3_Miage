@@ -6,13 +6,13 @@ export class Map {
     this.textures = textures;
 
     this.level = [];
-	this.isLoaded = false;
+    this.isLoaded = false;
   }
 
   async loadLevel(filePath) {
     try {
       const response = await fetch(filePath);
-      
+
       if (!response.ok) {
         throw new Error(`Failed to load level: ${response.statusText}`);
       }
@@ -20,7 +20,7 @@ export class Map {
       const csvText = await response.text();
       this.level = CSV.parse_csv_from_string(csvText);
       this.isLoaded = true;
-      
+
       console.log("Level loaded:", this.level);
     } catch (error) {
       console.error(error);
@@ -33,12 +33,12 @@ export class Map {
       for (let col = 0; col < this.level[row].length; col++) {
         const tileType = this.level[row][col];
         if (this.textures[tileType]) {
-           ctx.drawImage(
+          ctx.drawImage(
             this.textures[tileType],
             col * this.tileSize,
             row * this.tileSize,
             this.tileSize,
-            this.tileSize
+            this.tileSize,
           );
         }
       }
