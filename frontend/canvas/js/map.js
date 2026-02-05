@@ -1,5 +1,12 @@
 import * as CSV from "../../common/csv-parser.js";
 
+const tilesTypes = {
+  grass: 0,
+  stone: 1,
+  brick: 2,
+  water: 3,
+};
+
 export class Map {
   constructor(tileSize, textures) {
     this.tileSize = tileSize;
