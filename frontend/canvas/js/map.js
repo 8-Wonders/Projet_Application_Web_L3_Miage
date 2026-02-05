@@ -1,23 +1,31 @@
+import * as CSV from "../../common/csv-parser.js";
+
 export class Map {
   constructor(tileSize, textures) {
     this.tileSize = tileSize;
     this.textures = textures;
 
-    // 0 = Grass (Walkable), 1 = Wall (Solid), 2 = Water (Solid/Hazard), 3 = Stone (Solid)
-    this.level = [
-      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-      [1, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 1],
-      [1, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 3, 3, 0, 1],
-      [1, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 3, 3, 0, 1],
-      [1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-      [1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1],
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1],
-      [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-      [1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1],
-    ];
+    this.level = [];
+	this.isLoaded = false;
+  }
+
+  async loadLevel(filePath) {
+    try {
+      const response = await fetch(filePath);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to load level: ${response.statusText}`);
+      }
+
+      const csvText = await response.text();
+      this.level = CSV.parse_csv_from_string(csvText);
+      this.isLoaded = true;
+      
+      console.log("Level loaded:", this.level);
+    } catch (error) {
+      console.error(error);
+      // Fallback to default level if file fails?
+    }
   }
 
   draw(ctx) {

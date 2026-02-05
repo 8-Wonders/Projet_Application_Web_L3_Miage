@@ -23,8 +23,9 @@ async function init() {
   console.log("Assets loaded!");
 
   map = new Map(50, loadedTextures);
+  await map.loadLevel('assets/maps/01.csv');
+
   player = Player.new();
-  // Adjust player start position to be safe
   player.x = 100;
   player.y = 100;
 

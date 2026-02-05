@@ -13,7 +13,7 @@ export class Player {
   }
 
   static new() {
-    return new Player(40, 100, 30, 10, "black");
+    return new Player(40, 100, 100, 100, "black");
   }
 
   draw(ctx) {
