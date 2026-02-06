@@ -1,4 +1,5 @@
 import { Arrow } from "./arrow.js";
+import { handleMovement, handleAiming } from "./input.js";
 
 export class Player {
   constructor(x, y, w, h, color) {
@@ -35,9 +36,9 @@ export class Player {
   move(keys, map) {
     // 1. Handle Player State
     if (this.isAiming) {
-      this.handleAiming(keys);
+      handleAiming(this, keys);
     } else {
-      this.handleMovement(keys, map);
+      handleMovement(this, keys, map);
     }
 
     // 2. Handle Projectiles
@@ -85,77 +86,6 @@ export class Player {
     const startY = centerY + Math.sin(angle) * offset;
 
     this.arrows.push(new Arrow(startX, startY, angle));
-  }
-
-  handleMovement(keys, map) {
-    // Horizontal Move
-    if (keys["ArrowLeft"]) {
-      this.x -= this.speed;
-      this.facing = -1;
-    }
-    if (keys["ArrowRight"]) {
-      this.x += this.speed;
-      this.facing = 1;
-    }
-    this.checkCollision(map, "x");
-
-    // Jumping
-    if ((keys["ArrowUp"] || keys[" "]) && this.grounded) {
-      this.dy = -this.jumpStrength;
-      this.grounded = false;
-    }
-
-    // Vertical Physics
-    this.dy += this.gravity;
-    this.y += this.dy;
-    this.grounded = false;
-    this.checkCollision(map, "y");
-
-    // Floor Boundary
-    const mapHeight = map.level.length * map.tileSize;
-    if (this.y + this.h > mapHeight) {
-      this.y = mapHeight - this.h;
-      this.dy = 0;
-      this.grounded = true;
-    }
-  }
-
-  handleAiming(keys) {
-    // 1. Directional Snap (Left/Right)
-    if (keys["ArrowLeft"]) {
-      this.aimAngle = Math.PI;
-      this.facing = -1;
-    }
-    if (keys["ArrowRight"]) {
-      this.aimAngle = 0;
-      this.facing = 1;
-    }
-
-    // 2. Rotation (Up/Down)
-    const direction = this.facing === -1 ? -1 : 1;
-    let newAngle = this.aimAngle;
-
-    if (keys["ArrowUp"])   newAngle -= this.aimRotationSpeed * direction;
-    if (keys["ArrowDown"]) newAngle += this.aimRotationSpeed * direction;
-
-    // 3. Constraints (Clamp Angle)
-    let minAngle, maxAngle;
-
-    if (this.facing === 1) {
-      // Right Side: -90 (Up) to 90 (Down)
-      minAngle = -Math.PI / 2;
-      maxAngle = Math.PI / 2;
-    } else {
-      // Left Side: 90 (Down) to 270 (Up)
-      minAngle = Math.PI / 2;
-      maxAngle = (3 * Math.PI) / 2;
-    }
-
-    // Apply Clamp
-    if (newAngle < minAngle) newAngle = minAngle;
-    if (newAngle > maxAngle) newAngle = maxAngle;
-
-    this.aimAngle = newAngle;
   }
 
   // ============================

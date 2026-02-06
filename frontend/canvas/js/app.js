@@ -1,9 +1,9 @@
 import { Player } from "./player.js";
 import { Map } from "./map.js";
 import { AssetLoader } from "./assetLoader.js";
+import { keys, handleInput } from "./input.js";
 
 let canvas, ctx, player, map;
-const keys = {};
 
 async function init() {
   canvas = document.querySelector("canvas");
@@ -35,23 +35,7 @@ async function init() {
   resize();
   window.addEventListener("resize", resize);
 
-  window.addEventListener("keydown", (e) => (keys[e.key] = true));
-  window.addEventListener("keyup", (e) => (keys[e.key] = false));
-
-  window.addEventListener("keydown", (e) => {
-    keys[e.key] = true;
-
-    // NEW: Single trigger for shooting
-    if (e.key === "x" || e.key === "X") {
-	  if (player.isAiming == true) {
-        player.shoot();
-	  }
-    }
-
-	if (e.key === "t" || e.key === "T") {
-      player.toggleAim();
-    }
-  });
+  handleInput(player);
 
   gameLoop();
 }
