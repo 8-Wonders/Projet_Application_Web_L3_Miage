@@ -16,18 +16,16 @@ export class Player {
     this.facing = 1; 
     this.arrows = [];
 
-    // NEW: Aiming variables
+    // Aiming variables
     this.isAiming = false;
     this.aimAngle = 0; // Radians
-    this.aimRotationSpeed = 0.05; // Low number = "very controllable"
+    this.aimRotationSpeed = 0.05; 
   }
 
-  // NEW: Toggle function called by app.js
   toggleAim() {
     this.isAiming = !this.isAiming;
     
     // When entering aim mode, reset angle to current facing direction
-    // 0 is Right, Math.PI is Left
     if (this.isAiming) {
         this.aimAngle = this.facing === 1 ? 0 : Math.PI;
     }
@@ -40,36 +38,28 @@ export class Player {
     if(this.isAiming) ctx.fillStyle = "darkblue";
     ctx.fillRect(this.x, this.y, this.w, this.h);
 
-    // Draw Aim Line
-    const centerX = this.x + this.w / 2;
-    const centerY = this.y + this.h / 2;
-    const aimLength = 100;
-
-    // NEW: Calculate line end point
-    // If aiming, use aimAngle. If moving, use default facing.
-    let endX, endY;
-    
+    // CHANGED: Only draw the aim line if we are actually aiming
     if (this.isAiming) {
-        endX = centerX + Math.cos(this.aimAngle) * aimLength;
-        endY = centerY + Math.sin(this.aimAngle) * aimLength;
-    } else {
-        endX = centerX + (aimLength * this.facing);
-        endY = centerY;
-    }
+        const centerX = this.x + this.w / 2;
+        const centerY = this.y + this.h / 2;
+        const aimLength = 100;
 
-    ctx.beginPath();
-    ctx.strokeStyle = this.isAiming ? "red" : "gray"; // Red line when aiming
-    ctx.lineWidth = 2;
-    ctx.moveTo(centerX, centerY);
-    ctx.lineTo(endX, endY);
-    ctx.stroke();
+        const endX = centerX + Math.cos(this.aimAngle) * aimLength;
+        const endY = centerY + Math.sin(this.aimAngle) * aimLength;
+
+        ctx.beginPath();
+        ctx.strokeStyle = "red";
+        ctx.lineWidth = 2;
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+    }
 
     // Draw Arrows
     this.arrows.forEach(arrow => arrow.draw(ctx));
   }
 
   move(keys, map) {
-    // NEW: Branch logic based on state
     if (this.isAiming) {
         this.handleAiming(keys);
     } else {
@@ -78,33 +68,39 @@ export class Player {
 
     // Update Arrows (Always happens regardless of mode)
     const mapWidth = map.level[0].length * map.tileSize;
-    const mapHeight = map.level.length * map.tileSize; // Need height for arrow bounds
+    const mapHeight = map.level.length * map.tileSize; 
     
     this.arrows.forEach(arrow => arrow.update(mapWidth, mapHeight));
     this.arrows = this.arrows.filter(arrow => arrow.active);
   }
 
-  // NEW: Logic for Stationary Aiming
   handleAiming(keys) {
-    // Up moves angle Counter-Clockwise (Negative Radians)
+    // Determine if we are generally aiming Left or Right
+    // Cosine is negative on the left side (90 to 270 degrees)
+    const isFacingLeft = Math.cos(this.aimAngle) < 0;
+    
+    // If facing left, we invert the rotation direction so "Up" still moves the aim line Up
+    const direction = isFacingLeft ? -1 : 1;
+
+    // Up moves angle Counter-Clockwise (Negative Radians) normally
     if (keys["ArrowUp"]) {
-        this.aimAngle -= this.aimRotationSpeed;
+        this.aimAngle -= this.aimRotationSpeed * direction;
     }
-    // Down moves angle Clockwise (Positive Radians)
+    // Down moves angle Clockwise (Positive Radians) normally
     if (keys["ArrowDown"]) {
-        this.aimAngle += this.aimRotationSpeed;
+        this.aimAngle += this.aimRotationSpeed * direction;
     }
-    // Left moves angle towards PI
+    
+    // CHANGED: Left immediately points Left (PI)
     if (keys["ArrowLeft"]) {
-       this.aimAngle -= this.aimRotationSpeed; 
+       this.aimAngle = Math.PI; 
     }
-    // Right moves angle towards 0
+    // CHANGED: Right immediately points Right (0)
     if (keys["ArrowRight"]) {
-       this.aimAngle += this.aimRotationSpeed;
+       this.aimAngle = 0;
     }
   }
 
-  // Existing movement logic moved here
   handleMovement(keys, map) {
     if (keys["ArrowLeft"]) {
       this.x -= this.speed;
@@ -140,7 +136,6 @@ export class Player {
     const centerX = this.x + this.w / 2;
     const centerY = this.y + this.h / 2;
     
-    // Determine angle: precise aim if aiming, or generic direction if running
     let angle;
     if (this.isAiming) {
         angle = this.aimAngle;
@@ -148,7 +143,6 @@ export class Player {
         angle = this.facing === 1 ? 0 : Math.PI;
     }
 
-    // Spawn arrow slightly offset so it doesn't clip inside player immediately
     const startX = centerX + Math.cos(angle) * (this.w/1.5);
     const startY = centerY + Math.sin(angle) * (this.w/1.5);
     
@@ -156,7 +150,6 @@ export class Player {
   }
 
   checkCollision(map, axis) {
-    // ... (This function remains exactly the same as your original code)
     const startCol = Math.floor(this.x / map.tileSize);
     const endCol = Math.floor((this.x + this.w - 0.1) / map.tileSize);
     const startRow = Math.floor(this.y / map.tileSize);
