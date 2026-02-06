@@ -1,13 +1,20 @@
 export const keys = {};
 
-export function handleInput(player) {
+// Now accepts a FUNCTION that returns the current player object
+export function handleInput(getCurrentPlayer) {
   window.addEventListener("keydown", (e) => {
     keys[e.key] = true;
+
+    const player = getCurrentPlayer();
+
+    // Safety: ensure player exists and it's not a bot 
+    // (Bots handle their own shooting logic)
+    if (!player || player.constructor.name === "Bot") return;
 
     // Single trigger for shooting
     if (e.key === "x" || e.key === "X") {
       if (player.isAiming) {
-        player.shoot();
+        player.shoot(); // This sets player.hasFired = true
       }
     }
 
@@ -21,6 +28,7 @@ export function handleInput(player) {
   });
 }
 
+// ... handleMovement and handleAiming remain mostly the same ...
 export function handleMovement(player, keys, map) {
   // Horizontal Move
   if (keys["ArrowLeft"]) {
@@ -55,7 +63,8 @@ export function handleMovement(player, keys, map) {
 }
 
 export function handleAiming(player, keys) {
-  // Directional Snap (Left/Right)
+    // ... Copy content from original file, it is fine ...
+    // Directional Snap (Left/Right)
   if (keys["ArrowLeft"]) {
     player.aimAngle = Math.PI;
     player.facing = -1;
@@ -76,16 +85,13 @@ export function handleAiming(player, keys) {
   let minAngle, maxAngle;
 
   if (player.facing === 1) {
-    // Right Side: -90 (Up) to 90 (Down)
     minAngle = -Math.PI / 2;
     maxAngle = Math.PI / 2;
   } else {
-    // Left Side: 90 (Down) to 270 (Up)
     minAngle = Math.PI / 2;
     maxAngle = (3 * Math.PI) / 2;
   }
 
-  // Apply Clamp
   if (newAngle < minAngle) newAngle = minAngle;
   if (newAngle > maxAngle) newAngle = maxAngle;
 

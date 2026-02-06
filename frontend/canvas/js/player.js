@@ -19,6 +19,8 @@ export class Player {
     // State
     this.grounded = false;
     this.facing = 1; // 1 = Right, -1 = Left
+    this.turnActive = false; // Is it currently this player's turn?
+    this.hasFired = false; // Has the player shot this turn?
 
     // Aiming
     this.isAiming = false;
@@ -34,10 +36,18 @@ export class Player {
   // ============================
 
   move(keys, map) {
+    // Only allow control if it is this player's turn
+    if (!this.turnActive) {
+      this.updateArrows(map); // Still update physics for existing arrows
+      return;
+    }
+
     // 1. Handle Player State
     if (this.isAiming) {
       handleAiming(this, keys);
+      // While aiming, we do NOT call handleMovement (locks position)
     } else {
+      // Can only move if not aiming
       handleMovement(this, keys, map);
     }
 
@@ -47,11 +57,15 @@ export class Player {
 
   draw(ctx) {
     // Draw Player
-    ctx.fillStyle = this.isAiming ? "darkblue" : this.color;
+    // Change color if it is NOT this player's turn to indicate waiting
+    ctx.fillStyle = this.turnActive 
+      ? (this.isAiming ? "darkblue" : this.color) 
+      : "gray";
+    
     ctx.fillRect(this.x, this.y, this.w, this.h);
 
     // Draw UI/Effects
-    if (this.isAiming) {
+    if (this.isAiming && this.turnActive) {
       this.drawAimLine(ctx);
     }
 
@@ -63,7 +77,20 @@ export class Player {
   // INPUT HANDLERS
   // ============================
 
+  startTurn() {
+    this.turnActive = true;
+    this.hasFired = false;
+    this.isAiming = false;
+  }
+
+  endTurn() {
+    this.turnActive = false;
+    this.isAiming = false;
+  }
+
   toggleAim() {
+    if (!this.turnActive || this.hasFired) return;
+
     this.isAiming = !this.isAiming;
     if (this.isAiming) {
       // Reset angle to match direction immediately
@@ -72,6 +99,8 @@ export class Player {
   }
 
   shoot() {
+    if (!this.turnActive || this.hasFired) return false;
+
     const centerX = this.x + this.w / 2;
     const centerY = this.y + this.h / 2;
 
@@ -82,12 +111,17 @@ export class Player {
         ? 0
         : Math.PI;
 
-    // Spawn arrow slightly offset from center
     const offset = this.w / 1.5;
     const startX = centerX + Math.cos(angle) * offset;
     const startY = centerY + Math.sin(angle) * offset;
 
     this.arrows.push(new Arrow(startX, startY, angle));
+    
+    // Turn Logic: Shot fired, mark as done
+    this.hasFired = true;
+    this.isAiming = false; // Exit aiming state
+    
+    return true; // Signal that a shot occurred
   }
 
   // ============================
@@ -95,10 +129,7 @@ export class Player {
   // ============================
 
   updateArrows(map) {
-    // CHANGED: We now pass the entire 'map' object to the arrow
     this.arrows.forEach((arrow) => arrow.update(map));
-
-    // Remove inactive arrows
     this.arrows = this.arrows.filter((arrow) => arrow.active);
   }
 
@@ -129,21 +160,17 @@ export class Player {
         const tile = map.getTile(col, row);
         if (tile !== 0) {
           if (axis === "x") {
-            // Horizontal Collision
             if (this.x < col * map.tileSize) {
               this.x = col * map.tileSize - this.w;
             } else {
               this.x = (col + 1) * map.tileSize;
             }
           } else {
-            // Vertical Collision
             if (this.dy > 0) {
-              // Falling
               this.y = row * map.tileSize - this.h;
               this.dy = 0;
               this.grounded = true;
             } else if (this.dy < 0) {
-              // Jumping
               this.y = (row + 1) * map.tileSize;
               this.dy = 0;
             }
