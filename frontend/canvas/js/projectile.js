@@ -1,6 +1,6 @@
 import { tilesTypes } from "./map.js";
 
-export class Arrow {
+export class Projectile {
   // CHANGED: Constructor now takes an angle instead of direction
   constructor(x, y, angle) {
     this.x = x;
@@ -17,7 +17,7 @@ export class Arrow {
   }
 
   update(map) {
-    // 1. Move the arrow
+    // 1. Move the projectile
     this.x += this.vx;
     this.y += this.vy;
 
@@ -35,7 +35,7 @@ export class Arrow {
 
     // Check for Stone (1) or Brick (2)
     if (tileID === tilesTypes.stone || tileID === tilesTypes.brick) {
-      this.active = false; // Destroy arrow
+      this.active = false; // Destroy projectile
     }
 
     // 4. Deactivate if off-screen

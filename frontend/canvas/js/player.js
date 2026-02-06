@@ -1,4 +1,4 @@
-import { Arrow } from "./arrow.js";
+import { Projectile } from "./projectile.js";
 import { handleMovement, handleAiming } from "./input.js";
 
 export class Player {
@@ -28,7 +28,7 @@ export class Player {
     this.aimRotationSpeed = 0.05;
 
     // Entities
-    this.arrows = [];
+    this.projectiles = [];
   }
 
   // ============================
@@ -38,7 +38,7 @@ export class Player {
   move(keys, map) {
     // Only allow control if it is this player's turn
     if (!this.turnActive) {
-      this.updateArrows(map); // Still update physics for existing arrows
+      this.updateProjectiles(map); // Still update physics for existing projectiles
       return;
     }
 
@@ -52,7 +52,7 @@ export class Player {
     }
 
     // 2. Handle Projectiles
-    this.updateArrows(map);
+    this.updateProjectiles(map);
   }
 
   draw(ctx) {
@@ -70,7 +70,7 @@ export class Player {
     }
 
     // Draw Projectiles
-    this.arrows.forEach((arrow) => arrow.draw(ctx));
+    this.projectiles.forEach((p) => p.draw(ctx));
   }
 
   // ============================
@@ -115,7 +115,7 @@ export class Player {
     const startX = centerX + Math.cos(angle) * offset;
     const startY = centerY + Math.sin(angle) * offset;
 
-    this.arrows.push(new Arrow(startX, startY, angle));
+    this.projectiles.push(new Projectile(startX, startY, angle));
     
     // Turn Logic: Shot fired, mark as done
     this.hasFired = true;
@@ -128,9 +128,9 @@ export class Player {
   // HELPERS (Collision & Updates)
   // ============================
 
-  updateArrows(map) {
-    this.arrows.forEach((arrow) => arrow.update(map));
-    this.arrows = this.arrows.filter((arrow) => arrow.active);
+  updateProjectiles(map) {
+    this.projectiles.forEach((p) => p.update(map));
+    this.projectiles = this.projectiles.filter((p) => p.active);
   }
 
   drawAimLine(ctx) {

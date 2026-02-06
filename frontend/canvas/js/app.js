@@ -82,7 +82,7 @@ function gameLoop() {
   if (currentPlayer instanceof Bot) {
     // Bot Logic
     const turnEnded = currentPlayer.updateBotLogic(map);
-    // Even if bot logic runs, we must call move() to update physics/arrows
+    // Even if bot logic runs, we must call move() to update physics/projectiles
     currentPlayer.move({}, map); 
     if (turnEnded) nextTurn();
   } else {
@@ -92,7 +92,7 @@ function gameLoop() {
     
     // Check if human ended turn (fired shot)
     if (currentPlayer.hasFired) {
-       // Allow the arrow to spawn before switching immediately? 
+       // Allow the projectile to spawn before switching immediately? 
        // For this simple logic, we switch immediately.
        nextTurn();
     }
@@ -101,7 +101,7 @@ function gameLoop() {
   // Update projectiles for other players
   players.forEach(p => {
     if (p !== currentPlayer) {
-      p.updateArrows(map);
+      p.updateProjectiles(map);
     }
   });
 
