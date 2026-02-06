@@ -1,6 +1,6 @@
 import * as CSV from "../../common/csv-parser.js";
 
-const tilesTypes = {
+export const tilesTypes = {
   grass: 0,
   stone: 1,
   brick: 2,

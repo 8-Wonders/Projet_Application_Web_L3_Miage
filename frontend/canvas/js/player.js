@@ -93,10 +93,10 @@ export class Player {
   // ============================
 
   updateArrows(map) {
-    const mapWidth = map.level[0].length * map.tileSize;
-    const mapHeight = map.level.length * map.tileSize;
-
-    this.arrows.forEach((arrow) => arrow.update(mapWidth, mapHeight));
+    // CHANGED: We now pass the entire 'map' object to the arrow
+    this.arrows.forEach((arrow) => arrow.update(map));
+  
+    // Remove inactive arrows
     this.arrows = this.arrows.filter((arrow) => arrow.active);
   }
 
