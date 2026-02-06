@@ -2,10 +2,12 @@ import { tilesTypes } from "./map.js";
 
 export class Projectile {
   // CHANGED: Constructor now takes an angle instead of direction
-  constructor(x, y, angle) {
+  constructor(x, y, angle, owner, damage = 30) {
     this.x = x;
     this.y = y;
     this.angle = angle;
+    this.owner = owner;
+    this.damage = damage;
     this.speed = 10;
     this.width = 20;
     this.height = 4;
@@ -16,16 +18,16 @@ export class Projectile {
     this.vy = Math.sin(angle) * this.speed;
   }
 
-  update(map) {
-    // 1. Move the projectile
+  update(map, players) {
+    // Move the projectile
     this.x += this.vx;
     this.y += this.vy;
 
-    // 2. Calculate Map Boundaries (for off-screen check)
+    // Calculate Map Boundaries (for off-screen check)
     const mapWidth = map.level[0].length * map.tileSize;
     const mapHeight = map.level.length * map.tileSize;
 
-    // 3. CHECK TILE COLLISION
+    // CHECK TILE COLLISION
     // Convert pixel coordinates (x, y) to grid coordinates (col, row)
     const gridCol = Math.floor(this.x / map.tileSize);
     const gridRow = Math.floor(this.y / map.tileSize);
@@ -38,9 +40,26 @@ export class Projectile {
       this.active = false; // Destroy projectile
     }
 
-    // 4. Deactivate if off-screen
+    // Deactivate if off-screen
     if (this.x < 0 || this.x > mapWidth || this.y < 0 || this.y > mapHeight) {
       this.active = false;
+    }
+
+    // Check Player Collision
+    if (this.active && players) {
+      players.forEach((player) => {
+        if (player !== this.owner) {
+          if (
+            this.x < player.x + player.w &&
+            this.x + this.width > player.x &&
+            this.y < player.y + player.h &&
+            this.y + this.height > player.y
+          ) {
+            player.takeDamage(this.damage);
+            this.active = false;
+          }
+        }
+      });
     }
   }
 

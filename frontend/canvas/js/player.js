@@ -2,13 +2,18 @@ import { Projectile } from "./projectile.js";
 import { handleMovement, handleAiming } from "./input.js";
 
 export class Player {
-  constructor(x, y, w, h, color) {
+  constructor(x, y, w, h, color, health = 100) {
     // Physics & Dimensions
     this.x = x;
     this.y = y;
     this.w = w;
     this.h = h;
     this.color = color;
+
+    // Stats
+    this.health = health;
+    this.maxHealth = health;
+    this.damage = 30; // Base damage
 
     // Movement Stats
     this.speed = 5;
@@ -35,10 +40,10 @@ export class Player {
   // CORE LOOP (Update & Draw)
   // ============================
 
-  move(keys, map) {
+  move(keys, map, players) {
     // Only allow control if it is this player's turn
     if (!this.turnActive) {
-      this.updateProjectiles(map); // Still update physics for existing projectiles
+      this.updateProjectiles(map, players); // Still update physics for existing projectiles
       return;
     }
 
@@ -52,7 +57,7 @@ export class Player {
     }
 
     // 2. Handle Projectiles
-    this.updateProjectiles(map);
+    this.updateProjectiles(map, players);
   }
 
   draw(ctx) {
@@ -64,6 +69,8 @@ export class Player {
     
     ctx.fillRect(this.x, this.y, this.w, this.h);
 
+    this.drawHealthBar(ctx);
+
     // Draw UI/Effects
     if (this.isAiming && this.turnActive) {
       this.drawAimLine(ctx);
@@ -71,6 +78,33 @@ export class Player {
 
     // Draw Projectiles
     this.projectiles.forEach((p) => p.draw(ctx));
+  }
+
+  drawHealthBar(ctx) {
+    const barWidth = this.w;
+    const barHeight = 6;
+    const x = this.x;
+    const y = this.y - 15; // Position above character
+
+    // Background (Red/Empty)
+    ctx.fillStyle = "red";
+    ctx.fillRect(x, y, barWidth, barHeight);
+
+    // Foreground (Green/Health)
+    const healthPercent = Math.max(0, this.health / this.maxHealth);
+    ctx.fillStyle = "green";
+    ctx.fillRect(x, y, barWidth * healthPercent, barHeight);
+
+    // Border
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, barWidth, barHeight);
+  }
+
+  takeDamage(amount) {
+    this.health -= amount;
+    if (this.health < 0) this.health = 0;
+    console.log(`Player took ${amount} damage. Health: ${this.health}`);
   }
 
   // ============================
@@ -115,7 +149,7 @@ export class Player {
     const startX = centerX + Math.cos(angle) * offset;
     const startY = centerY + Math.sin(angle) * offset;
 
-    this.projectiles.push(new Projectile(startX, startY, angle));
+    this.projectiles.push(new Projectile(startX, startY, angle, this, this.damage));
     
     // Turn Logic: Shot fired, mark as done
     this.hasFired = true;
@@ -128,8 +162,8 @@ export class Player {
   // HELPERS (Collision & Updates)
   // ============================
 
-  updateProjectiles(map) {
-    this.projectiles.forEach((p) => p.update(map));
+  updateProjectiles(map, players) {
+    this.projectiles.forEach((p) => p.update(map, players));
     this.projectiles = this.projectiles.filter((p) => p.active);
   }
 

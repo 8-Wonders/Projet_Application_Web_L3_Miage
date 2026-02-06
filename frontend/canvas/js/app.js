@@ -32,9 +32,9 @@ async function init() {
   // --- CREATE PLAYERS ---
   const p1 = new Player(40, 100, TILE_SIZE, TILE_SIZE * 2, "black");
   const bot = new Bot(200, 100, TILE_SIZE, TILE_SIZE * 2, "red");
-  
+
   players = [p1, bot];
-  
+
   // Start with Player 1
   players[0].startTurn();
 
@@ -51,7 +51,10 @@ function resize() {
   /* ... same as before ... */
   const windowWidth = window.innerWidth;
   const windowHeight = window.innerHeight;
-  const scale = Math.min(windowWidth / canvas.width, windowHeight / canvas.height);
+  const scale = Math.min(
+    windowWidth / canvas.width,
+    windowHeight / canvas.height,
+  );
   canvas.style.width = `${canvas.width * scale}px`;
   canvas.style.height = `${canvas.height * scale}px`;
   canvas.style.position = "absolute";
@@ -81,32 +84,32 @@ function gameLoop() {
   // --- LOGIC ---
   if (currentPlayer instanceof Bot) {
     // Bot Logic
-    const turnEnded = currentPlayer.updateBotLogic(map);
+    const turnEnded = currentPlayer.updateBotLogic(map, players);
     // Even if bot logic runs, we must call move() to update physics/projectiles
-    currentPlayer.move({}, map); 
+    currentPlayer.move({}, map, players);
     if (turnEnded) nextTurn();
   } else {
     // Human Logic
     // We pass 'keys' to move. If shoot() was triggered in input, check status
-    currentPlayer.move(keys, map);
-    
+    currentPlayer.move(keys, map, players);
+
     // Check if human ended turn (fired shot)
     if (currentPlayer.hasFired) {
-       // Allow the projectile to spawn before switching immediately? 
-       // For this simple logic, we switch immediately.
-       nextTurn();
+      // Allow the projectile to spawn before switching immediately?
+      // For this simple logic, we switch immediately.
+      nextTurn();
     }
   }
 
   // Update projectiles for other players
-  players.forEach(p => {
+  players.forEach((p) => {
     if (p !== currentPlayer) {
-      p.updateProjectiles(map);
+      p.updateProjectiles(map, players);
     }
   });
 
   // Draw ALL players (even if not their turn)
-  players.forEach(p => p.draw(ctx));
+  players.forEach((p) => p.draw(ctx));
 
   requestAnimationFrame(gameLoop);
 }
