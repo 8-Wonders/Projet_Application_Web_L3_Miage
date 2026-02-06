@@ -98,6 +98,13 @@ function gameLoop() {
     }
   }
 
+  // Update projectiles for other players
+  players.forEach(p => {
+    if (p !== currentPlayer) {
+      p.updateArrows(map);
+    }
+  });
+
   // Draw ALL players (even if not their turn)
   players.forEach(p => p.draw(ctx));
 
