@@ -9,20 +9,20 @@ export class Player {
     this.w = w;
     this.h = h;
     this.color = color;
-    
+
     // Movement Stats
     this.speed = 5;
     this.jumpStrength = 15;
     this.gravity = 0.8;
     this.dy = 0;
-    
+
     // State
     this.grounded = false;
     this.facing = 1; // 1 = Right, -1 = Left
-    
+
     // Aiming
     this.isAiming = false;
-    this.aimAngle = 0; 
+    this.aimAngle = 0;
     this.aimRotationSpeed = 0.05;
 
     // Entities
@@ -76,9 +76,11 @@ export class Player {
     const centerY = this.y + this.h / 2;
 
     // Use aim angle if aiming, otherwise shoot straight
-    const angle = this.isAiming 
-        ? this.aimAngle 
-        : (this.facing === 1 ? 0 : Math.PI);
+    const angle = this.isAiming
+      ? this.aimAngle
+      : this.facing === 1
+        ? 0
+        : Math.PI;
 
     // Spawn arrow slightly offset from center
     const offset = this.w / 1.5;
@@ -95,7 +97,7 @@ export class Player {
   updateArrows(map) {
     // CHANGED: We now pass the entire 'map' object to the arrow
     this.arrows.forEach((arrow) => arrow.update(map));
-  
+
     // Remove inactive arrows
     this.arrows = this.arrows.filter((arrow) => arrow.active);
   }
@@ -135,11 +137,13 @@ export class Player {
             }
           } else {
             // Vertical Collision
-            if (this.dy > 0) { // Falling
+            if (this.dy > 0) {
+              // Falling
               this.y = row * map.tileSize - this.h;
               this.dy = 0;
               this.grounded = true;
-            } else if (this.dy < 0) { // Jumping
+            } else if (this.dy < 0) {
+              // Jumping
               this.y = (row + 1) * map.tileSize;
               this.dy = 0;
             }

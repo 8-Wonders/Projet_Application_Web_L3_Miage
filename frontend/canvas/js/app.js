@@ -11,7 +11,7 @@ async function init() {
 
   const loader = new AssetLoader();
   loader.addImage(0, "assets/grass.png");
-  loader.addImage(1, "assets/wall.png");
+  loader.addImage(1, "assets/brick.png");
   loader.addImage(2, "assets/water.png");
   loader.addImage(3, "assets/stone.png");
 
@@ -71,3 +71,4 @@ function gameLoop() {
 }
 
 window.onload = init;
+
