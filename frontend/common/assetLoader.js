@@ -15,8 +15,7 @@ export class AssetLoader {
     };
     img.onerror = () => {
       console.error(`Failed to load asset: ${key}`);
-      // Still count as "handled" to avoid hanging, or handle error differently
-      this.loaded++; 
+      this.loaded++;
     };
     this.assets[key] = img;
   }
@@ -29,7 +28,6 @@ export class AssetLoader {
     return this.assets[key];
   }
 
-  // Returns a promise that resolves when all assets are loaded
   loadAll() {
     return new Promise((resolve) => {
       const check = () => {

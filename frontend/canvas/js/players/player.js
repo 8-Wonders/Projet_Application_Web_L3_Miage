@@ -1,8 +1,9 @@
-import { Projectile } from "./projectile.js";
-import { handleMovement, handleAiming } from "./input.js";
+import { Projectile } from "../projectiles/projectile.js";
+import { handleMovement, handleAiming } from "../input.js";
+import { tilesTypes } from "../map.js";
 
 export class Player {
-  constructor(x, y, w, h, color, health = 100) {
+  constructor(x, y, w, h, color, health = 100, maxMovement = 300) {
     // Physics & Dimensions
     this.x = x;
     this.y = y;
@@ -17,9 +18,15 @@ export class Player {
 
     // Movement Stats
     this.speed = 5;
+    this.vx = 0; // Velocity X for recoil/inertia
     this.jumpStrength = 15;
     this.gravity = 0.8;
     this.dy = 0;
+    
+    // Movement Limits
+    this.maxMovement = maxMovement;
+    this.distTraveled = 0;
+    this.canMove = true;
 
     // State
     this.grounded = false;
@@ -41,19 +48,42 @@ export class Player {
   // ============================
 
   move(keys, map, players) {
+    // Apply recoil/inertia regardless of turn status
+    if (Math.abs(this.vx) > 0.1) {
+      this.x += this.vx;
+      this.vx *= 0.9; // Friction
+      this.checkCollision(map, "x");
+    } else {
+      this.vx = 0;
+    }
+
     // Only allow control if it is this player's turn
     if (!this.turnActive) {
-      this.updateProjectiles(map, players); // Still update physics for existing projectiles
+      // Apply gravity/physics even when not turn (e.g. falling after recoil)
+      handleMovement(this, {}, map);
+      this.updateProjectiles(map, players); 
       return;
     }
 
     // 1. Handle Player State
     if (this.isAiming) {
       handleAiming(this, keys);
-      // While aiming, we do NOT call handleMovement (locks position)
     } else {
-      // Can only move if not aiming
-      handleMovement(this, keys, map);
+      // Check if we can still move
+      if (this.canMove) {
+        // Pass map to handleMovement for standard input movement
+        const moved = handleMovement(this, keys, map);
+        this.distTraveled += moved;
+
+        if (this.distTraveled >= this.maxMovement) {
+          this.canMove = false;
+          this.toggleAim(); // Force Aim Mode
+        }
+      } else {
+        // Even if canMove is false, we need to apply gravity/physics (but no input movement)
+        // We pass empty keys so gravity applies but no walking
+        handleMovement(this, {}, map);
+      }
     }
 
     // 2. Handle Projectiles
@@ -62,14 +92,16 @@ export class Player {
 
   draw(ctx) {
     // Draw Player
-    // Change color if it is NOT this player's turn to indicate waiting
+    ctx.save();
     ctx.fillStyle = this.turnActive 
       ? (this.isAiming ? "darkblue" : this.color) 
       : "gray";
     
     ctx.fillRect(this.x, this.y, this.w, this.h);
+    ctx.restore();
 
     this.drawHealthBar(ctx);
+    this.drawMovementBar(ctx);
 
     // Draw UI/Effects
     if (this.isAiming && this.turnActive) {
@@ -81,30 +113,52 @@ export class Player {
   }
 
   drawHealthBar(ctx) {
+    ctx.save();
     const barWidth = this.w;
     const barHeight = 6;
     const x = this.x;
-    const y = this.y - 15; // Position above character
+    const y = this.y - 15;
 
-    // Background (Red/Empty)
     ctx.fillStyle = "red";
     ctx.fillRect(x, y, barWidth, barHeight);
 
-    // Foreground (Green/Health)
     const healthPercent = Math.max(0, this.health / this.maxHealth);
     ctx.fillStyle = "green";
     ctx.fillRect(x, y, barWidth * healthPercent, barHeight);
 
-    // Border
     ctx.strokeStyle = "black";
     ctx.lineWidth = 1;
     ctx.strokeRect(x, y, barWidth, barHeight);
+    ctx.restore();
+  }
+
+  drawMovementBar(ctx) {
+    if (!this.turnActive) return;
+
+    ctx.save();
+    const barWidth = this.w;
+    const barHeight = 4;
+    const x = this.x;
+    const y = this.y - 22; // Above health bar
+
+    ctx.fillStyle = "gray";
+    ctx.fillRect(x, y, barWidth, barHeight);
+
+    const movePercent = Math.max(0, (this.maxMovement - this.distTraveled) / this.maxMovement);
+    ctx.fillStyle = "cyan";
+    ctx.fillRect(x, y, barWidth * movePercent, barHeight);
+    ctx.restore();
   }
 
   takeDamage(amount) {
     this.health -= amount;
     if (this.health < 0) this.health = 0;
-    console.log(`Player took ${amount} damage. Health: ${this.health}`);
+  }
+  
+  applyKnockback(forceX, forceY) {
+    this.vx += forceX;
+    this.dy += forceY;
+    this.grounded = false; // Lift off ground
   }
 
   // ============================
@@ -115,6 +169,8 @@ export class Player {
     this.turnActive = true;
     this.hasFired = false;
     this.isAiming = false;
+    this.distTraveled = 0;
+    this.canMove = true;
   }
 
   endTurn() {
@@ -127,9 +183,12 @@ export class Player {
 
     this.isAiming = !this.isAiming;
     if (this.isAiming) {
-      // Reset angle to match direction immediately
       this.aimAngle = this.facing === 1 ? 0 : Math.PI;
     }
+  }
+
+  createProjectile(x, y, angle) {
+    return new Projectile(x, y, angle, this, this.damage);
   }
 
   shoot() {
@@ -138,7 +197,6 @@ export class Player {
     const centerX = this.x + this.w / 2;
     const centerY = this.y + this.h / 2;
 
-    // Use aim angle if aiming, otherwise shoot straight
     const angle = this.isAiming
       ? this.aimAngle
       : this.facing === 1
@@ -149,13 +207,12 @@ export class Player {
     const startX = centerX + Math.cos(angle) * offset;
     const startY = centerY + Math.sin(angle) * offset;
 
-    this.projectiles.push(new Projectile(startX, startY, angle, this, this.damage));
+    this.projectiles.push(this.createProjectile(startX, startY, angle));
     
-    // Turn Logic: Shot fired, mark as done
     this.hasFired = true;
-    this.isAiming = false; // Exit aiming state
+    this.isAiming = false;
     
-    return true; // Signal that a shot occurred
+    return true;
   }
 
   // ============================
@@ -168,6 +225,7 @@ export class Player {
   }
 
   drawAimLine(ctx) {
+    ctx.save();
     const centerX = this.x + this.w / 2;
     const centerY = this.y + this.h / 2;
     const aimLength = 100;
@@ -181,6 +239,7 @@ export class Player {
     ctx.moveTo(centerX, centerY);
     ctx.lineTo(endX, endY);
     ctx.stroke();
+    ctx.restore();
   }
 
   checkCollision(map, axis) {
@@ -192,6 +251,15 @@ export class Player {
     for (let row = startRow; row <= endRow; row++) {
       for (let col = startCol; col <= endCol; col++) {
         const tile = map.getTile(col, row);
+        
+        // Water Logic: Drowning (Instant Death)
+        // We use 'return' to skip physical collision response, 
+        // allowing the player to visually overlap with water while dying.
+        if (tile === tilesTypes.water) {
+            this.health = 0;
+            return;
+        }
+
         if (tile !== 0) {
           if (axis === "x") {
             if (this.x < col * map.tileSize) {

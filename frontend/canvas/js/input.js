@@ -3,6 +3,11 @@ export const keys = {};
 // Now accepts a FUNCTION that returns the current player object
 export function handleInput(getCurrentPlayer) {
   window.addEventListener("keydown", (e) => {
+    // Prevent default browser scrolling for game keys
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) {
+      e.preventDefault();
+    }
+
     keys[e.key] = true;
 
     const player = getCurrentPlayer();
@@ -30,15 +35,23 @@ export function handleInput(getCurrentPlayer) {
 
 // ... handleMovement and handleAiming remain mostly the same ...
 export function handleMovement(player, keys, map) {
+  let dx = 0;
+  
   // Horizontal Move
   if (keys["ArrowLeft"]) {
-    player.x -= player.speed;
+    dx = -player.speed;
     player.facing = -1;
   }
   if (keys["ArrowRight"]) {
-    player.x += player.speed;
+    dx = player.speed;
     player.facing = 1;
   }
+
+  // Apply movement
+  if (dx !== 0) {
+    player.x += dx;
+  }
+  
   player.checkCollision(map, "x");
 
   // Jumping
@@ -60,6 +73,9 @@ export function handleMovement(player, keys, map) {
     player.dy = 0;
     player.grounded = true;
   }
+
+  // Return distance traveled (absolute value of dx)
+  return Math.abs(dx);
 }
 
 export function handleAiming(player, keys) {

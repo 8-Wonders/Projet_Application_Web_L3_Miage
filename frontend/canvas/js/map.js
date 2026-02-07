@@ -2,9 +2,9 @@ import * as CSV from "../../common/csv-parser.js";
 
 export const tilesTypes = {
   grass: 0,
-  stone: 1,
-  brick: 2,
-  water: 3,
+  brick: 1,
+  water: 2,
+  stone: 3,
 };
 
 export class Map {
