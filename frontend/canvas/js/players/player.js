@@ -64,6 +64,11 @@ export class Player extends GraphicalObject {
     // 1. Handle Player State
     if (this.isAiming) {
       handleAiming(this, keys);
+
+      // FIX: Apply gravity while aiming.
+      // We pass empty keys {} so the player falls but does not walk/jump.
+      handleMovement(this, {}, map);
+
     } else {
       // Check if we can still move
       if (this.canMove) {
@@ -249,8 +254,6 @@ export class Player extends GraphicalObject {
         const tile = map.getTile(col, row);
         
         // Water Logic: Drowning (Instant Death)
-        // We use 'return' to skip physical collision response, 
-        // allowing the player to visually overlap with water while dying.
         if (tile === tilesTypes.water) {
             this.health = 0;
             return;
