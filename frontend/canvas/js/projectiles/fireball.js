@@ -2,29 +2,29 @@ import { Projectile } from "./projectile.js";
 
 export class Fireball extends Projectile {
   constructor(x, y, angle, owner) {
-    // 1. Imprecision: Add random deviation to the initial angle (+/- ~10 degrees)
-    const inaccuracy = (Math.random() - 0.5) * 0.3; 
-    super(x, y, angle + inaccuracy, owner, 40); // High damage
+    // Add random deviation to the initial angle
+    const inaccuracy = (Math.random() - 0.5) * 0.3;
+    super(x, y, angle + inaccuracy, owner, 40);
 
     this.width = 60;
     this.height = 60;
     this.color = "orange";
-    this.speed = 8; 
+    this.speed = 8;
 
     // Recalculate velocity based on the imprecise angle
     this.vx = Math.cos(this.angle) * this.speed;
     this.vy = Math.sin(this.angle) * this.speed;
-    
-    this.knockback = 2.0; 
-    
-    // 2. Little Reach: Limit the distance traveled (4 tiles = 4 * 50px)
-    this.maxDistance = 200; 
+
+    this.knockback = 4.0;
+
+    // Limit the distance traveled (4 tiles = 4 * 50px)
+    this.maxDistance = 200;
     this.traveled = 0;
   }
 
   updatePhysics() {
     // Add jitter/wobble during flight
-    const jitter = 4; 
+    const jitter = 4;
     this.y += (Math.random() - 0.5) * jitter;
     this.x += (Math.random() - 0.5) * jitter;
 
@@ -33,7 +33,6 @@ export class Fireball extends Projectile {
     this.y += this.vy;
 
     // Track distance
-    // (Approximation using speed is close enough for constant velocity)
     const step = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
     this.traveled += step;
 
@@ -47,11 +46,11 @@ export class Fireball extends Projectile {
     if (!this.active) return;
     ctx.save();
     ctx.translate(this.x, this.y);
-    
+
     // Draw Fireball (Circle)
     // Scale size down as it nears end of life
-    const lifeRatio = 1 - (this.traveled / this.maxDistance);
-    const scale = Math.max(0.5, lifeRatio); // Don't get too small
+    const lifeRatio = 1 - this.traveled / this.maxDistance;
+    const scale = Math.max(0.5, lifeRatio);
 
     ctx.scale(scale, scale);
 
