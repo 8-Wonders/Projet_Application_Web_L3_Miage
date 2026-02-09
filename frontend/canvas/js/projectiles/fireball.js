@@ -6,8 +6,7 @@ export class Fireball extends Projectile {
     const inaccuracy = (Math.random() - 0.5) * 0.3;
     super(x, y, angle + inaccuracy, owner, 40);
 
-    this.width = 60;
-    this.height = 60;
+    this.diameter = 30;
     this.color = "orange";
     this.speed = 8;
 
@@ -56,13 +55,13 @@ export class Fireball extends Projectile {
 
     ctx.fillStyle = "orange";
     ctx.beginPath();
-    ctx.arc(0, 0, 30, 0, Math.PI * 2);
+    ctx.arc(0, 0, this.diameter, 0, Math.PI * 2);
     ctx.fill();
 
     // Inner Core
     ctx.fillStyle = "yellow";
     ctx.beginPath();
-    ctx.arc(0, 0, 15, 0, Math.PI * 2);
+    ctx.arc(0, 0, this.diameter / 2, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
