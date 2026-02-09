@@ -1,15 +1,11 @@
 import { Projectile } from "../projectiles/projectile.js";
 import { handleMovement, handleAiming } from "../input.js";
 import { tilesTypes } from "../map.js";
+import { GraphicalObject } from "../graphical_object.js";
 
-export class Player {
-  constructor(x, y, w, h, color, health = 100, maxMovement = 300) {
-    // Physics & Dimensions
-    this.x = x;
-    this.y = y;
-    this.w = w;
-    this.h = h;
-    this.color = color;
+export class Player extends GraphicalObject {
+  constructor(x, y, width, height, color, health = 100, maxMovement = 300) {
+    super(x, y, width, height, color);
 
     // Stats
     this.health = health;
@@ -97,7 +93,7 @@ export class Player {
       ? (this.isAiming ? "darkblue" : this.color) 
       : "gray";
     
-    ctx.fillRect(this.x, this.y, this.w, this.h);
+    ctx.fillRect(this.x, this.y, this.width, this.height);
     ctx.restore();
 
     this.drawHealthBar(ctx);
@@ -114,7 +110,7 @@ export class Player {
 
   drawHealthBar(ctx) {
     ctx.save();
-    const barWidth = this.w;
+    const barWidth = this.width;
     const barHeight = 6;
     const x = this.x;
     const y = this.y - 15;
@@ -136,7 +132,7 @@ export class Player {
     if (!this.turnActive) return;
 
     ctx.save();
-    const barWidth = this.w;
+    const barWidth = this.width;
     const barHeight = 4;
     const x = this.x;
     const y = this.y - 22; // Above health bar
@@ -194,8 +190,8 @@ export class Player {
   shoot() {
     if (!this.turnActive || this.hasFired) return false;
 
-    const centerX = this.x + this.w / 2;
-    const centerY = this.y + this.h / 2;
+    const centerX = this.x + this.width / 2;
+    const centerY = this.y + this.height / 2;
 
     const angle = this.isAiming
       ? this.aimAngle
@@ -203,7 +199,7 @@ export class Player {
         ? 0
         : Math.PI;
 
-    const offset = this.w / 1.5;
+    const offset = this.width / 1.5;
     const startX = centerX + Math.cos(angle) * offset;
     const startY = centerY + Math.sin(angle) * offset;
 
@@ -226,8 +222,8 @@ export class Player {
 
   drawAimLine(ctx) {
     ctx.save();
-    const centerX = this.x + this.w / 2;
-    const centerY = this.y + this.h / 2;
+    const centerX = this.x + this.width / 2;
+    const centerY = this.y + this.height / 2;
     const aimLength = 100;
 
     const endX = centerX + Math.cos(this.aimAngle) * aimLength;
@@ -244,9 +240,9 @@ export class Player {
 
   checkCollision(map, axis) {
     const startCol = Math.floor(this.x / map.tileSize);
-    const endCol = Math.floor((this.x + this.w - 0.1) / map.tileSize);
+    const endCol = Math.floor((this.x + this.width - 0.1) / map.tileSize);
     const startRow = Math.floor(this.y / map.tileSize);
-    const endRow = Math.floor((this.y + this.h - 0.1) / map.tileSize);
+    const endRow = Math.floor((this.y + this.height - 0.1) / map.tileSize);
 
     for (let row = startRow; row <= endRow; row++) {
       for (let col = startCol; col <= endCol; col++) {
@@ -263,13 +259,13 @@ export class Player {
         if (tile !== 0) {
           if (axis === "x") {
             if (this.x < col * map.tileSize) {
-              this.x = col * map.tileSize - this.w;
+              this.x = col * map.tileSize - this.width;
             } else {
               this.x = (col + 1) * map.tileSize;
             }
           } else {
             if (this.dy > 0) {
-              this.y = row * map.tileSize - this.h;
+              this.y = row * map.tileSize - this.height;
               this.dy = 0;
               this.grounded = true;
             } else if (this.dy < 0) {

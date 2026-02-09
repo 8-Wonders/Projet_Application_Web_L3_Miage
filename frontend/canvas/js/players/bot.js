@@ -2,8 +2,8 @@ import { Player } from "./player.js";
 import { Arrow } from "../projectiles/arrow.js";
 
 export class Bot extends Player {
-  constructor(x, y, w, h) {
-    super(x, y, w, h, "red", 60, 200); // Less health
+  constructor(x, y, width, height) {
+    super(x, y, width, height, "red", 60, 200); // Less health
     this.damage = 15;
     this.timer = 0;
   }
@@ -37,10 +37,10 @@ export class Bot extends Player {
     }
 
     if (this.timer > 40 && this.timer < 100 && this.isAiming && target) {
-      const myCenterX = this.x + this.w / 2;
-      const myCenterY = this.y + this.h / 2;
-      const targetCenterX = target.x + target.w / 2;
-      const targetCenterY = target.y + target.h / 2;
+      const myCenterX = this.x + this.width / 2;
+      const myCenterY = this.y + this.height / 2;
+      const targetCenterX = target.x + target.width / 2;
+      const targetCenterY = target.y + target.height / 2;
 
       const dx = targetCenterX - myCenterX;
       // Account for gravity in aim (simple heuristic: aim slightly higher)

@@ -1,19 +1,16 @@
 import { tilesTypes } from "../map.js";
+import { GraphicalObject } from "../graphical_object.js";
 
-export class Projectile {
+export class Projectile extends GraphicalObject {
   constructor(x, y, angle, owner, damage = 30) {
-    this.x = x;
-    this.y = y;
+    super(x, y, 10, 10, "yellow");
     this.angle = angle;
     this.owner = owner;
     this.damage = damage;
     this.speed = 10;
-    this.width = 10;
-    this.height = 10;
     this.active = true;
     this.vx = Math.cos(angle) * this.speed;
     this.vy = Math.sin(angle) * this.speed;
-    this.color = "yellow";
     this.knockback = 0; // Default knockback
   }
 
@@ -53,9 +50,9 @@ export class Projectile {
     players.forEach((player) => {
       if (player !== this.owner && player.health > 0) {
         if (
-          this.x < player.x + player.w &&
+          this.x < player.x + player.width &&
           this.x + this.width > player.x &&
-          this.y < player.y + player.h &&
+          this.y < player.y + player.height &&
           this.y + this.height > player.y
         ) {
           player.takeDamage(this.damage);

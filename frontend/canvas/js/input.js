@@ -68,8 +68,8 @@ export function handleMovement(player, keys, map) {
 
   // Floor Boundary
   const mapHeight = map.level.length * map.tileSize;
-  if (player.y + player.h > mapHeight) {
-    player.y = mapHeight - player.h;
+  if (player.y + player.height > mapHeight) {
+    player.y = mapHeight - player.height;
     player.dy = 0;
     player.grounded = true;
   }
