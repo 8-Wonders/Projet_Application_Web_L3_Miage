@@ -25,7 +25,7 @@
 
     <!-- Bannière slogan -->
     <div class="slogan-banner">
-        <p>WELCOME TO EIGHT WONDERS!</p>
+        <p>BIENVENUE À EIGHT WONDERS!</p>
     </div>
 
     <!-- Section centrale avec scène pixel art -->
@@ -38,16 +38,18 @@
     <!-- Formulaire de connexion -->
     <section class="login-section">
         <div class="login-box">
-            <h2>CONNEXION</h2>
-            <form>
-                <input type="text" placeholder="NOM D'UTILISATEUR" class="input-field">
-                <input type="password" placeholder="MOT PASSE" class="input-field">
-                <button type="submit" class="btn-connect">SE CONNECTER</button>
-                  <button type="submit" class="btn-connect">CREER UN COMPTE</button>
+            <h2 id="form-title">CONNEXION</h2>
+            <form id="auth-form">
+                <input type="text" id="username" placeholder="NOM D'UTILISATEUR" class="input-field" required>
+                <input type="password" id="password" placeholder="MOT PASSE" class="input-field" required>
+                <button type="submit" id="btn-submit" class="btn-connect">SE CONNECTER</button>
+                <button type="button" id="btn-toggle" class="btn-connect">CREER UN COMPTE</button>
             </form>
+            <div id="message" class="message"></div>
         </div>
     </section>
 
+    <script src="js/auth.js"></script>
     <script src="js/script.js"></script>
 </body>
 </html>

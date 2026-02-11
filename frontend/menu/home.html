@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RetroArcade - Mon Profil</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <canvas id="random-checkerboard"></canvas>
+    <!-- Header avec logo et navigation -->
+    <header>
+        <div class="logo-container">
+            <h1 class="logo">RETROARCADE</h1>
+        </div>
+        <nav>
+            <ul class="nav-menu">
+                <li><a href="#accueil">ACCUEIL</a></li>
+                <li><a href="#jeux">JEUX</a></li>
+                <li><a href="#classement">CLASSEMENT</a></li>
+                <li><a href="#contact">CONTACT</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Bannière de bienvenue -->
+    <div class="slogan-banner">
+        <p id="welcome-message">BIENVENUE!</p>
+    </div>
+
+    <!-- Section description jeux -->
+    <div class="games-description">
+        <p id="games-description-text">TON UNIVERS DE JEUX T'ATTEND!</p>
+    </div>
+
+    <!-- Section profil utilisateur -->
+    <section class="profile-section">
+        <div class="profile-box">
+            <h2>TON PROFIL</h2>
+            
+            <div class="profile-content">
+                <div class="profile-avatar">
+                    <img id="profile-avatar" class="pixel-avatar" src="/assets/img/pdp/pdp1.png" alt="Avatar utilisateur">
+                    <div id="avatar-picker" class="avatar-picker"></div>
+                    <button id="btn-confirm-avatar" class="btn-connect avatar-confirm">CONFIRMER AVATAR</button>
+                </div>
+                
+                <div class="profile-stats">
+                    <div class="stat-item">
+                        <h3>MEILLEUR SCORE PAR JEU</h3>
+                        <div id="best-scores-list">
+                            <p>JEU 1: 0</p>
+                            <p>JEU 2: 0</p>
+                            <p>JEU 3: 0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-item">
+                        <h3>TEMPS DE JEU PAR JEU</h3>
+                        <div id="playtime-list">
+                            <p>JEU 1: 0H</p>
+                            <p>JEU 2: 0H</p>
+                            <p>JEU 3: 0H</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-item">
+                        <h3>JEUX DISPONIBLES</h3>
+                        <div id="platforms-list">
+                            <p>DOM</p>
+                            <p>CANVAS</p>
+                            <p>BABYLONE</p>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-actions">
+                        <input id="avatar-input" type="file" accept="image/*" style="display:none;">
+                        <button id="btn-change-avatar" class="btn-connect">CHANGER PHOTO</button>
+                        <div id="avatar-options" class="avatar-options">
+                            <button id="btn-choose-preset" class="btn-connect btn-option">CHOISIR AVATAR</button>
+                            <button id="btn-choose-upload" class="btn-connect btn-option">IMPORTER PHOTO</button>
+                        </div>
+                        <button id="btn-logout" class="btn-connect btn-logout-home">DECONNEXION</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script src="js/home.js"></script>
+    <script src="js/script.js"></script>
+</body>
+</html>
