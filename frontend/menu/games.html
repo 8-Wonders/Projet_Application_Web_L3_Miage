@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RetroArcade - Jeux</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <canvas id="random-checkerboard"></canvas>
+    <!-- Header avec logo et navigation -->
+    <header>
+        <div class="logo-container">
+            <h1 class="logo">RETROARCADE</h1>
+        </div>
+        <nav>
+            <ul class="nav-menu">
+                <li><a href="home.html">ACCUEIL</a></li>
+                <li><a href="games.html">JEUX</a></li>
+                <li><a href="#classement">CLASSEMENT</a></li>
+                <li><a href="#contact">CONTACT</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Bannière -->
+    <div class="slogan-banner">
+        <p>NOS JEUX</p>
+    </div>
+
+    <!-- Section description -->
+    <div class="games-description">
+        <p>DÉCOUVREZ NOS UNIVERS PIXELISÉS!</p>
+    </div>
+
+    <!-- Section jeux -->
+    <section class="games-section">
+        <div class="games-grid">
+            <!-- Jeu 1: Plateformes -->
+            <div class="game-card">
+                <div class="game-header">
+                    <h3>DOM</h3>
+                </div>
+                <div class="game-image">
+                    <img src="assets/img/gameicons/dom.png" alt="DOM" class="game-img">
+                </div>
+                <button class="btn-play" data-game="dom">JOUER</button>
+            </div>
+
+            <!-- Jeu 2: Arcade -->
+            <div class="game-card">
+                <div class="game-header">
+                    <h3>CANVAS</h3>
+                </div>
+                <div class="game-image">
+                    <img src="assets/img/gameicons/canvas.png" alt="CANVAS" class="game-img">
+                </div>
+                <button class="btn-play" data-game="canvas">JOUER</button>
+            </div>
+
+            <!-- Jeu 3: Arcade Spécial -->
+            <div class="game-card">
+                <div class="game-header">
+                    <h3>BABYLONE JS</h3>
+                </div>
+                <div class="game-image">
+                    <img src="assets/img/gameicons/babylone.png" alt="BABYLONE JS" class="game-img">
+                </div>
+                <button class="btn-play" data-game="babylone">JOUER</button>
+            </div>
+        </div>
+    </section>
+
+    <script src="js/games.js"></script>
+    <script src="js/script.js"></script>
+</body>
+</html>

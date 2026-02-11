@@ -101,4 +101,18 @@ window.addEventListener('load', () => {
     // Rediriger vers la page de profil
     window.location.href = 'home.html';
   }
+
+  // Gérer le lien JEUX - vérifier l'authentification
+  const navJeux = document.getElementById('nav-jeux');
+  if (navJeux) {
+    navJeux.addEventListener('click', (e) => {
+      e.preventDefault();
+      const token = localStorage.getItem('token');
+      if (token) {
+        window.location.href = 'games.html';
+      } else {
+        showMessage('Connectez-vous pour accéder aux jeux', 'error');
+      }
+    });
+  }
 });
