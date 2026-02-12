@@ -7,6 +7,11 @@ export class Arrow extends Projectile {
     this.height = 4;
     this.color = "brown";
     this.gravity = 0.25;
+    
+    // RANGE ADJUSTMENT
+    this.speed = 15; // Increased from 10 to ~15 to double the range
+    this.vx = Math.cos(angle) * this.speed;
+    this.vy = Math.sin(angle) * this.speed;
   }
 
   updatePhysics() {

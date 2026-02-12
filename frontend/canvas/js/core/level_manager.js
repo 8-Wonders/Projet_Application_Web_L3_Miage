@@ -2,6 +2,7 @@ import { Map } from "../map.js";
 import { Archer } from "../players/archer.js";
 import { Mage } from "../players/mage.js";
 import { Bot } from "../players/bot.js";
+import { Goblin } from "../players/goblin.js";
 
 export class LevelManager {
   constructor(loader, tileSize) {
@@ -34,7 +35,8 @@ export class LevelManager {
 
     // Specific logic for Level 2
     if (levelNum === 2) {
-      bots.push(new Bot(750, 100, this.tileSize, this.tileSize * 2));
+      // Replaced the second standard Bot with a Goblin
+      bots.push(new Goblin(750, 100, this.tileSize, this.tileSize * 2));
     }
 
     return [p1, ...bots];
