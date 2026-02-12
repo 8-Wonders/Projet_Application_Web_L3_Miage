@@ -94,12 +94,13 @@ export class Player extends GraphicalObject {
   draw(ctx) {
     // Draw Player
     ctx.save();
+    ctx.translate(this.x, this.y);
+    
     ctx.fillStyle = this.turnActive 
       ? (this.isAiming ? "darkblue" : this.color) 
       : "gray";
     
-    ctx.fillRect(this.x, this.y, this.width, this.height);
-    ctx.restore();
+    ctx.fillRect(0, 0, this.width, this.height);
 
     this.drawHealthBar(ctx);
     this.drawMovementBar(ctx);
@@ -108,6 +109,8 @@ export class Player extends GraphicalObject {
     if (this.isAiming && this.turnActive) {
       this.drawAimLine(ctx);
     }
+    
+    ctx.restore();
 
     // Draw Projectiles
     this.projectiles.forEach((p) => p.draw(ctx));
@@ -117,8 +120,8 @@ export class Player extends GraphicalObject {
     ctx.save();
     const barWidth = this.width;
     const barHeight = 6;
-    const x = this.x;
-    const y = this.y - 15;
+    const x = 0;
+    const y = -15;
 
     ctx.fillStyle = "red";
     ctx.fillRect(x, y, barWidth, barHeight);
@@ -139,8 +142,8 @@ export class Player extends GraphicalObject {
     ctx.save();
     const barWidth = this.width;
     const barHeight = 4;
-    const x = this.x;
-    const y = this.y - 22; // Above health bar
+    const x = 0;
+    const y = -22; // Above health bar
 
     ctx.fillStyle = "gray";
     ctx.fillRect(x, y, barWidth, barHeight);
@@ -227,8 +230,8 @@ export class Player extends GraphicalObject {
 
   drawAimLine(ctx) {
     ctx.save();
-    const centerX = this.x + this.width / 2;
-    const centerY = this.y + this.height / 2;
+    const centerX = this.width / 2;
+    const centerY = this.height / 2;
     const aimLength = 100;
 
     const endX = centerX + Math.cos(this.aimAngle) * aimLength;

@@ -9,8 +9,9 @@ export class GraphicalObject {
 
   draw(ctx) {
     ctx.save();
+    ctx.translate(this.x, this.y);
     ctx.fillStyle = this.color;
-    ctx.fillRect(this.x, this.y, this.width, this.height);
+    ctx.fillRect(0, 0, this.width, this.height);
     ctx.restore();
   }
 }

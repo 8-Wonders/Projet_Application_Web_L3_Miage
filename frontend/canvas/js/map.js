@@ -40,13 +40,16 @@ export class Map {
       for (let col = 0; col < this.level[row].length; col++) {
         const tileType = this.level[row][col];
         if (this.textures[tileType]) {
+          ctx.save();
+          ctx.translate(col * this.tileSize, row * this.tileSize);
           ctx.drawImage(
             this.textures[tileType],
-            col * this.tileSize,
-            row * this.tileSize,
+            0,
+            0,
             this.tileSize,
             this.tileSize,
           );
+          ctx.restore();
         }
       }
     }
