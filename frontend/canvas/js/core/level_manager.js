@@ -3,6 +3,7 @@ import { Archer } from "../players/archer.js";
 import { Mage } from "../players/mage.js";
 import { Bot } from "../players/bot.js";
 import { Goblin } from "../players/goblin.js";
+import { Dragon } from "../players/dragon.js";
 
 export class LevelManager {
   constructor(loader, tileSize) {
@@ -29,14 +30,20 @@ export class LevelManager {
 
     // 2. Create Bots
     const bots = [];
-    
-    // Default bot for all levels
-    bots.push(new Bot(600, 100, this.tileSize, this.tileSize * 2));
 
-    // Specific logic for Level 2
-    if (levelNum === 2) {
-      // Replaced the second standard Bot with a Goblin
-      bots.push(new Goblin(750, 100, this.tileSize, this.tileSize * 2));
+    if (levelNum === 3) {
+      // === LEVEL 3: DRAGON BOSS ===
+      // Spawns a single Dragon
+      bots.push(new Dragon(600, 100, this.tileSize, this.tileSize * 2));
+    } else {
+      // === LEVELS 1 & 2 ===
+      // Always add 1 Standard Bot
+      bots.push(new Bot(600, 100, this.tileSize, this.tileSize * 2));
+
+      // Level 2 adds a Goblin
+      if (levelNum === 2) {
+        bots.push(new Goblin(750, 100, this.tileSize, this.tileSize * 2));
+      }
     }
 
     return [p1, ...bots];

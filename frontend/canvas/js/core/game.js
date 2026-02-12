@@ -95,6 +95,15 @@ export class Game {
       }
       return null;
     });
+
+    // === CHEAT CODE: K to Skip to Level 3 ===
+    window.addEventListener("keydown", (e) => {
+        if ((e.key === "k" || e.key === "K") && this.currentState === GAME_STATE.PLAYING) {
+            console.log("Cheat activated: Skipping to Level 3...");
+            this.currentLevel = 3;
+            this.startLevel(3);
+        }
+    });
   }
 
   handleClick(e) {
@@ -173,7 +182,6 @@ export class Game {
             p.updateProjectiles(this.map, this.players);
             
             // Apply physics for inactive players (Knockback/Falling)
-            // If player is not grounded OR has velocity (from knockback), run physics.
             if (!p.grounded || Math.abs(p.vx) > 0.1) {
                  p.move({}, this.map, this.players);
             }
@@ -186,7 +194,8 @@ export class Game {
         this.currentState = GAME_STATE.GAME_OVER;
         this.resize(true);
     } else if (status === WIN_STATE.ALL_BOTS_DEAD) {
-        if (this.currentLevel < 2) {
+        // === CHANGED: Allow level 3 ===
+        if (this.currentLevel < 3) {
             this.currentLevel++;
             this.startLevel(this.currentLevel);
         } else {

@@ -37,6 +37,9 @@ export class Player extends GraphicalObject {
 
     // Entities
     this.projectiles = [];
+    
+    // === NEW: Status Effects System ===
+    this.statuses = [];
   }
 
   // ============================
@@ -64,15 +67,11 @@ export class Player extends GraphicalObject {
     // 1. Handle Player State
     if (this.isAiming) {
       handleAiming(this, keys);
-
-      // FIX: Apply gravity while aiming.
-      // We pass empty keys {} so the player falls but does not walk/jump.
-      handleMovement(this, {}, map);
-
+      // Apply gravity while aiming
+      handleMovement(this, {}, map); 
     } else {
       // Check if we can still move
       if (this.canMove) {
-        // Pass map to handleMovement for standard input movement
         const moved = handleMovement(this, keys, map);
         this.distTraveled += moved;
 
@@ -81,9 +80,8 @@ export class Player extends GraphicalObject {
           this.toggleAim(); // Force Aim Mode
         }
       } else {
-        // Even if canMove is false, we need to apply gravity/physics (but no input movement)
-        // We pass empty keys so gravity applies but no walking
-        handleMovement(this, {}, map);
+        // Apply gravity if move limit reached
+        handleMovement(this, {}, map); 
       }
     }
 
@@ -104,6 +102,9 @@ export class Player extends GraphicalObject {
 
     this.drawHealthBar(ctx);
     this.drawMovementBar(ctx);
+    
+    // === NEW: Draw Status Indicators ===
+    this.drawStatusEffects(ctx);
 
     // Draw UI/Effects
     if (this.isAiming && this.turnActive) {
@@ -153,6 +154,24 @@ export class Player extends GraphicalObject {
     ctx.fillRect(x, y, barWidth * movePercent, barHeight);
     ctx.restore();
   }
+  
+  // === NEW: Visual for Burning ===
+  drawStatusEffects(ctx) {
+    // Safety check to prevent crash if not initialized
+    if (!this.statuses) return;
+
+    if (this.statuses.some(s => s.type === "BURNING")) {
+        ctx.fillStyle = "orange";
+        ctx.beginPath();
+        // Draw a flame dot above the player
+        ctx.arc(this.width / 2, -32, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "red";
+        ctx.beginPath();
+        ctx.arc(this.width / 2, -32, 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+  }
 
   takeDamage(amount) {
     this.health -= amount;
@@ -165,6 +184,35 @@ export class Player extends GraphicalObject {
     this.grounded = false; // Lift off ground
   }
 
+  // === NEW: Status Logic ===
+  applyStatus(type, duration) {
+    // Initialize if missing (Crash Fix)
+    if (!this.statuses) this.statuses = [];
+
+    const existing = this.statuses.find(s => s.type === type);
+    if (existing) {
+        existing.duration = duration; // Refresh duration
+    } else {
+        this.statuses.push({ type, duration });
+    }
+  }
+
+  handleStatusEffects() {
+    // Initialize if missing (Crash Fix)
+    if (!this.statuses) this.statuses = [];
+
+    this.statuses.forEach(status => {
+        if (status.type === "BURNING") {
+            // Damage 10% of MAX health per turn
+            const burnDmg = Math.floor(this.maxHealth * 0.1);
+            this.takeDamage(burnDmg);
+            status.duration--;
+        }
+    });
+    // Remove expired effects
+    this.statuses = this.statuses.filter(s => s.duration > 0);
+  }
+
   // ============================
   // INPUT HANDLERS
   // ============================
@@ -175,6 +223,9 @@ export class Player extends GraphicalObject {
     this.isAiming = false;
     this.distTraveled = 0;
     this.canMove = true;
+    
+    // === NEW: Process Effects at start of turn ===
+    this.handleStatusEffects();
   }
 
   endTurn() {
