@@ -15,7 +15,7 @@ export class Player extends GraphicalObject {
     // Movement Stats
     this.speed = 5;
     this.vx = 0; // Velocity X for recoil/inertia
-    this.jumpStrength = 15;
+    this.jumpStrength = 17;
     this.gravity = 0.8;
     this.dy = 0;
     
