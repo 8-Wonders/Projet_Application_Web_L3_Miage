@@ -162,15 +162,20 @@ export class Game {
             this.turnManager.nextTurn();
         }
       }
+    } 
+    else if (currentPlayer && currentPlayer.health <= 0) {
+      this.turnManager.nextTurn();
     }
 
     // 2. Update Physics/Projectiles for everyone else
     this.players.forEach(p => {
         if (p !== currentPlayer) {
             p.updateProjectiles(this.map, this.players);
-            // Apply gravity if airborne (passing empty keys)
-            if (!p.grounded) {
-                 // p.move({}, this.map, this.players); // Optional: Enable for full physics
+            
+            // Apply physics for inactive players (Knockback/Falling)
+            // If player is not grounded OR has velocity (from knockback), run physics.
+            if (!p.grounded || Math.abs(p.vx) > 0.1) {
+                 p.move({}, this.map, this.players);
             }
         }
     });
