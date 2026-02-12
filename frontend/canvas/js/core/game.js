@@ -31,6 +31,11 @@ export class Game {
     this.selectedClass = null;
     this.players = [];
     this.map = null;
+    
+    // Timer
+    this.startTime = 0;
+    this.gameTime = 0; // in seconds
+    this.accumulatedTime = 0;
 
     // Bind loop
     this.loop = this.loop.bind(this);
@@ -134,6 +139,7 @@ export class Game {
   async startGame(playerClass) {
     this.selectedClass = playerClass;
     this.currentLevel = 1;
+    this.accumulatedTime = 0;
     await this.startLevel(this.currentLevel);
   }
 
@@ -149,12 +155,17 @@ export class Game {
         this.resize(false);
         this.players = this.levelManager.createEntities(levelNum, this.selectedClass);
         this.turnManager.reset();
+        this.startTime = Date.now();
         this.currentState = GAME_STATE.PLAYING;
     }, 2000);
   }
 
   update() {
     if (this.currentState !== GAME_STATE.PLAYING) return;
+    
+    // Update Timer
+    const currentLevelTime = Math.floor((Date.now() - this.startTime) / 1000);
+    const totalTime = this.accumulatedTime + currentLevelTime;
 
     const currentPlayer = this.turnManager.getCurrentPlayer();
 
@@ -196,6 +207,7 @@ export class Game {
     } else if (status === WIN_STATE.ALL_BOTS_DEAD) {
         // === CHANGED: Allow level 3 ===
         if (this.currentLevel < 3) {
+            this.accumulatedTime += currentLevelTime;
             this.currentLevel++;
             this.startLevel(this.currentLevel);
         } else {
@@ -207,6 +219,9 @@ export class Game {
 
   draw() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    const currentLevelTime = this.startTime > 0 ? Math.floor((Date.now() - this.startTime) / 1000) : 0;
+    const totalTime = this.accumulatedTime + currentLevelTime;
 
     switch (this.currentState) {
       case GAME_STATE.MENU:
@@ -226,7 +241,7 @@ export class Game {
         this.players.forEach(p => {
             if (p.health > 0) p.draw(this.ctx);
         });
-        this.ui.drawHUD(this.currentLevel);
+        this.ui.drawHUD(this.currentLevel, totalTime);
         break;
     }
   }

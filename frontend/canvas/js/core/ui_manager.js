@@ -116,13 +116,18 @@ export class UIManager {
     ctx.restore();
   }
 
-  drawHUD(level) {
-    this.ctx.save();
-    this.ctx.fillStyle = "white";
-    this.ctx.font = "bold 24px Arial";
-    this.ctx.textAlign = "left";
-    this.ctx.fillText(`Level ${level}`, 10, 30);
-    this.ctx.restore();
+  drawHUD(level, seconds = 0) {
+    const levelDiv = document.getElementById("level-indicator");
+    const timeDiv = document.getElementById("tmps");
+    
+    if (levelDiv) levelDiv.textContent = `Level: ${level}`;
+    
+    if (timeDiv) {
+        const minutes = Math.floor(seconds / 60);
+        const sec = seconds % 60;
+        const displayTime = `${minutes}: ${sec < 10 ? "0" + sec : sec}`;
+        timeDiv.textContent = `Temps : ${displayTime}`;
+    }
   }
 
   // --- Input Helpers ---
