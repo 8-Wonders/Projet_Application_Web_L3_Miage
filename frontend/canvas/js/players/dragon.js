@@ -8,10 +8,7 @@ export class Dragon extends Bot {
     this.name = "Dragon";
     this.maxHealth = 150; // Boss HP
     this.health = 150;
-  }
 
-  createProjectile(x, y, angle) {
-    // Breaths Fire (Short range, DoT)
-    return new DragonBreath(x, y, angle, this);
+    this.abilities = [DragonBreath];
   }
 }

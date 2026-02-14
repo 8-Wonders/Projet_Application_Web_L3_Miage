@@ -66,4 +66,26 @@ export class Arrow extends Projectile {
 
     ctx.restore();
   }
+
+  // Static method for UI rendering
+  static drawIcon(ctx, x, y, size) {
+    ctx.fillStyle = "#2a2a2a";
+    ctx.fillRect(x, y, size, size);
+
+    // Draw diagonal arrow
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + 5, y + size - 5);
+    ctx.lineTo(x + size - 5, y + 5);
+    ctx.stroke();
+
+    // Arrowhead
+    ctx.beginPath();
+    ctx.moveTo(x + size - 5, y + 5);
+    ctx.lineTo(x + size - 12, y + 5);
+    ctx.lineTo(x + size - 5, y + 12);
+    ctx.fillStyle = "white";
+    ctx.fill();
+  }
 }

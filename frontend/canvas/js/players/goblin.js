@@ -6,10 +6,7 @@ export class Goblin extends Bot {
     super(x, y, width, height);
     this.color = "#27AE60"; // Goblin Green
     this.name = "Goblin";
-  }
 
-  createProjectile(x, y, angle) {
-    // Throws Spears (Heavy gravity, high damage)
-    return new Spear(x, y, angle, this);
+    this.abilities = [Spear];
   }
 }

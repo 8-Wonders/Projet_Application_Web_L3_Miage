@@ -10,10 +10,8 @@ export class Bot extends Player {
     super(x, y, width, height, "red", 60, 200); // Lower stats than human
     this.damage = 15;
     this.timer = 0;
-  }
 
-  createProjectile(x, y, angle) {
-    return new Arrow(x, y, angle, this);
+    this.abilities = [Arrow];
   }
 
   /**

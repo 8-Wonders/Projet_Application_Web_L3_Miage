@@ -69,4 +69,21 @@ export class Fireball extends Projectile {
 
     ctx.restore();
   }
+
+  // Static method for UI rendering
+  static drawIcon(ctx, x, y, size) {
+    ctx.fillStyle = "darkred";
+    ctx.fillRect(x, y, size, size);
+
+    // Draw little fireball
+    ctx.fillStyle = "orange";
+    ctx.beginPath();
+    ctx.arc(x + size/2, y + size/2, size/3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.fillStyle = "yellow";
+    ctx.beginPath();
+    ctx.arc(x + size/2, y + size/2, size/6, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }

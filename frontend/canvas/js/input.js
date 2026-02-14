@@ -1,17 +1,23 @@
 // Tracks the current state of all keys (pressed = true)
 export const keys = {};
 
+// Tracks mouse state
+export const mouse = { x: 0, y: 0, isDown: false };
+
 // ==========================================
 //           EVENT LISTENERS
 // ==========================================
 
 /**
- * Sets up global event listeners for keyboard interaction.
+ * Sets up global event listeners for keyboard and mouse interaction.
  * @param {Function} getCurrentPlayer - Callback to retrieve the active player instance.
+ * @param {HTMLCanvasElement} canvas - Required to calculate mouse coordinates relative to game world.
  */
-export function handleInput(getCurrentPlayer) {
+export function handleInput(getCurrentPlayer, canvas) {
+  
+  // --- Keyboard ---
   window.addEventListener("keydown", (e) => {
-    // 1. Prevent browser scrolling when using Arrow Keys or Space
+    // 1. Prevent browser scrolling
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) {
       e.preventDefault();
     }
@@ -19,16 +25,15 @@ export function handleInput(getCurrentPlayer) {
     // 2. Mark key as pressed
     keys[e.key] = true;
 
-    // 3. Handle "One-Shot" actions (Triggered once per press, not held down)
+    // 3. Handle "One-Shot" actions
     const player = getCurrentPlayer();
     
-    // Safety check: specific logic for Human players only
     if (!player || player.constructor.name === "Bot") return;
 
-    // 'X': Shoot
+    // 'X': Shoot (Keyboard alternative)
     if (e.key === "x" || e.key === "X") {
       if (player.isAiming) {
-        player.shoot(); // Sets internal flag 'hasFired'
+        player.shoot(); 
       }
     }
 
@@ -36,57 +41,76 @@ export function handleInput(getCurrentPlayer) {
     if (e.key === "t" || e.key === "T") {
       player.toggleAim();
     }
+
+    // '1' - '9': Switch Projectile/Ability
+    const keyNum = parseInt(e.key);
+    if (!isNaN(keyNum) && keyNum > 0) {
+      player.switchAbility(keyNum - 1); 
+    }
   });
 
   window.addEventListener("keyup", (e) => {
     keys[e.key] = false;
   });
+
+  // --- Mouse ---
+  if (canvas) {
+    window.addEventListener("mousemove", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+
+      mouse.x = (e.clientX - rect.left) * scaleX;
+      mouse.y = (e.clientY - rect.top) * scaleY;
+    });
+
+    window.addEventListener("mousedown", (e) => {
+      mouse.isDown = true;
+      const player = getCurrentPlayer();
+      
+      // If player is aiming and clicks, trigger shoot
+      // (Useful for Teleporting via click)
+      if (player && player.isAiming && !player.hasFired && player.constructor.name !== "Bot") {
+        player.shoot(); 
+      }
+    });
+
+    window.addEventListener("mouseup", () => {
+      mouse.isDown = false;
+    });
+  }
 }
 
 // ==========================================
 //           CONTINUOUS LOGIC
 // ==========================================
 
-/**
- * processes movement physics and collisions.
- * Called every frame in the Game Loop.
- */
 export function handleMovement(player, keys, map) {
   let dx = 0;
   
-  // --- Horizontal Movement ---
   if (keys["ArrowLeft"]) {
     dx = -player.speed;
-    player.facing = -1; // Face Left
+    player.facing = -1; 
   }
   if (keys["ArrowRight"]) {
     dx = player.speed;
-    player.facing = 1;  // Face Right
+    player.facing = 1;  
   }
 
-  // Apply horizontal velocity
   if (dx !== 0) player.x += dx;
-  
-  // Check Wall Collisions (X-axis)
   player.checkCollision(map, "x");
 
-  // --- Vertical Physics (Jumping & Gravity) ---
-  
-  // Jump: Only if touching the ground
   if ((keys["ArrowUp"] || keys[" "]) && player.grounded) {
     player.dy = -player.jumpStrength;
     player.grounded = false;
   }
 
-  // Apply Gravity
   player.dy += player.gravity;
   player.y += player.dy;
-  player.grounded = false; // Assume in air until collision proves otherwise
+  player.grounded = false; 
   
-  // Check Floor/Ceiling Collisions (Y-axis)
   player.checkCollision(map, "y");
 
-  // Safety Net: Prevent falling off the bottom of the map
   const mapHeight = map.level.length * map.tileSize;
   if (player.y + player.height > mapHeight) {
     player.y = mapHeight - player.height;
@@ -94,42 +118,33 @@ export function handleMovement(player, keys, map) {
     player.grounded = true;
   }
 
-  return Math.abs(dx); // Return movement amount (useful for animations)
+  return Math.abs(dx); 
 }
 
-/**
- * Calculates the aiming angle based on arrow keys.
- * Clamps the angle so players can't aim behind themselves.
- */
 export function handleAiming(player, keys) {
-  // 1. Snap Direction (Immediate turn)
+  // 1. Snap Direction
   if (keys["ArrowLeft"]) {
-    player.aimAngle = Math.PI; // 180 degrees (Left)
+    player.aimAngle = Math.PI; 
     player.facing = -1;
   }
   if (keys["ArrowRight"]) {
-    player.aimAngle = 0;       // 0 degrees (Right)
+    player.aimAngle = 0;       
     player.facing = 1;
   }
 
-  // 2. Rotate Angle (Gradual adjustment)
-  // 'direction' flips logic so Up always rotates "upward" regardless of facing
+  // 2. Rotate Angle
   const direction = player.facing === -1 ? -1 : 1;
   let newAngle = player.aimAngle;
 
   if (keys["ArrowUp"]) newAngle -= player.aimRotationSpeed * direction;
   if (keys["ArrowDown"]) newAngle += player.aimRotationSpeed * direction;
 
-  // 3. Constrain Angle (Clamp)
-  // Prevents 360-degree spinning; limits aim to a forward cone
+  // 3. Constrain Angle
   let minAngle, maxAngle;
-
   if (player.facing === 1) {
-    // Facing Right: -90° to +90°
     minAngle = -Math.PI / 2;
     maxAngle = Math.PI / 2;
   } else {
-    // Facing Left: 90° to 270°
     minAngle = Math.PI / 2;
     maxAngle = (3 * Math.PI) / 2;
   }

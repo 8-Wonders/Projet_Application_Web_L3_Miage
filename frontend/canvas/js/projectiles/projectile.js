@@ -115,4 +115,16 @@ export class Projectile extends GraphicalObject {
     
     ctx.restore();
   }
+
+  /**
+   * Static method to draw an icon for the UI.
+   * Meant to be overridden by subclasses for custom icons.
+   */
+  static drawIcon(ctx, x, y, size) {
+    // Default: simple yellow box
+    ctx.fillStyle = "#333";
+    ctx.fillRect(x, y, size, size);
+    ctx.fillStyle = "yellow";
+    ctx.fillRect(x + size/4, y + size/4, size/2, size/2);
+  }
 }

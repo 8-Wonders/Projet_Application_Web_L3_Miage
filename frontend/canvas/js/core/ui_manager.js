@@ -136,7 +136,6 @@ export class UIManager {
 
   /**
    * Updates HTML DOM elements for HUD.
-   * NOTE: Relies on existence of 'level-indicator' and 'tmps' IDs in HTML.
    */
   drawHUD(level, seconds = 0) {
     const levelDiv = document.getElementById("level-indicator");
@@ -150,6 +149,61 @@ export class UIManager {
         const displayTime = `${minutes}: ${sec < 10 ? "0" + sec : sec}`;
         timeDiv.textContent = `Temps : ${displayTime}`;
     }
+  }
+
+  /**
+   * Draws the loadout (available projectiles) at the top right.
+   * @param {Player} player - The active player to show stats for.
+   */
+  drawLoadout(player) {
+    if (!player || !player.abilities) return;
+
+    const { ctx, canvas } = this;
+    const boxSize = 50;
+    const padding = 10;
+    const startX = canvas.width - (boxSize * player.abilities.length) - (padding * (player.abilities.length + 1));
+    const startY = 10;
+
+    ctx.save();
+    ctx.font = "bold 14px Arial";
+    
+    player.abilities.forEach((AbilityClass, index) => {
+        const x = startX + (index * (boxSize + padding));
+        const y = startY;
+
+        // 1. Selection Highlight (Yellow border) vs Standard (Gray)
+        if (index === player.abilityIndex) {
+            ctx.fillStyle = "rgba(255, 255, 0, 0.3)"; // Translucent yellow
+            ctx.strokeStyle = "gold";
+            ctx.lineWidth = 3;
+        } else {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+            ctx.strokeStyle = "gray";
+            ctx.lineWidth = 1;
+        }
+
+        // 2. Background Box
+        ctx.fillRect(x, y, boxSize, boxSize);
+        ctx.strokeRect(x, y, boxSize, boxSize);
+
+        // 3. Hotkey Number
+        ctx.fillStyle = "white";
+        ctx.textAlign = "left";
+        ctx.fillText(index + 1, x + 3, y + 15);
+
+        // 4. Draw Icon
+        // Uses static method on the projectile class if it exists
+        if (AbilityClass.drawIcon) {
+            AbilityClass.drawIcon(ctx, x + 10, y + 15, 30);
+        } else {
+            // Fallback text
+            ctx.fillStyle = "white";
+            ctx.font = "10px Arial";
+            ctx.fillText("?", x + 20, y + 30);
+        }
+    });
+
+    ctx.restore();
   }
 
   _drawGenericButton(x, y, w, h, text, color, strokeColor) {
