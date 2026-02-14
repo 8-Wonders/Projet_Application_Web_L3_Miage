@@ -1,58 +1,65 @@
 import { Bot } from "../players/bot.js";
 
 export const WIN_STATE = {
-  NONE: 0,
+  PLAYING: 0,
   PLAYER_DIED: 1,
-  ALL_BOTS_DEAD: 2,
+  VICTORY: 2,
 };
 
 export class TurnManager {
-  constructor(game) {
-    this.game = game; // Reference to main game for accessing players
+  constructor() {
     this.turnIndex = 0;
   }
 
   reset() {
     this.turnIndex = 0;
-    if (this.game.players.length > 0) {
-        this.game.players[0].startTurn();
-    }
   }
 
-  getCurrentPlayer() {
-    if (!this.game.players || this.game.players.length === 0) return null;
-    return this.game.players[this.turnIndex];
+  getCurrentPlayer(players) {
+    if (!players || players.length === 0) return null;
+    return players[this.turnIndex];
   }
 
-  nextTurn() {
-    const players = this.game.players;
-    players[this.turnIndex].endTurn();
+  /**
+   * Advances to the next living player.
+   * Returns the new current player.
+   */
+  nextTurn(players) {
+    if (!players || players.length === 0) return null;
 
-    // Loop until we find a living player
-    let loops = 0;
+    // End current player's turn
+    const current = players[this.turnIndex];
+    if (current) current.endTurn();
+
+    // Cycle until we find a living player
+    let attempts = 0;
     do {
       this.turnIndex = (this.turnIndex + 1) % players.length;
-      loops++;
-    } while (players[this.turnIndex].health <= 0 && loops < players.length);
+      attempts++;
+    } while (players[this.turnIndex].health <= 0 && attempts < players.length);
 
-    players[this.turnIndex].startTurn();
+    // Start next turn
+    const nextPlayer = players[this.turnIndex];
+    if (nextPlayer && nextPlayer.health > 0) {
+        nextPlayer.startTurn();
+    }
+    
+    return nextPlayer;
   }
 
-  checkWinStatus() {
-    const players = this.game.players;
-    const p1 = players[0]; // Assuming P1 is always index 0
-
-    // 1. Human Died
-    if (p1.health <= 0) {
+  checkGameState(players) {
+    // 1. Check Human (Assuming Player is always index 0)
+    const player = players[0];
+    if (!player || player.health <= 0) {
       return WIN_STATE.PLAYER_DIED;
     }
 
     // 2. Check Bots
-    const activeBots = players.filter((p) => p instanceof Bot && p.health > 0);
-    if (activeBots.length === 0) {
-      return WIN_STATE.ALL_BOTS_DEAD;
+    const hasLivingBots = players.some(p => p instanceof Bot && p.health > 0);
+    if (!hasLivingBots) {
+      return WIN_STATE.VICTORY;
     }
 
-    return WIN_STATE.NONE;
+    return WIN_STATE.PLAYING;
   }
 }
