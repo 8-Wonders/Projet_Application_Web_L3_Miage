@@ -6,12 +6,16 @@ import { Goblin } from "../players/goblin.js";
 import { Dragon } from "../players/dragon.js";
 import { getLevelConfig } from "./levels.js";
 
+/**
+ * Handles loading map files and creating entity instances (Players/Enemies).
+ */
 export class LevelManager {
   constructor(loader, tileSize) {
     this.loader = loader;
     this.tileSize = tileSize;
     
-    // Entity Factory Mapping
+    // Entity Factory Registry
+    // Maps string keys from levels.js to actual Class constructors
     this.enemyTypes = {
       bot: Bot,
       goblin: Goblin,
@@ -19,6 +23,9 @@ export class LevelManager {
     };
   }
 
+  /**
+   * Loads the map data for a specific level ID.
+   */
   async loadLevelMap(levelNum) {
     const config = getLevelConfig(levelNum);
     if (!config) {
@@ -26,28 +33,38 @@ export class LevelManager {
       return null;
     }
 
-    // Load the specific map file defined in config
+    // Initialize Map with loaded assets
     this.map = new Map(this.tileSize, await this.loader.loadAll());
     await this.map.loadLevel(config.mapFile);
     return this.map;
   }
 
+  /**
+   * Spawns the Main Player and all Enemies defined in the level config.
+   */
   createEntities(levelNum, playerClass) {
     const config = getLevelConfig(levelNum);
     if (!config) return [];
 
     const entities = [];
 
-    // 1. Create Player
+    // 1. Spawn Human Player
     const p1 = this._createPlayer(playerClass);
     entities.push(p1);
 
-    // 2. Create Enemies from Config
+    // 2. Spawn Enemies from Config
     config.enemies.forEach(enemyData => {
       const EnemyClass = this.enemyTypes[enemyData.type];
+      
       if (EnemyClass) {
-        // Standard entity constructor signature: x, y, tileSize, height
-        entities.push(new EnemyClass(enemyData.x, enemyData.y, this.tileSize, this.tileSize * 2));
+        // Standard entity constructor: x, y, tileSize, height
+        const enemy = new EnemyClass(
+            enemyData.x, 
+            enemyData.y, 
+            this.tileSize, 
+            this.tileSize * 2
+        );
+        entities.push(enemy);
       } else {
         console.warn(`Unknown enemy type: ${enemyData.type}`);
       }
@@ -56,14 +73,18 @@ export class LevelManager {
     return entities;
   }
 
+  /**
+   * Factory method for the Human Player.
+   */
   _createPlayer(className) {
-    // Default player spawn coords
-    const x = 40;
-    const y = 100;
+    // Default start position for the human player
+    const startX = 40;
+    const startY = 100;
+    const height = this.tileSize * 2;
     
     if (className === "archer") {
-      return new Archer(x, y, this.tileSize, this.tileSize * 2);
+      return new Archer(startX, startY, this.tileSize, height);
     } 
-    return new Mage(x, y, this.tileSize, this.tileSize * 2);
+    return new Mage(startX, startY, this.tileSize, height);
   }
 }

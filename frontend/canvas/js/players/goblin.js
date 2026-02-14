@@ -9,6 +9,7 @@ export class Goblin extends Bot {
   }
 
   createProjectile(x, y, angle) {
+    // Throws Spears (Heavy gravity, high damage)
     return new Spear(x, y, angle, this);
   }
 }

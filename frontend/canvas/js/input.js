@@ -1,28 +1,38 @@
+// Tracks the current state of all keys (pressed = true)
 export const keys = {};
 
-// Now accepts a FUNCTION that returns the current player object
+// ==========================================
+//           EVENT LISTENERS
+// ==========================================
+
+/**
+ * Sets up global event listeners for keyboard interaction.
+ * @param {Function} getCurrentPlayer - Callback to retrieve the active player instance.
+ */
 export function handleInput(getCurrentPlayer) {
   window.addEventListener("keydown", (e) => {
-    // Prevent default browser scrolling for game keys
+    // 1. Prevent browser scrolling when using Arrow Keys or Space
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) {
       e.preventDefault();
     }
 
+    // 2. Mark key as pressed
     keys[e.key] = true;
 
+    // 3. Handle "One-Shot" actions (Triggered once per press, not held down)
     const player = getCurrentPlayer();
-
-    // Safety: ensure player exists and it's not a bot 
-    // (Bots handle their own shooting logic)
+    
+    // Safety check: specific logic for Human players only
     if (!player || player.constructor.name === "Bot") return;
 
-    // Single trigger for shooting
+    // 'X': Shoot
     if (e.key === "x" || e.key === "X") {
       if (player.isAiming) {
-        player.shoot(); // This sets player.hasFired = true
+        player.shoot(); // Sets internal flag 'hasFired'
       }
     }
 
+    // 'T': Toggle Aim Mode
     if (e.key === "t" || e.key === "T") {
       player.toggleAim();
     }
@@ -33,40 +43,50 @@ export function handleInput(getCurrentPlayer) {
   });
 }
 
-// ... handleMovement and handleAiming remain mostly the same ...
+// ==========================================
+//           CONTINUOUS LOGIC
+// ==========================================
+
+/**
+ * processes movement physics and collisions.
+ * Called every frame in the Game Loop.
+ */
 export function handleMovement(player, keys, map) {
   let dx = 0;
   
-  // Horizontal Move
+  // --- Horizontal Movement ---
   if (keys["ArrowLeft"]) {
     dx = -player.speed;
-    player.facing = -1;
+    player.facing = -1; // Face Left
   }
   if (keys["ArrowRight"]) {
     dx = player.speed;
-    player.facing = 1;
+    player.facing = 1;  // Face Right
   }
 
-  // Apply movement
-  if (dx !== 0) {
-    player.x += dx;
-  }
+  // Apply horizontal velocity
+  if (dx !== 0) player.x += dx;
   
+  // Check Wall Collisions (X-axis)
   player.checkCollision(map, "x");
 
-  // Jumping
+  // --- Vertical Physics (Jumping & Gravity) ---
+  
+  // Jump: Only if touching the ground
   if ((keys["ArrowUp"] || keys[" "]) && player.grounded) {
     player.dy = -player.jumpStrength;
     player.grounded = false;
   }
 
-  // Vertical Physics
+  // Apply Gravity
   player.dy += player.gravity;
   player.y += player.dy;
-  player.grounded = false;
+  player.grounded = false; // Assume in air until collision proves otherwise
+  
+  // Check Floor/Ceiling Collisions (Y-axis)
   player.checkCollision(map, "y");
 
-  // Floor Boundary
+  // Safety Net: Prevent falling off the bottom of the map
   const mapHeight = map.level.length * map.tileSize;
   if (player.y + player.height > mapHeight) {
     player.y = mapHeight - player.height;
@@ -74,36 +94,42 @@ export function handleMovement(player, keys, map) {
     player.grounded = true;
   }
 
-  // Return distance traveled (absolute value of dx)
-  return Math.abs(dx);
+  return Math.abs(dx); // Return movement amount (useful for animations)
 }
 
+/**
+ * Calculates the aiming angle based on arrow keys.
+ * Clamps the angle so players can't aim behind themselves.
+ */
 export function handleAiming(player, keys) {
-    // ... Copy content from original file, it is fine ...
-    // Directional Snap (Left/Right)
+  // 1. Snap Direction (Immediate turn)
   if (keys["ArrowLeft"]) {
-    player.aimAngle = Math.PI;
+    player.aimAngle = Math.PI; // 180 degrees (Left)
     player.facing = -1;
   }
   if (keys["ArrowRight"]) {
-    player.aimAngle = 0;
+    player.aimAngle = 0;       // 0 degrees (Right)
     player.facing = 1;
   }
 
-  // Rotation (Up/Down)
+  // 2. Rotate Angle (Gradual adjustment)
+  // 'direction' flips logic so Up always rotates "upward" regardless of facing
   const direction = player.facing === -1 ? -1 : 1;
   let newAngle = player.aimAngle;
 
   if (keys["ArrowUp"]) newAngle -= player.aimRotationSpeed * direction;
   if (keys["ArrowDown"]) newAngle += player.aimRotationSpeed * direction;
 
-  // Constraints (Clamp Angle)
+  // 3. Constrain Angle (Clamp)
+  // Prevents 360-degree spinning; limits aim to a forward cone
   let minAngle, maxAngle;
 
   if (player.facing === 1) {
+    // Facing Right: -90° to +90°
     minAngle = -Math.PI / 2;
     maxAngle = Math.PI / 2;
   } else {
+    // Facing Left: 90° to 270°
     minAngle = Math.PI / 2;
     maxAngle = (3 * Math.PI) / 2;
   }

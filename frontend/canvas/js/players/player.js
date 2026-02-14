@@ -3,167 +3,170 @@ import { handleMovement, handleAiming } from "../input.js";
 import { tilesTypes } from "../map.js";
 import { GraphicalObject } from "../graphical_object.js";
 
+/**
+ * Core entity class. Handles physics, turn management, and rendering.
+ * Inherited by specific classes like Archer, Mage, and Bot.
+ */
 export class Player extends GraphicalObject {
   constructor(x, y, width, height, color, health = 100, maxMovement = 300) {
     super(x, y, width, height, color);
 
-    // Stats
+    // --- Stats ---
     this.health = health;
     this.maxHealth = health;
-    this.damage = 30; // Base damage
+    this.damage = 30; 
 
-    // Movement Stats
+    // --- Physics ---
     this.speed = 5;
-    this.vx = 0; // Velocity X for recoil/inertia
+    this.vx = 0; // Horizontal inertia (for recoil/knockback)
+    this.dy = 0; // Vertical velocity
     this.jumpStrength = 17;
     this.gravity = 0.8;
-    this.dy = 0;
-    
-    // Movement Limits
-    this.maxMovement = maxMovement;
+    this.grounded = false; // Is touching floor?
+
+    // --- Turn Constraints ---
+    this.maxMovement = maxMovement; // Max pixels traversable per turn
     this.distTraveled = 0;
     this.canMove = true;
-
-    // State
-    this.grounded = false;
-    this.facing = 1; // 1 = Right, -1 = Left
     this.turnActive = false; // Is it currently this player's turn?
-    this.hasFired = false; // Has the player shot this turn?
+    this.hasFired = false;   // Turn ends after firing
 
-    // Aiming
+    // --- Aiming ---
+    this.facing = 1; // 1 = Right, -1 = Left
     this.isAiming = false;
     this.aimAngle = 0;
     this.aimRotationSpeed = 0.05;
 
-    // Entities
-    this.projectiles = [];
-    
-    // === NEW: Status Effects System ===
-    this.statuses = [];
+    // --- Sub-Systems ---
+    this.projectiles = []; // Active projectiles owned by this player
+    this.statuses = [];    // Active effects (e.g., Burning)
   }
 
-  // ============================
-  // CORE LOOP (Update & Draw)
-  // ============================
+  // ==========================================
+  //               CORE UPDATE LOOP
+  // ==========================================
 
+  /**
+   * Main logic method called every frame.
+   * Handles 1. Inertia, 2. Input (if active turn), 3. Projectile updates.
+   */
   move(keys, map, players) {
-    // Apply recoil/inertia regardless of turn status
+    // 1. Apply Global Inertia (Knockback/Sliding)
+    // This happens even if it's NOT the player's turn
     if (Math.abs(this.vx) > 0.1) {
       this.x += this.vx;
-      this.vx *= 0.9; // Friction
+      this.vx *= 0.9; // Friction checks
       this.checkCollision(map, "x");
     } else {
       this.vx = 0;
     }
 
-    // Only allow control if it is this player's turn
-    if (!this.turnActive) {
-      // Apply gravity/physics even when not turn (e.g. falling after recoil)
-      handleMovement(this, {}, map);
-      this.updateProjectiles(map, players); 
-      return;
-    }
-
-    // 1. Handle Player State
-    if (this.isAiming) {
-      handleAiming(this, keys);
-      // Apply gravity while aiming
-      handleMovement(this, {}, map); 
-    } else {
-      // Check if we can still move
-      if (this.canMove) {
-        const moved = handleMovement(this, keys, map);
-        this.distTraveled += moved;
-
-        if (this.distTraveled >= this.maxMovement) {
-          this.canMove = false;
-          this.toggleAim(); // Force Aim Mode
-        }
+    // 2. Turn Logic (Only if Active)
+    if (this.turnActive) {
+      if (this.isAiming) {
+        // STATIONARY: Player is locked in place, adjusting angle
+        handleAiming(this, keys);
+        handleMovement(this, {}, map); // Apply gravity only
       } else {
-        // Apply gravity if move limit reached
-        handleMovement(this, {}, map); 
+        // MOVING: Player can run/jump
+        if (this.canMove) {
+          const moved = handleMovement(this, keys, map);
+          this.distTraveled += moved;
+
+          // Force Aim Mode if movement runs out
+          if (this.distTraveled >= this.maxMovement) {
+            this.canMove = false;
+            this.toggleAim(); 
+          }
+        } else {
+          handleMovement(this, {}, map); // Apply gravity only
+        }
       }
+    } else {
+      // INACTIVE: Just apply gravity/physics (falling)
+      handleMovement(this, {}, map);
     }
 
-    // 2. Handle Projectiles
+    // 3. Update Projectiles
+    // Projectiles exist independently of the player's state
     this.updateProjectiles(map, players);
   }
 
+  // ==========================================
+  //               RENDERING
+  // ==========================================
+
   draw(ctx) {
-    // Draw Player
     ctx.save();
     ctx.translate(this.x, this.y);
     
+    // Dynamic Color: Dark Blue when aiming to indicate "Locked In"
     ctx.fillStyle = this.turnActive 
       ? (this.isAiming ? "darkblue" : this.color) 
       : "gray";
     
     ctx.fillRect(0, 0, this.width, this.height);
 
-    this.drawHealthBar(ctx);
-    this.drawMovementBar(ctx);
-    
-    // === NEW: Draw Status Indicators ===
-    this.drawStatusEffects(ctx);
+    // UI Elements attached to player
+    this._drawHealthBar(ctx);
+    this._drawMovementBar(ctx);
+    this._drawStatusEffects(ctx);
 
-    // Draw UI/Effects
+    // Aim Assist Line
     if (this.isAiming && this.turnActive) {
-      this.drawAimLine(ctx);
+      this._drawAimLine(ctx);
     }
     
     ctx.restore();
 
-    // Draw Projectiles
+    // Draw active projectiles
     this.projectiles.forEach((p) => p.draw(ctx));
   }
 
-  drawHealthBar(ctx) {
-    ctx.save();
-    const barWidth = this.width;
-    const barHeight = 6;
-    const x = 0;
+  _drawHealthBar(ctx) {
+    const barW = this.width;
+    const barH = 6;
     const y = -15;
 
+    // Background (Red)
     ctx.fillStyle = "red";
-    ctx.fillRect(x, y, barWidth, barHeight);
+    ctx.fillRect(0, y, barW, barH);
 
-    const healthPercent = Math.max(0, this.health / this.maxHealth);
+    // Foreground (Green)
+    const pct = Math.max(0, this.health / this.maxHealth);
     ctx.fillStyle = "green";
-    ctx.fillRect(x, y, barWidth * healthPercent, barHeight);
+    ctx.fillRect(0, y, barW * pct, barH);
 
+    // Border
     ctx.strokeStyle = "black";
     ctx.lineWidth = 1;
-    ctx.strokeRect(x, y, barWidth, barHeight);
-    ctx.restore();
+    ctx.strokeRect(0, y, barW, barH);
   }
 
-  drawMovementBar(ctx) {
-    if (!this.turnActive) return;
+  _drawMovementBar(ctx) {
+    if (!this.turnActive) return; // Only show for active player
 
-    ctx.save();
-    const barWidth = this.width;
-    const barHeight = 4;
-    const x = 0;
-    const y = -22; // Above health bar
+    const barW = this.width;
+    const barH = 4;
+    const y = -22;
 
+    // Background
     ctx.fillStyle = "gray";
-    ctx.fillRect(x, y, barWidth, barHeight);
+    ctx.fillRect(0, y, barW, barH);
 
-    const movePercent = Math.max(0, (this.maxMovement - this.distTraveled) / this.maxMovement);
+    // Foreground (Cyan)
+    const pct = Math.max(0, (this.maxMovement - this.distTraveled) / this.maxMovement);
     ctx.fillStyle = "cyan";
-    ctx.fillRect(x, y, barWidth * movePercent, barHeight);
-    ctx.restore();
+    ctx.fillRect(0, y, barW * pct, barH);
   }
   
-  // === NEW: Visual for Burning ===
-  drawStatusEffects(ctx) {
-    // Safety check to prevent crash if not initialized
+  _drawStatusEffects(ctx) {
     if (!this.statuses) return;
 
     if (this.statuses.some(s => s.type === "BURNING")) {
+        // Draw little fire icon above head
         ctx.fillStyle = "orange";
         ctx.beginPath();
-        // Draw a flame dot above the player
         ctx.arc(this.width / 2, -32, 5, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = "red";
@@ -173,49 +176,70 @@ export class Player extends GraphicalObject {
     }
   }
 
+  _drawAimLine(ctx) {
+    const cx = this.width / 2;
+    const cy = this.height / 2;
+    const len = 100;
+
+    const endX = cx + Math.cos(this.aimAngle) * len;
+    const endY = cy + Math.sin(this.aimAngle) * len;
+
+    ctx.beginPath();
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 2;
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+  }
+
+  // ==========================================
+  //            COMBAT & PHYSICS
+  // ==========================================
+
   takeDamage(amount) {
-    this.health -= amount;
-    if (this.health < 0) this.health = 0;
+    this.health = Math.max(0, this.health - amount);
   }
   
   applyKnockback(forceX, forceY) {
     this.vx += forceX;
     this.dy += forceY;
-    this.grounded = false; // Lift off ground
+    this.grounded = false; // Lift off ground immediately
   }
 
-  // === NEW: Status Logic ===
+  /**
+   * Adds or refreshes a status effect.
+   * @param {string} type - "BURNING", etc.
+   * @param {number} duration - Number of turns.
+   */
   applyStatus(type, duration) {
-    // Initialize if missing (Crash Fix)
     if (!this.statuses) this.statuses = [];
 
     const existing = this.statuses.find(s => s.type === type);
     if (existing) {
-        existing.duration = duration; // Refresh duration
+        existing.duration = duration; // Refresh
     } else {
         this.statuses.push({ type, duration });
     }
   }
 
-  handleStatusEffects() {
-    // Initialize if missing (Crash Fix)
+  _processStatusEffects() {
     if (!this.statuses) this.statuses = [];
 
     this.statuses.forEach(status => {
         if (status.type === "BURNING") {
-            // Damage 10% of MAX health per turn
-            const burnDmg = Math.floor(this.maxHealth * 0.1);
-            this.takeDamage(burnDmg);
+            // Burn Logic: 10% Max HP damage
+            const dmg = Math.floor(this.maxHealth * 0.1);
+            this.takeDamage(dmg);
             status.duration--;
         }
     });
-    // Remove expired effects
+    // Remove expired
     this.statuses = this.statuses.filter(s => s.duration > 0);
   }
 
-  // ============================
-  // INPUT HANDLERS
-  // ============================
+  // ==========================================
+  //            TURN MANAGEMENT
+  // ==========================================
 
   startTurn() {
     this.turnActive = true;
@@ -224,8 +248,7 @@ export class Player extends GraphicalObject {
     this.distTraveled = 0;
     this.canMove = true;
     
-    // === NEW: Process Effects at start of turn ===
-    this.handleStatusEffects();
+    this._processStatusEffects();
   }
 
   endTurn() {
@@ -237,11 +260,15 @@ export class Player extends GraphicalObject {
     if (!this.turnActive || this.hasFired) return;
 
     this.isAiming = !this.isAiming;
+    // Reset angle based on facing direction when entering aim mode
     if (this.isAiming) {
       this.aimAngle = this.facing === 1 ? 0 : Math.PI;
     }
   }
 
+  /**
+   * Factory method meant to be overridden by subclasses.
+   */
   createProjectile(x, y, angle) {
     return new Projectile(x, y, angle, this, this.damage);
   }
@@ -249,55 +276,35 @@ export class Player extends GraphicalObject {
   shoot() {
     if (!this.turnActive || this.hasFired) return false;
 
-    const centerX = this.x + this.width / 2;
-    const centerY = this.y + this.height / 2;
+    const cx = this.x + this.width / 2;
+    const cy = this.y + this.height / 2;
 
+    // Use aim angle if aiming, otherwise shoot straight
     const angle = this.isAiming
       ? this.aimAngle
-      : this.facing === 1
-        ? 0
-        : Math.PI;
+      : (this.facing === 1 ? 0 : Math.PI);
 
+    // Spawn projectile slightly outside player body
     const offset = this.width / 1.5;
-    const startX = centerX + Math.cos(angle) * offset;
-    const startY = centerY + Math.sin(angle) * offset;
+    const startX = cx + Math.cos(angle) * offset;
+    const startY = cy + Math.sin(angle) * offset;
 
     this.projectiles.push(this.createProjectile(startX, startY, angle));
     
     this.hasFired = true;
-    this.isAiming = false;
+    this.isAiming = false; // Exit aim mode
     
     return true;
   }
-
-  // ============================
-  // HELPERS (Collision & Updates)
-  // ============================
 
   updateProjectiles(map, players) {
     this.projectiles.forEach((p) => p.update(map, players));
     this.projectiles = this.projectiles.filter((p) => p.active);
   }
 
-  drawAimLine(ctx) {
-    ctx.save();
-    const centerX = this.width / 2;
-    const centerY = this.height / 2;
-    const aimLength = 100;
-
-    const endX = centerX + Math.cos(this.aimAngle) * aimLength;
-    const endY = centerY + Math.sin(this.aimAngle) * aimLength;
-
-    ctx.beginPath();
-    ctx.strokeStyle = "red";
-    ctx.lineWidth = 2;
-    ctx.moveTo(centerX, centerY);
-    ctx.lineTo(endX, endY);
-    ctx.stroke();
-    ctx.restore();
-  }
-
   checkCollision(map, axis) {
+    // ... Existing collision logic is fine, just needs to be kept ...
+    // Standard AABB logic against grid tiles
     const startCol = Math.floor(this.x / map.tileSize);
     const endCol = Math.floor((this.x + this.width - 0.1) / map.tileSize);
     const startRow = Math.floor(this.y / map.tileSize);
@@ -307,12 +314,13 @@ export class Player extends GraphicalObject {
       for (let col = startCol; col <= endCol; col++) {
         const tile = map.getTile(col, row);
         
-        // Water Logic: Drowning (Instant Death)
+        // Instant Death Logic
         if (tile === tilesTypes.water) {
             this.health = 0;
             return;
         }
 
+        // Solid Block Logic
         if (tile !== 0) {
           if (axis === "x") {
             if (this.x < col * map.tileSize) {

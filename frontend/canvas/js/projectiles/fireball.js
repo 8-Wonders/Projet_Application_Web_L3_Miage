@@ -1,58 +1,61 @@
 import { Projectile } from "./projectile.js";
 
+/**
+ * A magical projectile used by the Mage.
+ * Features: High damage, Knockback, Wobbly flight path, Limited range.
+ */
 export class Fireball extends Projectile {
   constructor(x, y, angle, owner) {
-    // Add random deviation to the initial angle
-    const inaccuracy = (Math.random() - 0.5) * 0.3;
-    super(x, y, angle + inaccuracy, owner, 40);
+    // 1. Apply Inaccuracy: Add random deviation to the initial angle
+    const inaccuracy = (Math.random() - 0.5) * 0.3; 
+    
+    super(x, y, angle + inaccuracy, owner, 40); // High damage
 
     this.diameter = 30;
     this.color = "orange";
     this.speed = 8;
+    this.knockback = 4.0; // High knockback
 
-    // Recalculate velocity based on the imprecise angle
+    // Recalculate velocity with the specific fireball speed + inaccuracy
     this.vx = Math.cos(this.angle) * this.speed;
     this.vy = Math.sin(this.angle) * this.speed;
 
-    this.knockback = 4.0;
-
-    // Limit the distance traveled (4 tiles = 4 * 50px)
-    this.maxDistance = 200;
+    // Range Limiter Config
+    this.maxDistance = 200; // Fizzles out after this many pixels
     this.traveled = 0;
   }
 
   updatePhysics() {
-    // Add jitter/wobble during flight
+    // 1. Visual Jitter: Randomly shift X/Y slightly to simulate unstable magic
     const jitter = 4;
     this.y += (Math.random() - 0.5) * jitter;
     this.x += (Math.random() - 0.5) * jitter;
 
-    // Standard movement
+    // 2. Standard Movement
     this.x += this.vx;
     this.y += this.vy;
 
-    // Track distance
+    // 3. Range Check
     const step = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
     this.traveled += step;
 
-    // Fizzle out if max distance reached
     if (this.traveled > this.maxDistance) {
-      this.active = false;
+      this.active = false; // Fizzle out
     }
   }
 
   draw(ctx) {
     if (!this.active) return;
+    
     ctx.save();
     ctx.translate(this.x, this.y);
 
-    // Draw Fireball (Circle)
-    // Scale size down as it nears end of life
-    const lifeRatio = 1 - this.traveled / this.maxDistance;
+    // Calculate scaling: Shrinks as it approaches max distance
+    const lifeRatio = 1 - (this.traveled / this.maxDistance);
     const scale = Math.max(0.5, lifeRatio);
-
     ctx.scale(scale, scale);
 
+    // Outer Flame
     ctx.fillStyle = "orange";
     ctx.beginPath();
     ctx.arc(0, 0, this.diameter, 0, Math.PI * 2);
