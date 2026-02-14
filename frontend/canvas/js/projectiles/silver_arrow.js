@@ -2,20 +2,34 @@ import { Arrow } from "./arrow.js";
 
 export class SilverArrow extends Arrow {
   constructor(x, y, angle, owner) {
+    // 1. Inherit from Arrow
+    // Arrow's constructor sets base damage to 25
     super(x, y, angle, owner);
+    
     this.color = "silver";
-    this.damage = 35;
+    
+    // We do NOT set this.damage = 35 anymore. 
+    // It now uses the parent's base damage (25).
   }
 
   _handleImpact(target) {
-    // Check if target is a Dragon (by class name or property)
-    if (target.constructor.name === "Dragon" || target.name === "Dragon") {
-        target.takeDamage(this.damage * 2); // Double Damage
+    // 2. Identify Target
+    // Checks class name or a specific 'name' property
+    const isDragon = target.constructor.name === "Dragon" || target.name === "Dragon";
+
+    if (isDragon) {
+        // Case A: Dragon -> 100% More Damage (Double)
+        // 25 * 2 = 50 Damage
+        target.takeDamage(this.damage * 2); 
+        console.log("Silver Arrow hit Dragon! Critical damage.");
     } else {
-        target.takeDamage(this.damage);
+        // Case B: Non-Dragon -> 50% Less Damage (Half)
+        // 25 * 0.5 = 12.5 (Floored to 12)
+        target.takeDamage(Math.floor(this.damage * 0.5));
+        console.log("Silver Arrow ineffective against non-dragon.");
     }
     
-    target.applyKnockback(this.vx * 0.2, -3);
+    // Destroy projectile
     this.active = false;
   }
 
@@ -26,7 +40,7 @@ export class SilverArrow extends Arrow {
     ctx.translate(this.x, this.y);
     ctx.rotate(this.angle);
     
-    // Glow
+    // Glow Effect
     ctx.shadowBlur = 10;
     ctx.shadowColor = "cyan";
 
