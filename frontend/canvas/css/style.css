@@ -15,6 +15,8 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  width: 100%;
+  height: 100%;
 }
 
 #game-info {
@@ -41,11 +43,126 @@ canvas {
   display: block;
 }
 
-/* --- NEW VICTORY SCREEN STYLES --- */
+/* --- UTILITIES --- */
 .hidden {
   display: none !important;
 }
 
+/* --- MAIN MENU OVERLAY --- */
+#menu-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at center, #2a2a2a 0%, #000000 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 50; /* Above canvas */
+  color: white;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.game-title {
+    font-size: 50px;
+    margin-bottom: 50px;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    text-shadow: 0 0 15px rgba(255,255,255,0.3);
+    border-bottom: 2px solid rgba(255,255,255,0.1);
+    padding-bottom: 20px;
+}
+
+.class-container {
+    display: flex;
+    gap: 40px;
+}
+
+.class-card {
+    background: rgba(255, 255, 255, 0.05);
+    width: 280px;
+    padding: 30px;
+    border-radius: 15px;
+    border: 2px solid #444;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.class-card:hover {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.class-card .icon {
+    font-size: 60px;
+    margin-bottom: 15px;
+}
+
+.class-card h2 {
+    font-size: 32px;
+    margin: 10px 0;
+    text-transform: uppercase;
+}
+
+.stats {
+    background: rgba(0,0,0,0.3);
+    padding: 10px;
+    border-radius: 8px;
+    margin: 20px 0;
+    font-size: 14px;
+    text-align: left;
+}
+
+.stats p {
+    margin: 5px 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+.desc {
+    font-size: 14px;
+    color: #aaa;
+    line-height: 1.4;
+    min-height: 60px;
+}
+
+.select-text {
+    margin-top: 20px;
+    font-weight: bold;
+    font-size: 14px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s;
+}
+
+.class-card:hover .select-text {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Archer Theme */
+.archer:hover {
+    border-color: #2ecc71;
+    box-shadow: 0 0 20px rgba(46, 204, 113, 0.3);
+}
+.archer h2 { color: #2ecc71; }
+.archer .select-text { color: #2ecc71; }
+
+/* Mage Theme */
+.mage:hover {
+    border-color: #e74c3c;
+    box-shadow: 0 0 20px rgba(231, 76, 60, 0.3);
+}
+.mage h2 { color: #e74c3c; }
+.mage .select-text { color: #e74c3c; }
+
+
+/* --- VICTORY SCREEN STYLES --- */
 #victory-overlay {
   position: absolute;
   top: 50%;

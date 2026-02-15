@@ -3,16 +3,11 @@ export class UIManager {
     this.canvas = canvas;
     this.ctx = ctx;
     
-    // Canvas Hitboxes
-    this.menuButtons = {};
+    // Canvas Hitboxes (Legacy)
     this.gameOverButton = {};
     
-    // DOM Elements (Cached)
-    this.victoryOverlay = document.getElementById("victory-overlay");
-    this.finalTimeDisplay = document.getElementById("final-time-display");
-    this.statusMessage = document.getElementById("status-message");
-    this.usernameInput = document.getElementById("username-input");
-    this.submitBtn = document.getElementById("submit-btn");
+    // We do NOT cache DOM elements here anymore to prevent null errors.
+    // We look them up dynamically when needed.
   }
 
   resize(w, h) {
@@ -24,46 +19,82 @@ export class UIManager {
   //            DOM INTERACTION
   // ==========================================
 
-  /**
-   * Binds a callback function to the HTML Submit button.
-   * @param {Function} callback - Function to call with the username string.
-   */
+  toggleMenuScreen(show) {
+    const overlay = document.getElementById("menu-overlay");
+    if (overlay) {
+        if (show) overlay.classList.remove("hidden");
+        else overlay.classList.add("hidden");
+    }
+  }
+
+  bindMenuActions(onStartGame) {
+    // Fetch elements NOW, when we are sure they exist
+    const btnArcher = document.getElementById("btn-archer");
+    const btnMage = document.getElementById("btn-mage");
+
+    if (btnArcher) {
+        btnArcher.onclick = () => {
+            console.log("Archer selected"); // Debug log
+            onStartGame("archer");
+        };
+    } else {
+        console.error("Error: Archer button not found in DOM");
+    }
+
+    if (btnMage) {
+        btnMage.onclick = () => {
+            console.log("Mage selected"); // Debug log
+            onStartGame("mage");
+        };
+    } else {
+        console.error("Error: Mage button not found in DOM");
+    }
+  }
+
   bindSubmitAction(callback) {
-    if (this.submitBtn) {
-        // We wrap the callback to extract the value here in the UI layer
-        this.submitBtn.addEventListener("click", () => {
-            const name = this.usernameInput ? this.usernameInput.value.trim() : "";
+    const submitBtn = document.getElementById("submit-btn");
+    const usernameInput = document.getElementById("username-input");
+
+    if (submitBtn) {
+        submitBtn.onclick = () => { // Changed from addEventListener to onclick to prevent duplicates
+            const name = usernameInput ? usernameInput.value.trim() : "";
             callback(name);
-        });
+        };
     }
   }
 
   updateStatusMessage(msg, color = "#ccc") {
-    if (this.statusMessage) {
-        this.statusMessage.textContent = msg;
-        this.statusMessage.style.color = color;
+    const el = document.getElementById("status-message");
+    if (el) {
+        el.textContent = msg;
+        el.style.color = color;
     }
   }
 
   clearInput() {
-    if (this.usernameInput) this.usernameInput.value = "";
+    const input = document.getElementById("username-input");
+    if (input) input.value = "";
     this.updateStatusMessage("");
   }
 
   toggleVictoryScreen(show, seconds = 0) {
+    const overlay = document.getElementById("victory-overlay");
+    const timeDisplay = document.getElementById("final-time-display");
+    const input = document.getElementById("username-input");
+
     if (show) {
         const minutes = Math.floor(seconds / 60);
         const sec = seconds % 60;
-        if (this.finalTimeDisplay) {
-            this.finalTimeDisplay.textContent = `${minutes}:${sec < 10 ? "0" + sec : sec}`;
+        if (timeDisplay) {
+            timeDisplay.textContent = `${minutes}:${sec < 10 ? "0" + sec : sec}`;
         }
         
-        this.victoryOverlay.classList.remove("hidden");
+        if (overlay) overlay.classList.remove("hidden");
         this.updateStatusMessage(""); 
-        if (this.usernameInput) this.usernameInput.focus();
+        if (input) input.focus();
 
     } else {
-        this.victoryOverlay.classList.add("hidden");
+        if (overlay) overlay.classList.add("hidden");
     }
   }
 
@@ -72,52 +103,10 @@ export class UIManager {
   // ==========================================
 
   drawMenu() {
-    const { ctx, canvas } = this;
-    ctx.save();
-    
-    ctx.fillStyle = "#111";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.fillStyle = "white";
-    ctx.font = "bold 40px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("CHOOSE YOUR CLASS", canvas.width / 2, 100);
-
-    const btnSize = 250;
-    const gap = 50;
-    const totalWidth = btnSize * 2 + gap;
-    const startX = (canvas.width - totalWidth) / 2;
-    const startY = (canvas.height - btnSize) / 2;
-
-    this.menuButtons = {
-      archer: { x: startX, y: startY, w: btnSize, h: btnSize },
-      mage: { x: startX + btnSize + gap, y: startY, w: btnSize, h: btnSize },
-    };
-
-    this._drawClassButton("archer", "#2ecc71", "ARCHER", "High Range", "Gravity Arrows");
-    this._drawClassButton("mage", "#e74c3c", "MAGE", "High Damage", "Fireballs");
-
-    ctx.restore();
-  }
-
-  _drawClassButton(key, color, label, desc1, desc2) {
-    const btn = this.menuButtons[key];
-    const { ctx } = this;
-    const btnSize = btn.w;
-
-    ctx.fillStyle = color;
-    ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
-    
-    ctx.fillStyle = "white";
-    ctx.font = "bold 24px Arial";
-    ctx.fillText(label, btn.x + btnSize / 2, btn.y + btnSize / 2 - 20);
-    ctx.font = "16px Arial";
-    ctx.fillText(desc1, btn.x + btnSize / 2, btn.y + btnSize / 2 + 10);
-    ctx.fillText(desc2, btn.x + btnSize / 2, btn.y + btnSize / 2 + 30);
-    
-    ctx.strokeStyle = "white";
-    ctx.lineWidth = 4;
-    ctx.strokeRect(btn.x, btn.y, btnSize, btnSize);
+    // HTML Overlay handles the menu now.
+    // We just draw a black background on the canvas behind it.
+    this.ctx.fillStyle = "black";
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
   drawGameOver() {
@@ -143,7 +132,6 @@ export class UIManager {
   drawVictory() {
     const { ctx, canvas } = this;
     ctx.save();
-    // Darken background
     ctx.fillStyle = "rgba(0, 0, 50, 0.85)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.restore();
@@ -230,20 +218,13 @@ export class UIManager {
     this.ctx.fillText(text, x + w / 2, y + h / 2 + 10);
   }
 
-  // ==========================================
-  //               INPUT HELPERS
-  // ==========================================
-
-  checkMenuClick(mouseX, mouseY) {
-    if (this._isInside(mouseX, mouseY, this.menuButtons.archer)) return "archer";
-    if (this._isInside(mouseX, mouseY, this.menuButtons.mage)) return "mage";
-    return null;
-  }
-
   checkRestartClick(mouseX, mouseY) {
     if (this._isInside(mouseX, mouseY, this.gameOverButton)) return true;
     return false;
   }
+  
+  // No longer needed for menu, but kept for interface consistency
+  checkMenuClick(mouseX, mouseY) { return null; }
 
   _isInside(x, y, btn) {
     return btn && x >= btn.x && x <= btn.x + btn.w && y >= btn.y && y <= btn.y + btn.h;

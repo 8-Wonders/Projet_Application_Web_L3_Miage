@@ -5,7 +5,7 @@ import { LevelManager } from "./level_manager.js";
 import { TurnManager, WIN_STATE } from "./turn_manager.js";
 import { Bot } from "../players/bot.js";
 import { LEVEL_CONFIG } from "./levels.js"; 
-import { ScoreService } from "../services/score.js"; // IMPORT SERVICE
+import { ScoreService } from "../services/score.js"; 
 
 export const GAME_STATE = {
   MENU: 0,
@@ -36,8 +36,8 @@ export class Game {
     this.accumulatedTime = 0; 
 
     this.loop = this.loop.bind(this);
-    // Bind 'this' for the callback passed to UIManager
     this.submitScore = this.submitScore.bind(this);
+    this.startGame = this.startGame.bind(this);
   }
 
   async init() {
@@ -47,8 +47,12 @@ export class Game {
     this.setupInputs();
     this.setupResizeHandlers();
     
-    // Bind the UI button action to our game logic
+    // Bind HTML Actions
     this.ui.bindSubmitAction(this.submitScore);
+    this.ui.bindMenuActions(this.startGame);
+    
+    // Ensure Menu is Visible
+    this.ui.toggleMenuScreen(true);
     
     this.resize();
     this.loop();
@@ -91,10 +95,8 @@ export class Game {
   }
 
   setupInputs() {
-    // 1. Mouse Clicks (UI/Menu)
     this.canvas.addEventListener("click", (e) => this.handleMouseClick(e));
-
-    // 2. Keyboard/Continuous Input
+    
     handleInput(() => {
       if (this.currentState === GAME_STATE.PLAYING) {
         return this.turnManager.getCurrentPlayer(this.players);
@@ -102,7 +104,6 @@ export class Game {
       return null;
     }, this.canvas);
 
-    // 3. Developer Cheats
     window.addEventListener("keydown", (e) => {
       if (e.key.toLowerCase() === "k" && this.currentState === GAME_STATE.PLAYING) {
         console.log("DEV: Skipping Level");
@@ -117,11 +118,6 @@ export class Game {
     const my = (e.clientY - rect.top) * (this.canvas.height / rect.height);
 
     switch (this.currentState) {
-      case GAME_STATE.MENU:
-        const choice = this.ui.checkMenuClick(mx, my);
-        if (choice) this.startGame(choice);
-        break;
-      
       case GAME_STATE.GAME_OVER:
         if (this.ui.checkRestartClick(mx, my)) { 
           this.returnToMenu();
@@ -131,6 +127,11 @@ export class Game {
   }
 
   async startGame(playerClass) {
+    console.log("Starting Game with class:", playerClass);
+    
+    // Hide HTML Menu
+    this.ui.toggleMenuScreen(false);
+
     this.selectedClass = playerClass;
     this.currentLevelIdx = 1;
     this.accumulatedTime = 0;
@@ -140,6 +141,7 @@ export class Game {
   returnToMenu() {
     this.currentState = GAME_STATE.MENU;
     this.ui.toggleVictoryScreen(false); 
+    this.ui.toggleMenuScreen(true); // Show Menu Again
     this.resize(true);
   }
 
@@ -170,15 +172,12 @@ export class Game {
       this.currentLevelIdx++;
       this.startLevel(this.currentLevelIdx);
     } else {
-      // VICTORY STATE
       this.currentState = GAME_STATE.VICTORY;
       this.resize(true);
-      
       this.ui.toggleVictoryScreen(true, this.accumulatedTime);
     }
   }
 
-  // Refactored Submit Logic using ScoreService
   async submitScore(username) {
     if (!username) {
         this.ui.updateStatusMessage("Please enter a username!", "red");
@@ -186,8 +185,6 @@ export class Game {
     }
 
     this.ui.updateStatusMessage("Sending...", "#ccc");
-
-    // Call the independent service
     const result = await ScoreService.submit(username, this.accumulatedTime);
 
     if (result.success) {
@@ -212,7 +209,6 @@ export class Game {
         currentPlayer.move({}, this.map, this.players); 
         if (turnEnded) this.turnManager.nextTurn(this.players);
       } else {
-        // Human Player
         currentPlayer.move(keys, this.map, this.players);
         if (currentPlayer.hasFired) {
           this.turnManager.nextTurn(this.players);
