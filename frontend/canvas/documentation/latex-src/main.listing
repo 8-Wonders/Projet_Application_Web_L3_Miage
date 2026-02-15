@@ -1,0 +1,13 @@
+	export class Heal extends Projectile {
+		constructor(x, y, angle, owner) {
+			super(x, y, angle, owner, 0);
+			this.active = false; // Desactivation immediate (pas de rendu)
+			
+			// Application directe de l'effet
+			const healAmount = Math.floor(owner.maxHealth * 0.2);
+			owner.health = Math.min(owner.maxHealth, owner.health + healAmount);
+			
+			// Nettoyage des alterations d'etat
+			owner.statuses = [];
+		}
+	}

@@ -1,0 +1,136 @@
+\section{Working with LaTeX - EXAMPLE SECTION ON HOW TO USE LATEX}
+\label{sec:latex}
+
+Here I am writing something that I still need to revise.
+
+The easiest way to edit LaTeX documents is using so-called online LaTeX editors, such as Overleaf.
+To work with LaTeX on a Windows computer, you need a distribution such as texlive.
+As well as a LaTeX editor that is as powerful as possible, for example, TeXstudio. You can download and install both from the internet.
+For Mac and Linux users, other programs may be of interest.
+\subsection{References in the document}
+\label{sec:latex-verweise}
+Text with reference to \cref{tab:trr} or \cref{fig:trichter} on \cpageref{fig:trichter}. With the cleveref package, the prefixes are set automatically.
+The reference to \cref{eq:cost_balance} also works with \lstinline|\cref|. The parentheses are also set automatically.
+\begin{center}
+\begin{tabular}{lll}
+Command &	Output& 	Example output\\
+\midrule
+\lstinline|\cref{Label}|& 	Object/Type and number/value &\cref{sec:latex-verweise}\\
+\lstinline|\crefrange{Label1}{Label2}|& 	Object/Type from to &	\crefrange{sec:latex-verweise}{sec:latex-literatur}\\
+\lstinline|\cpageref{Label}|& 	Page number with the word Page &\cpageref{sec:latex-verweise}\\
+\lstinline|\cpagerefrange{Label1}{Label2}|& 	Page range &	\cpagerefrange{sec:latex-verweise}{sec:latex-literatur}\\
+\lstinline|\namecref{Label}|& 	Object/Type &\namecref{sec:latex-verweise}\\
+\lstinline|\labelcref{Label}|& 	Number/Value &\labelcref{sec:latex-verweise}\\
+\lstinline|\labelcpageref{Label}|&	Just the page number&\labelcpageref{sec:latex-verweise}\\
+\end{tabular}
+\end{center}
+
+\subsection{Formulas}
+\label{sec:latex-formeln}
+LaTeX is excellently suited for displaying formulas.
+With the amsmath package, LaTeX becomes even more powerful. Numerous complex representations can be easily implemented.
+Some examples:
+
+\subsubsection{Isentropic Efficiency}
+\begin{align}
+\dot W_\text{el} &= \dot m \cdot \Delta h_s \left(\eta_\text{m,el} \cdot \eta_s\right)^\alpha &
+\alpha &= \left\{
+\begin{array}{r l}
+1 & \quad \text{Turbines}\\
+-1 & \quad \text{Pumps, Compressors}
+\end{array}
+\right.
+\end{align}
+
+\subsubsection{Physical Exergy for an Ideal Gas}
+\begin{equation}
+\frac{e^\text{PH}}{c_\text{p}T_0}=\left[\frac{T}{T_0}-1-\ln\frac{T}{T_0}\right]+\ln\left(\frac{p}{p_0}\right)^{\frac{\left(\kappa-1\right)}{\kappa}}
+\end{equation}
+
+\subsubsection{Exergy Destruction during Isobaric Heat Transfer}
+\begin{equation}
+\dot E_\text{D}=\sum\limits_j\left[\int_\text{i}^\text{e}\left(1-\frac{T_0}{T}\right)\text{d}\dot Q\right]_j	
+\label{eq:ed_he}
+\end{equation}
+
+\subsubsection{A Cost Balance}
+\begin{equation}
+\sum_i{\left(c_i\dot E_i\right)_k} + \underbrace{\frac{\left(CC_\ell+OMC_\ell\right) BMC_k}{\tau \sum_k{BMC_k}}}_{\dot Z_k=\dot Z_k^\text{CI}+\dot Z_k^\text{OM}}
+=\sum_e{\left(c_e\dot E_e\right)_k} + c_{\text{w,}k} \dot W_k + c_{\text{q,}k}\dot E_{\text{q,}k}
+\label{eq:cost_balance}
+\end{equation}
+
+\subsection{Numbers and Units}
+\label{sec:latex-zahlen-einheiten}
+
+With the siunitx package, numbers and units can be easily set in running text as well as in mathematical environments.
+Commands or short codes exist for all SI units and their derived units; see package documentation
+\begin{center}
+	\begin{tabular}{ll}
+		Command &	Output\\
+		\midrule
+		\lstinline|\num{3,5}| &\num{3,5} \\
+		\lstinline|\si{\meter}| &\si{\meter}  \\
+		\lstinline|\SI{3,5}{\meter}|
+&\SI{3,5}{\meter}  \\
+		\lstinline|\numlist{3;3,5;4,2}| &	\numlist{3;3,5;4,2}  \\
+		\lstinline|\numrange{3,5}{4,2}| &\numrange{3,5}{4,2}  \\
+		\lstinline|\SIlist{3;3,5;4,2}{\meter}| &\SIlist{3;3,5;4,2}{\meter}  \\
+		\lstinline|\SIrange{3,5}{4,2}{\meter}|&\SIrange{3,5}{4,2}{\meter}\\
+	\end{tabular}
+\end{center}
+  
+
+\subsection{Chemical Formulas}
+\label{sec:latex-chem-formeln}
+
+Here, the powerful mhchem package should be used.
+Simple reaction equations can be written directly.
+\begin{equation}
+\ce{CH4 + 2O2 -> 2H2O + CO2}
+\end{equation}
+
+But more complex relationships and combinations with formulas are also possible.
+\begin{multline}
+\label{eq:kohle_reaktion}
+%\begin{split}
+\overbrace{\left(\ce{$c^*\cdot$ C + $h^*\cdot$ H + $o^*\cdot$ O + $n^*\cdot$ N + $s^*\cdot$ S}\right)}^{m_{\text{waf}}=\SI{1}{\kg}} +
+\ce{$\nu_{\ce{O2}}\cdot$ O2 -> }\\
+\ce{$\nu_{\ce{CO2}}\cdot$ CO2 + $\nu_{\ce{H2O}}\cdot$ H2O_{(l)} + $\nu_{\ce{N2}}\cdot$ N2 + $\nu_{\ce{SO2}}\cdot$ SO2}
+%\end{split}
+\end{multline}
+
+\subsection{Literature References}
+\label{sec:latex-literatur}
+
+With biblatex and biber, literature references can be created quickly and easily.
+The options for biblatex are passed in the preamble. Biber is used as the backend.
+The sources are entered in a *.bib file. Literature management programs such as JabRef (open source) or Citavi (commercial, license via TU Berlin) can also be used for this.
+\subsubsection{An Example with Citation}
+
+The mathematical description of the steady-state power plant simulation suitably corresponds to an implicit system of equations. Instead of $y=f(x)$,
+\begin{equation}
+F\left(x, y\right)=0
+\end{equation}
+is written.\footnote{cf.
+\cite[p.\,147]{papula2014}} This may even be mandatory, because according to \cite[p.\,260]{westermann2011} "[the] defining equation is difficult or impossible to solve explicitly for $y=f(x)$." Even a simple material property polynomial like the representation of entropy at reference pressure according to Knacke et al.\,\cite{knacke1991}, 
+\begin{equation}
+s^0=\text{S}^++\text{a}\,\ln(T/\text{K})+\text{b}\,y-\frac{\text{c}}{2}\,y^{-2}+\frac{\text{d}}{2}\,y^2\quad\quad\text{with}\quad y=10^{-3}T/\text{K}
+\label{eq:knacke_entropie}
+\end{equation}
+thus only dependent on temperature, cannot be solved analytically for $T$.
+\subsubsection{Simple References to Literature Sources}
+
+Zoder et al.~\cite{zoder2018} conclude in their scientific article that the use of exergy-based methods is helpful in the analysis of energy conversion plants.
+Other authors also present interesting results in their sometimes extensive publications, cf.~\cite{baehr1979,clausius1850,gasparovic1969,keenan1932,lojewski_urban1989}. Whereby so-called \textit{lumped references} should be avoided.
+Each reference must be acknowledged individually, and it must be described, what is adopted from this source or which approaches, ideas, findings, etc.
+from it are worth mentioning.
+
+Some authors have written books worth reading, including Baehr and Kabelac~\cite{baehr2012}, Szargut~\cite{szargut2007} or Moran et al.~\cite{moran2014}.
+Not to forget Müller~\cite{mueller2001} and the current compilation by the IEA~\cite{weo2016}.
+Besides books and scientific articles, it is also possible to refer to book contributions \cite{lojewski_urban1989}, conference proceedings \cite{spliethoff2010a}, contributions in conference proceedings \cite{fraas1974,fraas1975}, dissertations \cite{ruegg1945,gaggioli1961}, scientific reports \cite{gutstein1975,nas_3_10606_1968}, internet sources and much more
+.
+
+\subsubsection{Literature Reference with Page Number}
+
+Müller notes the thermal equation of state according to van der Waals for this, see~\cite[p.~100]{mueller2001}.

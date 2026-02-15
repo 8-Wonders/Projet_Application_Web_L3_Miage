@@ -1,0 +1,59 @@
+\def\VARcompany{Application Web}
+
+\def\VARtitle{Jeu Canvas}
+
+\def\VARdate{Fevrier 15, 2026}
+
+\begin{titlepage}
+
+%Headers and footers
+\pagestyle{scrheadings}
+\clearscrheadfoot
+
+	\centering
+	\pagenumbering{gobble} % This ensures this page has NO page number
+	
+	% 1. Logo
+	\includegraphics[width=1\textwidth]{UCA-Logo-2niveaux-RVB.jpg}
+	
+	\vspace{3em}
+	
+	% 2. University Name
+	{\Large \textbf{\VARcompany}\par}
+	
+	\vspace{3em}
+	
+	% 3. First Line
+	\rule{\textwidth}{1pt}
+	\vspace{0em}
+	
+	% 4. Title 
+	% Uses the \VARort variable from your main.tex
+	{\Huge \textbf{\VARtitle}\par} 
+	
+	\vspace{1em}
+	% 5. Second Line
+	\rule{\textwidth}{1pt}
+	
+	\vspace{5em} % Pushes the block down
+	
+	% 6. Members Block
+	\noindent % Prevents indentation
+	\begin{minipage}[t]{0.45\textwidth}
+		\textbf{Alumni :}\\
+		BOUTRIK Alexandre\\
+		MANILIUC David\\
+		LANDOULSI Aziz
+	\end{minipage}
+	\hfill % Pushes the next minipage to the right
+	\begin{minipage}[t]{0.25\textwidth}
+		\textbf{Enseignant :}\\
+		BUFFA Michel
+	\end{minipage}
+	
+	\vfill % Pushes the date to the bottom
+	
+	% 7. Date
+	{\large \VARdate\par}
+	
+\end{titlepage}

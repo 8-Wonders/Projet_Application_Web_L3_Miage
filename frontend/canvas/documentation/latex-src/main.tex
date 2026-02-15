@@ -1,0 +1,46 @@
+%loading the preamble with LaTeX commands/classes
+\include{main.preambel}
+
+\begin{document}
+\input{00a_cover.tex}
+%global setting for source code display with listings
+\lstset{basicstyle=\scriptsize\ttfamily,language={[LaTeX]TeX}}
+
+%Arabic page numbering
+\pagenumbering{arabic}
+
+%Title
+%\input{00a_titelei}
+%Abstract
+%\input{00b_abstract}
+%Table of contents
+\setcounter{tocdepth}{3}
+\renewcommand{\contentsname}{Table des Matière}
+\tableofcontents
+
+\newpage
+
+%Start of chaptersSol
+\input{02_general.tex}
+	
+%Working with LaTeX - EXAMPLE
+%\input{90_latex}
+
+%insert further chapters here
+%\input{03_neues_kapitel}
+
+%Glossary
+%\clearpage
+%\input{98_glossary.tex}
+
+%Bibliography
+\clearpage
+\printbibliography[heading=bibintoc]
+
+%Appendix
+%Detailed data tables, extensive flow charts and long calculations can be put in the appendix
+%\clearpage
+%\appendix
+%\input{99_anhang}
+
+\end{document}

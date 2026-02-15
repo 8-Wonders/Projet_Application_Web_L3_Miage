@@ -1,0 +1,196 @@
+% Document class and language setting
+\documentclass[12pt, oneside, paper=A4, DIV=15, BCOR=0mm, abstract=true, headings=small]{scrartcl}
+\usepackage[english]{babel} % Changed from ngerman
+\usepackage[utf8]{inputenc}
+
+% Font
+%LModern
+\usepackage{lmodern}
+%Libertine
+%\usepackage{libertinus}
+%\usepackage{libertinust1math}
+
+\usepackage[T1]{fontenc}
+
+% Control headers and footers with scrlayer-scrpage
+% Separator line top and bottom
+\usepackage[headsepline, footsepline]{scrlayer-scrpage}
+
+% Math, symbols, unit representation, chemistry
+\usepackage{amsmath}
+\usepackage{amsxtra}
+\usepackage{eurosym}
+\usepackage{siunitx}  
+\sisetup{locale=US} % Changed from DE
+\usepackage[version=4]{mhchem}
+
+% Typography
+\usepackage[auto]{microtype}
+\clubpenalty = 10000
+\widowpenalty = 10000
+\displaywidowpenalty = 10000
+
+% Inclusion of images, tables, pdf pages, source code
+\usepackage{graphicx}
+\usepackage{multirow, multicol, booktabs}
+\usepackage{threeparttable}
+\usepackage{longtable}
+\usepackage{rotating}
+\usepackage{ltablex}
+\usepackage{subfig}
+\captionsetup[subtable]{position=top}
+\usepackage{pdfpages}
+\usepackage{listings}
+\usepackage{placeins}
+
+% Display of URL
+\usepackage{url}
+\urlstyle{same}
+
+% Footnotes, also for tables
+\usepackage{footnote}
+\makesavenoteenv{tabular} 
+
+% Packages for control and review
+\usepackage{todonotes}
+\usepackage{blindtext}
+
+% Representation of bibliography entries
+\usepackage[
+backend=biber,
+style=ieee,
+citestyle=numeric-comp,
+maxbibnames=2,
+firstinits=true
+]{biblatex}
+
+\renewcommand*{\labelnamepunct}{\addcolon\addspace}
+
+% Storage location of the bibliography (*.bib file)
+\addbibresource{bibliography.bib}
+
+% Footnotes
+% Mark in the footnote itself neither superscripted nor set smaller
+% \deffootnote{1em}{1em}{\thefootnotemark\ }
+% left-aligned footnote markers
+\deffootnote{1.5em}{1em}{%
+  \makebox[1.5em][l]{\thefootnotemark}%
+}
+
+% Do not break footnotes
+\interfootnotelinepenalty=10000
+
+% Design of image captions and table headings as well as title page information
+\addtokomafont{caption}{\small}
+\setkomafont{captionlabel}{\sffamily\bfseries}
+\setkomafont{subject}{\Large\bfseries}
+\setkomafont{author}{\normalfont}
+\setkomafont{date}{\normalfont}
+\setkomafont{publishers}{\normalfont}
+
+
+\makeatletter
+% \renewcommand{\l@section}{\@dottedtocline{1}{0em}{0em}}
+% \renewcommand{\l@subsection}{\@dottedtocline{2}{4ex}{3.6em}}
+% \g@addto@macro{\@afterheading}{\vspace{-0.25\baselineskip}}
+\renewcommand{\l@section}{\@dottedtocline{1}{0ex}{1.8em}}
+\renewcommand{\l@subsection}{\@dottedtocline{2}{1.8em}{2.7em}}
+% \g@addto@macro{\@afterheading}{\vspace{-0.25\baselineskip}}
+\makeatother
+
+
+\renewcaptionname{english}{\figurename}{Fig.} % Changed from ngerman and Abb.
+\renewcaptionname{english}{\tablename}{Tab.}  % Changed from ngerman
+
+% Table environments with font size 10 and 7
+\newenvironment{tabular10}{%
+  \fontsize{10}{12}\selectfont\tabular
+}{%
+  \endtabular
+}
+
+\newenvironment{tabular7}{%
+  \fontsize{7}{12}\selectfont\tabular
+}{%
+  \endtabular
+}
+
+% Links and references, pdf settings
+% Update information if necessary!
+\usepackage[
+pdftitle={Final Report}, % Translated from Abschlussmain
+pdfsubject={},
+pdfauthor={},
+pdfkeywords={},  
+% Do not frame links
+hidelinks
+]{hyperref}
+\usepackage[english]{cleveref} % Changed from german
+
+
+
+% =============================================================
+% 1. PACKAGES
+% =============================================================
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage[most]{tcolorbox} % 'most' loads skins and listings libraries automatically
+
+% =============================================================
+% 2. COLORS (VS Code Style)
+% =============================================================
+\definecolor{bg}{rgb}{0.95, 0.95, 0.96}   % Light Gray Background
+\definecolor{key}{rgb}{0.0, 0.33, 0.58}   % Blue (Keywords)
+\definecolor{str}{rgb}{0.6, 0.0, 0.0}     % Red (Strings)
+\definecolor{com}{rgb}{0.0, 0.5, 0.0}     % Green (Comments)
+\definecolor{typ}{rgb}{0.0, 0.45, 0.45}   % Teal (Classes/Types)
+
+% =============================================================
+% 3. JAVASCRIPT LANGUAGE DEFINITION
+% =============================================================
+\lstdefinelanguage{ES6}{
+	keywords={typeof, new, true, false, catch, function, return, null, switch, var, if, in, while, do, else, case, break, const, let, async, await, of, class, export, boolean, throw, implements, import, this, extends, super, from},
+	sensitive=true,
+	comment=[l]{//},
+	morecomment=[s]{/*}{*/},
+	morestring=[b]',
+	morestring=[b]",
+	morestring=[b]`
+}
+
+% =============================================================
+% 4. STYLE DEFINITION (Prevents parsing errors)
+% =============================================================
+\lstdefinestyle{JSStyle}{
+	language=ES6,
+	basicstyle=\footnotesize,
+	keywordstyle=\bfseries\color{key},
+	commentstyle=\itshape\color{com},
+	stringstyle=\color{str},
+	numberstyle=\tiny\color{gray},
+	numbers=none,
+	stepnumber=1,
+	numbersep=8pt,
+	tabsize=2,
+	showstringspaces=false,
+	breaklines=true,
+	keepspaces=true
+}
+
+% =============================================================
+% 5. BOX ENVIRONMENT
+% =============================================================
+\newtcblisting{javacode}[1]{
+	enhanced,
+	colback=bg,
+	colframe=gray!50!white,
+	boxrule=0.5mm,
+	arc=2mm,
+	title={\textbf{#1}}, % The title you pass
+	coltitle=black,
+	fonttitle=\bfseries,
+	attach boxed title to top left={xshift=4mm, yshift=-2mm},
+	boxed title style={colback=white, colframe=gray!50!white},
+	listing only,
+	listing options={style=JSStyle} % Use the style defined above
+}
