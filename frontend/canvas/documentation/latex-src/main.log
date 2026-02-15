@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024/nixos.org) (preloaded format=pdflatex 1980.1.1)  15 FEB 2026 14:08
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024/nixos.org) (preloaded format=pdflatex 1980.1.1)  15 FEB 2026 14:28
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -2129,10 +2129,10 @@ File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 
 [11{/nix/store/vdfydf2g9pzrd0sx8595ab9qac3ybgml-texlive-combined-full-2024-fina
 l-texmfdist/fonts/enc/dvips/lm/lm-mathit.enc}]
-<abilities.png, id=326, 201.75375pt x 72.27pt>
+<abilities.png, id=323, 201.75375pt x 72.27pt>
 File: abilities.png Graphic file (type png)
 <use abilities.png>
-Package pdftex.def Info: abilities.png  used on input line 326.
+Package pdftex.def Info: abilities.png  used on input line 328.
 (pdftex.def)             Requested size: 191.19962pt x 68.48958pt.
 
 
@@ -2167,42 +2167,30 @@ Package logreq Info: Writing requests to 'main.run.xml'.
  ) 
 Here is how much of TeX's memory you used:
  52676 strings out of 473201
- 1164318 string characters out of 5689025
- 2415861 words of memory out of 5000000
- 74767 multiletter control sequences out of 15000+600000
- 636724 words of font info for 153 fonts, out of 8000000 for 9000
+ 1164332 string characters out of 5689025
+ 2415863 words of memory out of 5000000
+ 74768 multiletter control sequences out of 15000+600000
+ 636853 words of font info for 154 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 115i,20n,122p,10973b,2342s stack positions out of 10000i,1000n,20000p,200000b,200000s
-
-pdfTeX warning (dest): name{section.9} has been referenced but does not exist, 
-replaced by a fixed one
-
-
-pdfTeX warning (dest): name{section.8} has been referenced but does not exist, 
-replaced by a fixed one
-
-
-pdfTeX warning (dest): name{subsection.5.1} has been referenced but does not ex
-ist, replaced by a fixed one
-
-</nix/store/vdfydf2g9pzrd0sx8595ab9qac3ybgml-texlive-combined-full-2024-final-t
-exmfdist/fonts/type1/public/lm/lmbx10.pfb></nix/store/vdfydf2g9pzrd0sx8595ab9qa
-c3ybgml-texlive-combined-full-2024-final-texmfdist/fonts/type1/public/lm/lmbx12
-.pfb></nix/store/vdfydf2g9pzrd0sx8595ab9qac3ybgml-texlive-combined-full-2024-fi
-nal-texmfdist/fonts/type1/public/lm/lmmi12.pfb></nix/store/vdfydf2g9pzrd0sx8595
-ab9qac3ybgml-texlive-combined-full-2024-final-texmfdist/fonts/type1/public/lm/l
-mr10.pfb></nix/store/vdfydf2g9pzrd0sx8595ab9qac3ybgml-texlive-combined-full-202
-4-final-texmfdist/fonts/type1/public/lm/lmr12.pfb></nix/store/vdfydf2g9pzrd0sx8
-595ab9qac3ybgml-texlive-combined-full-2024-final-texmfdist/fonts/type1/public/l
-m/lmri10.pfb></nix/store/vdfydf2g9pzrd0sx8595ab9qac3ybgml-texlive-combined-full
--2024-final-texmfdist/fonts/type1/public/lm/lmri12.pfb></nix/store/vdfydf2g9pzr
-d0sx8595ab9qac3ybgml-texlive-combined-full-2024-final-texmfdist/fonts/type1/pub
-lic/lm/lmssbx10.pfb></nix/store/vdfydf2g9pzrd0sx8595ab9qac3ybgml-texlive-combin
-ed-full-2024-final-texmfdist/fonts/type1/public/lm/lmtt12.pfb>
-Output written on main.pdf (15 pages, 834845 bytes).
+ 115i,20n,122p,10973b,2366s stack positions out of 10000i,1000n,20000p,200000b,200000s
+</nix/store/vdfydf2g9pzrd0sx8595ab9qac3ybgml-texlive-combined-full-2024-final
+-texmfdist/fonts/type1/public/lm/lmbx10.pfb></nix/store/vdfydf2g9pzrd0sx8595ab9
+qac3ybgml-texlive-combined-full-2024-final-texmfdist/fonts/type1/public/lm/lmbx
+12.pfb></nix/store/vdfydf2g9pzrd0sx8595ab9qac3ybgml-texlive-combined-full-2024-
+final-texmfdist/fonts/type1/public/lm/lmmi12.pfb></nix/store/vdfydf2g9pzrd0sx85
+95ab9qac3ybgml-texlive-combined-full-2024-final-texmfdist/fonts/type1/public/lm
+/lmr10.pfb></nix/store/vdfydf2g9pzrd0sx8595ab9qac3ybgml-texlive-combined-full-2
+024-final-texmfdist/fonts/type1/public/lm/lmr12.pfb></nix/store/vdfydf2g9pzrd0s
+x8595ab9qac3ybgml-texlive-combined-full-2024-final-texmfdist/fonts/type1/public
+/lm/lmri10.pfb></nix/store/vdfydf2g9pzrd0sx8595ab9qac3ybgml-texlive-combined-fu
+ll-2024-final-texmfdist/fonts/type1/public/lm/lmri12.pfb></nix/store/vdfydf2g9p
+zrd0sx8595ab9qac3ybgml-texlive-combined-full-2024-final-texmfdist/fonts/type1/p
+ublic/lm/lmssbx10.pfb></nix/store/vdfydf2g9pzrd0sx8595ab9qac3ybgml-texlive-comb
+ined-full-2024-final-texmfdist/fonts/type1/public/lm/lmtt12.pfb>
+Output written on main.pdf (15 pages, 834768 bytes).
 PDF statistics:
- 505 PDF objects out of 1000 (max. 8388607)
- 435 compressed objects within 5 object streams
- 231 named destinations out of 1000 (max. 500000)
+ 501 PDF objects out of 1000 (max. 8388607)
+ 431 compressed objects within 5 object streams
+ 228 named destinations out of 1000 (max. 500000)
  47929 words of extra memory for PDF output out of 51595 (max. 10000000)
 
