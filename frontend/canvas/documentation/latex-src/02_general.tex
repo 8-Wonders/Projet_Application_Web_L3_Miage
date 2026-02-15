@@ -1,5 +1,16 @@
 
-\section{Vue d'ensemble}
+\section{Introduction Préliminaire}
+
+Nous avons déjà réalisé le menu principal, qui figure dans le directoire \textit{menu} du repositoire. Ce module fera l'objet de légers ajustements avant son intégration définitive prévue pour la semaine prochaine.
+
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.8\textwidth]{menu.png}
+	\caption{Aperçu de l'interface du menu principal.}
+	\label{fig:game_overview}
+\end{figure}
+
+\section{Vue d'ensemble du Jeu}
 \label{sec:dict}
 
 Le gameplay s'inspire de classiques du genre « artillerie » tels que \textit{Worms} et \textit{DDTank}. Le joueur incarne un personnage (Mage ou Archer) et doit affronter une série d'ennemis contrôlés par l'ordinateur (simple bots, goblins, dragons) à travers différents niveaux. L'objectif est d'utiliser stratégiquement les déplacements, la visée et un éventail de capacités (projectiles soumis à la gravité, soins, téléportation) pour réduire les points de vie des adversaires à zéro avant que le joueur ne soit vaincu.
@@ -292,7 +303,7 @@ Enfin, pour assurer la pérennité du jeu, nous souhaitons développer un édite
 
 Dans un souci de transparence académique, nous tenons à déclarer que ce projet a bénéficié d'une utilisation extensive d'outils d'intelligence artificielle générative. Cette collaboration homme-machine s'est articulée autour d'une répartition claire des responsabilités: l'équipe a agi en tant qu'architecte et maître d'œuvre, tandis que l'IA a servi d'exécutant technique.
 
-L'intégralité de la vision créative, incluant les idées originales, les mécaniques de jeu (système de compétences, gestion du tour par tour) et la structure globale du projet, a été planifiée et conçue par nos soins. L'intelligence artificielle a été sollicitée principalement pour la phase d'implémentation, générant une part significative du code source (classes, méthodes, logique de bas niveau) sur la base de nos spécifications.
+L'intégralité de la vision créative, incluant les idées originales, les mécaniques de jeu (système de compétences, gestion du tour par tour) et la structure globale du projet, a été planifiée et conçue par nos soins. L'intelligence artificielle a été sollicitée principalement pour la phase d'implémentation, générant une part significative du code source (classes, méthodes, logique de bas niveau) sur la base de nos spécifications. Plus précisément, nous avons utilisé Gemini Pro, Gemini Thinking et Gemini CLI.
 
 Cependant, ce code n'a pas été intégré sans filtre. Nous avons exercé une supervision constante et rigoureuse sur le travail fourni par l'IA. Notre rôle a consisté à relire, tester et corriger les incohérences, ainsi qu'à imposer des directives strictes concernant l'architecture logicielle. Nous sommes intervenus manuellement pour rectifier des erreurs de conception et pour garantir que le code respecte les patrons de conception (Design Patterns) définis, tels que le \textit{Strategy Pattern} pour les comportements des ennemis. 
 
