@@ -13,8 +13,8 @@ export const LEVEL_CONFIG = [
     id: 2,
     mapFile: "assets/maps/02.csv",
     enemies: [
-      { type: "goblin", x: 1150, y: 100 },
-      { type: "bot", x: 1728, y: 100 }
+      { type: "bot", x: 800, y: 100 },
+      { type: "goblin", x: 1150, y: 100 }
     ]
   },
   {
