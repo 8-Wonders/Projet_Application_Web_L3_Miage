@@ -11,6 +11,17 @@
         <div id="tmps">Temps : 0: 00</div>
         <div id="level-indicator">Level: 1</div>
       </div>
+      
+      <div id="victory-overlay" class="hidden">
+        <h1>VICTORY!</h1>
+        <p>Total Time: <span id="final-time-display">0:00</span></p>
+        <div class="input-group">
+            <input type="text" id="username-input" placeholder="Enter your name" maxlength="15" autocomplete="off" />
+            <button id="submit-btn">SUBMIT SCORE</button>
+        </div>
+        <p id="status-message"></p>
+      </div>
+
       <canvas></canvas>
     </div>
   </body>

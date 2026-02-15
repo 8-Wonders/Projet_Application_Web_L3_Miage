@@ -41,3 +41,77 @@ canvas {
   display: block;
 }
 
+/* --- NEW VICTORY SCREEN STYLES --- */
+.hidden {
+  display: none !important;
+}
+
+#victory-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.9);
+  padding: 40px;
+  border: 4px solid gold;
+  border-radius: 12px;
+  text-align: center;
+  color: white;
+  font-family: Arial, sans-serif;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
+  min-width: 300px;
+}
+
+#victory-overlay h1 {
+  margin: 0;
+  font-size: 48px;
+  color: gold;
+  text-shadow: 2px 2px 0px #000;
+}
+
+#victory-overlay p {
+  font-size: 24px;
+  margin: 0;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+#username-input {
+  padding: 12px;
+  font-size: 20px;
+  text-align: center;
+  border-radius: 6px;
+  border: 2px solid #555;
+  background: #fff;
+  color: #000;
+}
+
+#submit-btn {
+  padding: 12px;
+  font-size: 20px;
+  background-color: gold;
+  color: black;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+#submit-btn:hover {
+  background-color: #ffcc00;
+}
+
+#status-message {
+  font-size: 14px;
+  color: #ccc;
+  min-height: 20px;
+}

@@ -204,7 +204,7 @@ Le système de tour par tour, géré par le \textit{TurnManager}, introduit une 
 	}
 \end{javacode}
 
-\section{Système de Temps et Score}
+\subsection{Système de Temps et Score}
 \label{sec:timer-score}
 
 Dans ce projet, la performance du joueur (score) n’est pas mesurée à l’aide d’un système de points classique, mais à travers son efficacité temporelle. Le score final correspond ainsi au temps total nécessaire pour terminer l’ensemble des niveaux, ce qui met davantage l’accent sur la rapidité d’exécution que sur l’accumulation d’actions ou de bonus.
@@ -223,6 +223,49 @@ L’affichage du temps est pris en charge par le \textit{UIManager}, qui convert
 			this.startLevel(this.currentLevelIdx);
 		} else {
 			this.currentState = GAME_STATE.VICTORY;
+		}
+	}
+\end{javacode}
+
+\subsubsection{Persistance des Données (Backend Node.js \& MongoDB)}
+
+Afin de sauvegarder les performances des joueurs, une architecture client-serveur a été mise en place.
+
+Lorsqu'une partie est remportée (état \textit{VICTORY}), une interface dédiée invite le joueur à saisir son pseudonyme (\textit{username}). Le système capture alors trois informations essentielles: le \textit{Username} (saisi par le joueur), le \textit{Score} (le temps accumulé final) et le \textit{Timestamp} (l'horodatage actuel au format ISO).
+
+Ces données sont transmises de manière asynchrone via la classe \textit{ScoreService} à une API REST développée en \textit{Node.js}.
+Le backend se charge ensuite de valider les données et de les stocker de manière persistante dans une base de données \textit{MongoDB}.
+Cette approche permet de conserver un historique global des meilleurs temps réalisés.
+
+\begin{javacode}{Service d'envoi de score - js/services/score.js}
+	export class ScoreService {
+		/**
+		* Envoie le score au backend Node.js/MongoDB.
+		* @param {string} username 
+		* @param {number} score 
+		*/
+		static async submit(username, score) {
+			try {
+				const response = await fetch("http://localhost:3000/api/score", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						username,
+						score, // Correspond a accumulatedTime
+						timestamp: new Date().toISOString()
+					})
+				});
+				
+				if (!response.ok) {
+					const errData = await response.json().catch(() => ({}));
+					return { success: false, error: errData };
+				}
+				
+				const data = await response.json();
+				return { success: true, data };
+			} catch (error) {
+				return { success: false, error };
+			}
 		}
 	}
 \end{javacode}

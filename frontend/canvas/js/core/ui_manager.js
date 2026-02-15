@@ -3,10 +3,16 @@ export class UIManager {
     this.canvas = canvas;
     this.ctx = ctx;
     
-    // Hitboxes for clickable UI elements
+    // Canvas Hitboxes
     this.menuButtons = {};
     this.gameOverButton = {};
-    this.victoryButton = {};
+    
+    // DOM Elements (Cached)
+    this.victoryOverlay = document.getElementById("victory-overlay");
+    this.finalTimeDisplay = document.getElementById("final-time-display");
+    this.statusMessage = document.getElementById("status-message");
+    this.usernameInput = document.getElementById("username-input");
+    this.submitBtn = document.getElementById("submit-btn");
   }
 
   resize(w, h) {
@@ -15,38 +21,79 @@ export class UIManager {
   }
 
   // ==========================================
-  //               DRAWING METHODS
+  //            DOM INTERACTION
+  // ==========================================
+
+  /**
+   * Binds a callback function to the HTML Submit button.
+   * @param {Function} callback - Function to call with the username string.
+   */
+  bindSubmitAction(callback) {
+    if (this.submitBtn) {
+        // We wrap the callback to extract the value here in the UI layer
+        this.submitBtn.addEventListener("click", () => {
+            const name = this.usernameInput ? this.usernameInput.value.trim() : "";
+            callback(name);
+        });
+    }
+  }
+
+  updateStatusMessage(msg, color = "#ccc") {
+    if (this.statusMessage) {
+        this.statusMessage.textContent = msg;
+        this.statusMessage.style.color = color;
+    }
+  }
+
+  clearInput() {
+    if (this.usernameInput) this.usernameInput.value = "";
+    this.updateStatusMessage("");
+  }
+
+  toggleVictoryScreen(show, seconds = 0) {
+    if (show) {
+        const minutes = Math.floor(seconds / 60);
+        const sec = seconds % 60;
+        if (this.finalTimeDisplay) {
+            this.finalTimeDisplay.textContent = `${minutes}:${sec < 10 ? "0" + sec : sec}`;
+        }
+        
+        this.victoryOverlay.classList.remove("hidden");
+        this.updateStatusMessage(""); 
+        if (this.usernameInput) this.usernameInput.focus();
+
+    } else {
+        this.victoryOverlay.classList.add("hidden");
+    }
+  }
+
+  // ==========================================
+  //           CANVAS DRAWING METHODS
   // ==========================================
 
   drawMenu() {
     const { ctx, canvas } = this;
     ctx.save();
     
-    // Background
     ctx.fillStyle = "#111";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Title
     ctx.fillStyle = "white";
     ctx.font = "bold 40px Arial";
     ctx.textAlign = "center";
     ctx.fillText("CHOOSE YOUR CLASS", canvas.width / 2, 100);
 
-    // Button Layout Calculation
     const btnSize = 250;
     const gap = 50;
     const totalWidth = btnSize * 2 + gap;
-    // Center the button group horizontally and vertically
     const startX = (canvas.width - totalWidth) / 2;
     const startY = (canvas.height - btnSize) / 2;
 
-    // Define hitboxes
     this.menuButtons = {
       archer: { x: startX, y: startY, w: btnSize, h: btnSize },
       mage: { x: startX + btnSize + gap, y: startY, w: btnSize, h: btnSize },
     };
 
-    // Draw Buttons
     this._drawClassButton("archer", "#2ecc71", "ARCHER", "High Range", "Gravity Arrows");
     this._drawClassButton("mage", "#e74c3c", "MAGE", "High Damage", "Fireballs");
 
@@ -58,11 +105,9 @@ export class UIManager {
     const { ctx } = this;
     const btnSize = btn.w;
 
-    // Background
     ctx.fillStyle = color;
     ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
     
-    // Text
     ctx.fillStyle = "white";
     ctx.font = "bold 24px Arial";
     ctx.fillText(label, btn.x + btnSize / 2, btn.y + btnSize / 2 - 20);
@@ -70,7 +115,6 @@ export class UIManager {
     ctx.fillText(desc1, btn.x + btnSize / 2, btn.y + btnSize / 2 + 10);
     ctx.fillText(desc2, btn.x + btnSize / 2, btn.y + btnSize / 2 + 30);
     
-    // Border
     ctx.strokeStyle = "white";
     ctx.lineWidth = 4;
     ctx.strokeRect(btn.x, btn.y, btnSize, btnSize);
@@ -87,7 +131,6 @@ export class UIManager {
     ctx.textAlign = "center";
     ctx.fillText("YOU DIED", canvas.width / 2, canvas.height / 2 - 50);
 
-    // Define Button
     const btnW = 200, btnH = 60;
     const btnX = (canvas.width - btnW) / 2;
     const btnY = canvas.height / 2 + 50;
@@ -100,25 +143,9 @@ export class UIManager {
   drawVictory() {
     const { ctx, canvas } = this;
     ctx.save();
-    ctx.fillStyle = "navy";
+    // Darken background
+    ctx.fillStyle = "rgba(0, 0, 50, 0.85)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.fillStyle = "gold";
-    ctx.font = "bold 60px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("VICTORY!", canvas.width / 2, canvas.height / 2 - 50);
-
-    ctx.fillStyle = "white";
-    ctx.font = "30px Arial";
-    ctx.fillText("You defeated the bots.", canvas.width / 2, canvas.height / 2);
-
-    // Define Button
-    const btnW = 220, btnH = 60;
-    const btnX = (canvas.width - btnW) / 2;
-    const btnY = canvas.height / 2 + 80;
-    this.victoryButton = { x: btnX, y: btnY, w: btnW, h: btnH };
-
-    this._drawGenericButton(btnX, btnY, btnW, btnH, "NEW GAME", "#333", "gold");
     ctx.restore();
   }
 
@@ -134,9 +161,6 @@ export class UIManager {
     ctx.restore();
   }
 
-  /**
-   * Updates HTML DOM elements for HUD.
-   */
   drawHUD(level, seconds = 0) {
     const levelDiv = document.getElementById("level-indicator");
     const timeDiv = document.getElementById("tmps");
@@ -151,10 +175,6 @@ export class UIManager {
     }
   }
 
-  /**
-   * Draws the loadout (available projectiles) at the top right.
-   * @param {Player} player - The active player to show stats for.
-   */
   drawLoadout(player) {
     if (!player || !player.abilities) return;
 
@@ -171,9 +191,8 @@ export class UIManager {
         const x = startX + (index * (boxSize + padding));
         const y = startY;
 
-        // 1. Selection Highlight (Yellow border) vs Standard (Gray)
         if (index === player.abilityIndex) {
-            ctx.fillStyle = "rgba(255, 255, 0, 0.3)"; // Translucent yellow
+            ctx.fillStyle = "rgba(255, 255, 0, 0.3)";
             ctx.strokeStyle = "gold";
             ctx.lineWidth = 3;
         } else {
@@ -182,21 +201,16 @@ export class UIManager {
             ctx.lineWidth = 1;
         }
 
-        // 2. Background Box
         ctx.fillRect(x, y, boxSize, boxSize);
         ctx.strokeRect(x, y, boxSize, boxSize);
 
-        // 3. Hotkey Number
         ctx.fillStyle = "white";
         ctx.textAlign = "left";
         ctx.fillText(index + 1, x + 3, y + 15);
 
-        // 4. Draw Icon
-        // Uses static method on the projectile class if it exists
         if (AbilityClass.drawIcon) {
             AbilityClass.drawIcon(ctx, x + 10, y + 15, 30);
         } else {
-            // Fallback text
             ctx.fillStyle = "white";
             ctx.font = "10px Arial";
             ctx.fillText("?", x + 20, y + 30);
@@ -226,16 +240,11 @@ export class UIManager {
     return null;
   }
 
-  // Unified check for both Game Over and Victory screens
   checkRestartClick(mouseX, mouseY) {
     if (this._isInside(mouseX, mouseY, this.gameOverButton)) return true;
-    if (this._isInside(mouseX, mouseY, this.victoryButton)) return true;
     return false;
   }
 
-  /**
-   * AABB Collision check for Mouse vs Button
-   */
   _isInside(x, y, btn) {
     return btn && x >= btn.x && x <= btn.x + btn.w && y >= btn.y && y <= btn.y + btn.h;
   }

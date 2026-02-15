@@ -1,3 +1,5 @@
+// js/input.js
+
 // Tracks the current state of all keys (pressed = true)
 export const keys = {};
 
@@ -8,15 +10,14 @@ export const mouse = { x: 0, y: 0, isDown: false };
 //           EVENT LISTENERS
 // ==========================================
 
-/**
- * Sets up global event listeners for keyboard and mouse interaction.
- * @param {Function} getCurrentPlayer - Callback to retrieve the active player instance.
- * @param {HTMLCanvasElement} canvas - Required to calculate mouse coordinates relative to game world.
- */
 export function handleInput(getCurrentPlayer, canvas) {
   
   // --- Keyboard ---
   window.addEventListener("keydown", (e) => {
+    
+    // NEW: Allow typing in the username box without triggering game controls
+    if (e.target.tagName === "INPUT") return;
+
     // 1. Prevent browser scrolling
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) {
       e.preventDefault();
@@ -65,11 +66,12 @@ export function handleInput(getCurrentPlayer, canvas) {
     });
 
     window.addEventListener("mousedown", (e) => {
+      // Don't trigger shooting if clicking on the UI Overlay
+      if (e.target.closest("#victory-overlay")) return;
+
       mouse.isDown = true;
       const player = getCurrentPlayer();
       
-      // If player is aiming and clicks, trigger shoot
-      // (Useful for Teleporting via click)
       if (player && player.isAiming && !player.hasFired && player.constructor.name !== "Bot") {
         player.shoot(); 
       }
@@ -122,7 +124,6 @@ export function handleMovement(player, keys, map) {
 }
 
 export function handleAiming(player, keys) {
-  // 1. Snap Direction
   if (keys["ArrowLeft"]) {
     player.aimAngle = Math.PI; 
     player.facing = -1;
@@ -132,14 +133,12 @@ export function handleAiming(player, keys) {
     player.facing = 1;
   }
 
-  // 2. Rotate Angle
   const direction = player.facing === -1 ? -1 : 1;
   let newAngle = player.aimAngle;
 
   if (keys["ArrowUp"]) newAngle -= player.aimRotationSpeed * direction;
   if (keys["ArrowDown"]) newAngle += player.aimRotationSpeed * direction;
 
-  // 3. Constrain Angle
   let minAngle, maxAngle;
   if (player.facing === 1) {
     minAngle = -Math.PI / 2;

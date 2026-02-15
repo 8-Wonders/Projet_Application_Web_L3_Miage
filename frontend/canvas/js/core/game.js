@@ -5,6 +5,7 @@ import { LevelManager } from "./level_manager.js";
 import { TurnManager, WIN_STATE } from "./turn_manager.js";
 import { Bot } from "../players/bot.js";
 import { LEVEL_CONFIG } from "./levels.js"; 
+import { ScoreService } from "../services/score.js"; // IMPORT SERVICE
 
 export const GAME_STATE = {
   MENU: 0,
@@ -35,6 +36,8 @@ export class Game {
     this.accumulatedTime = 0; 
 
     this.loop = this.loop.bind(this);
+    // Bind 'this' for the callback passed to UIManager
+    this.submitScore = this.submitScore.bind(this);
   }
 
   async init() {
@@ -43,6 +46,9 @@ export class Game {
     
     this.setupInputs();
     this.setupResizeHandlers();
+    
+    // Bind the UI button action to our game logic
+    this.ui.bindSubmitAction(this.submitScore);
     
     this.resize();
     this.loop();
@@ -88,8 +94,7 @@ export class Game {
     // 1. Mouse Clicks (UI/Menu)
     this.canvas.addEventListener("click", (e) => this.handleMouseClick(e));
 
-    // 2. Keyboard/Continuous Input & Mouse Move (via handleInput)
-    // IMPORTANT: Pass 'this.canvas' so input.js can calculate mouse coords
+    // 2. Keyboard/Continuous Input
     handleInput(() => {
       if (this.currentState === GAME_STATE.PLAYING) {
         return this.turnManager.getCurrentPlayer(this.players);
@@ -118,7 +123,6 @@ export class Game {
         break;
       
       case GAME_STATE.GAME_OVER:
-      case GAME_STATE.VICTORY:
         if (this.ui.checkRestartClick(mx, my)) { 
           this.returnToMenu();
         }
@@ -135,6 +139,7 @@ export class Game {
 
   returnToMenu() {
     this.currentState = GAME_STATE.MENU;
+    this.ui.toggleVictoryScreen(false); 
     this.resize(true);
   }
 
@@ -165,8 +170,33 @@ export class Game {
       this.currentLevelIdx++;
       this.startLevel(this.currentLevelIdx);
     } else {
+      // VICTORY STATE
       this.currentState = GAME_STATE.VICTORY;
       this.resize(true);
+      
+      this.ui.toggleVictoryScreen(true, this.accumulatedTime);
+    }
+  }
+
+  // Refactored Submit Logic using ScoreService
+  async submitScore(username) {
+    if (!username) {
+        this.ui.updateStatusMessage("Please enter a username!", "red");
+        return;
+    }
+
+    this.ui.updateStatusMessage("Sending...", "#ccc");
+
+    // Call the independent service
+    const result = await ScoreService.submit(username, this.accumulatedTime);
+
+    if (result.success) {
+        console.log("Score saved!");
+        this.ui.clearInput();
+        this.returnToMenu();
+    } else {
+        console.error("Server Error:", result.error);
+        this.ui.updateStatusMessage("Error saving score. Try again.", "red");
     }
   }
 
