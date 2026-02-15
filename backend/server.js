@@ -2,12 +2,10 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./db');
-const { router: authRouter } = require('./routes/auth');
-const { router: usersRouter } = require('./routes/users');
+const scoresRouter = require('./routes/scores');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const path = require('path');
 
 // Connexion à MongoDB
 connectDB();
@@ -15,24 +13,12 @@ connectDB();
 // Middlewares
 app.use(express.json());
 app.use(cors({
-  origin: '*', // À adapter selon vos besoins de sécurité
+  origin: '*', // Allow all origins for development/game frontend
   credentials: true
 }));
 
 // Routes API
-app.use('/api/auth', authRouter);
-app.use('/api/users', usersRouter);
-
-// Servir les uploads
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// Servir les fichiers statiques du frontend
-app.use(express.static(path.join(__dirname, '../frontend/menu')));
-
-// Servir index.html pour les routes non-API (Single Page App)
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/menu/index.html'));
-});
+app.use('/api/scores', scoresRouter);
 
 // Gestion des erreurs 404 pour API
 app.use((req, res) => {
