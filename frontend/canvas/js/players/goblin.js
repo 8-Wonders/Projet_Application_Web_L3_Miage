@@ -1,5 +1,6 @@
 import { Bot } from "./bot.js";
 import { Spear } from "../projectiles/spear.js";
+import { DumbAI } from "../ai/dumb.js";
 
 export class Goblin extends Bot {
   constructor(x, y, width, height) {
@@ -8,5 +9,8 @@ export class Goblin extends Bot {
     this.name = "Goblin";
 
     this.abilities = [Spear];
+    
+    // Assign Dumb AI
+    this.setStrategy(new DumbAI());
   }
 }
