@@ -30,6 +30,25 @@ let previewCamera = null;
 canvas.addEventListener("contextmenu", (event) => {
   event.preventDefault();
 });
+// Prevent browser zoom gestures while interacting with the scene.
+window.addEventListener(
+  "wheel",
+  (event) => {
+    if (event.ctrlKey) {
+      event.preventDefault();
+    }
+  },
+  { passive: false },
+);
+["gesturestart", "gesturechange", "gestureend"].forEach((type) => {
+  window.addEventListener(
+    type,
+    (event) => {
+      event.preventDefault();
+    },
+    { passive: false },
+  );
+});
 
 const createScene = async () => {
   const scene = new Scene(engine);
