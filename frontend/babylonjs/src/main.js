@@ -90,7 +90,8 @@ const createScene = async () => {
       if (!mesh.getBoundingInfo) {
         return;
       }
-      // Ensure world matrix is computed for accurate bounds
+      // Ensure bounds are up to date for accurate scaling/placement.
+      mesh.refreshBoundingInfo(true);
       mesh.computeWorldMatrix(true);
       const bounds = mesh.getBoundingInfo().boundingBox;
       min = Vector3.Minimize(min, bounds.minimumWorld);
@@ -103,31 +104,28 @@ const createScene = async () => {
     if (meshes.length === 0) {
       throw new Error(`No mesh data for ${name}`);
     }
-    const { min, max } = getBounds(meshes);
-    const height = max.y - min.y;
-    if (!Number.isFinite(height) || height <= 0) {
-      throw new Error(`Invalid bounds for ${name}`);
-    }
-    
-    const scale = height > 0 ? targetHeight / height : 1;
-    
-    // Calculate center of the bounding box
-    const center = min.add(max).scale(0.5);
-    // We want to align the bottom-center of the mesh to the root's origin
-    const bottomCenter = new Vector3(center.x, min.y, center.z);
-
-    // Create a container for adjustment (scaling and centering)
+    // Create a container for adjustment (scaling, centering)
     const adjuster = new TransformNode(`${name}-adjuster`, scene);
     adjuster.parent = root;
-    
+
     // Re-parent meshes to the adjuster FIRST (while adjuster is at identity)
     meshes.forEach((mesh) => {
       mesh.setParent(adjuster);
     });
 
-    // Now apply the transform to the adjuster to move the meshes to origin
+    const bounds = getBounds(meshes);
+    const height = bounds.max.y - bounds.min.y;
+    if (!Number.isFinite(height) || height <= 0) {
+      throw new Error(`Invalid bounds for ${name}`);
+    }
+
+    const scale = targetHeight / height;
+    const center = bounds.min.add(bounds.max).scale(0.5);
+    const bottomCenter = new Vector3(center.x, bounds.min.y, center.z);
+
+    // Move the bottom-center to the origin after scaling.
     adjuster.scaling = new Vector3(scale, scale, scale);
-    adjuster.position = bottomCenter.scale(-scale); 
+    adjuster.position = bottomCenter.scale(-scale);
 
     root.setEnabled(false);
     pieceTemplates[name] = root;
@@ -393,7 +391,7 @@ const createScene = async () => {
     instanceRoot.setEnabled(true);
     instanceRoot.position.x = col * tileSize - offset;
     instanceRoot.position.z = row * tileSize - offset;
-    instanceRoot.position.y = -0.1;
+    instanceRoot.position.y = 0;
     instanceRoot.getChildMeshes().forEach((mesh) => {
       mesh.material = color === "white" ? baseWhite : baseBlack;
       mesh.metadata = { squareId, isPiece: true };
