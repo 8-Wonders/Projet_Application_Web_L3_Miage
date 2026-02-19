@@ -1,0 +1,147 @@
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #0b1020;
+  font-family: "Space Grotesk", "Gill Sans", "Trebuchet MS", sans-serif;
+}
+
+.layout {
+  display: flex;
+  height: 100%;
+  width: 100%;
+}
+
+.sidebar {
+  width: 240px;
+  padding: 18px 16px;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #11182a 0%, #0b1020 100%);
+  border-right: 1px solid #1b2540;
+  color: #e5e7ef;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel-title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+}
+
+.piece-group {
+  display: grid;
+  gap: 8px;
+}
+
+.group-title {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #8ea1c8;
+}
+
+.piece-btn,
+.clear-btn,
+.overlay-actions .piece-btn {
+  background: #151f38;
+  color: #e5e7ef;
+  border: 1px solid #2a3555;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform 0.08s ease, border-color 0.08s ease, background 0.08s ease;
+}
+
+.piece-btn:hover,
+.clear-btn:hover,
+.overlay-actions .piece-btn:hover {
+  border-color: #4c6fff;
+  transform: translateY(-1px);
+}
+
+.piece-btn.active {
+  background: #2843a6;
+  border-color: #6c8cff;
+}
+
+.piece-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  border-color: #2a3555;
+}
+
+.budget {
+  font-size: 13px;
+  color: #c6d0e6;
+}
+
+.clear-btn {
+  margin-top: auto;
+  background: #2a1b35;
+  border-color: #593354;
+}
+
+.hint {
+  font-size: 12px;
+  color: #9aa7c2;
+  line-height: 1.4;
+}
+
+.stage {
+  flex: 1;
+  position: relative;
+}
+
+#renderCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 8, 18, 0.82);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.overlay.hidden {
+  display: none;
+}
+
+.overlay-card {
+  background: #11182a;
+  border: 1px solid #2a3555;
+  border-radius: 16px;
+  padding: 22px 24px;
+  color: #e5e7ef;
+  width: min(360px, 90vw);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+.overlay-text {
+  font-size: 13px;
+  color: #b6c2dd;
+  margin: 10px 0 16px;
+  line-height: 1.5;
+}
+
+.overlay-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.hidden {
+  display: none;
+}
