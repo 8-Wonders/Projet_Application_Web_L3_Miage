@@ -82,6 +82,9 @@ const createScene = async () => {
   baseBlack.specularColor = new Color3(0.08, 0.08, 0.08);
 
   const pieceTemplates = {};
+  const pieceYawFix = {
+    knight: -Math.PI / 2,
+  };
 
   const getBounds = (meshes) => {
     let min = new Vector3(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
@@ -392,6 +395,8 @@ const createScene = async () => {
     instanceRoot.position.x = col * tileSize - offset;
     instanceRoot.position.z = row * tileSize - offset;
     instanceRoot.position.y = 0;
+    const baseYaw = pieceYawFix[type] || 0;
+    instanceRoot.rotation = new Vector3(0, baseYaw + (color === "black" ? Math.PI : 0), 0);
     instanceRoot.getChildMeshes().forEach((mesh) => {
       mesh.material = color === "white" ? baseWhite : baseBlack;
       mesh.metadata = { squareId, isPiece: true };
