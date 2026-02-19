@@ -23,15 +23,16 @@ async function initializeEngine() {
   if (sf.FS) {
     console.log("FS module found. Writing variants.ini...");
     try {
+      // FIX: Use customPiece1, customPiece2... and standard Betza movement notation
       sf.FS.writeFile('/variants.ini', `
 [mychess]
 parent = chess
 noking = true
-piece = c:C:3,1
-piece = w:W:1,1:3,1
-piece = a:A:BN
-piece = h:H:RN
-piece = z:Z:QN
+customPiece1 = c:C:C
+customPiece2 = w:W:FC
+customPiece3 = a:A:BN
+customPiece4 = h:H:RN
+customPiece5 = z:Z:QN
 pieceValue = p:100, r:500, n:300, b:300, q:900, k:1000, c:300, w:500, a:700, h:800, z:1200
 `);
       console.log("variants.ini written successfully.");

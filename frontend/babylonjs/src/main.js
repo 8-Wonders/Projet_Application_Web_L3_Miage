@@ -396,7 +396,6 @@ const createScene = async () => {
         (mesh) => mesh.getTotalVertices && mesh.getTotalVertices() > 0,
       );
 
-      // Initial parenting to root to ensure they are together, though registerFromMeshes will move them
       meshes.forEach((mesh) => {
         mesh.parent = root;
       });
@@ -405,7 +404,7 @@ const createScene = async () => {
       console.log(`Successfully loaded: ${name}`);
     } catch (e) {
       console.error(`Failed to load ${name}:`, e);
-      throw e; // Rethrow to trigger fallback
+      throw e;
     }
   };
 
@@ -694,6 +693,12 @@ const createScene = async () => {
     }
 
     const [color, type] = selectedPiece.split("-");
+
+    if (type === "pawn" && (row === 0 || row === 7)) {
+      alert("Pawns cannot be placed on the first or last rank.");
+      return;
+    }
+
     const def = pieceDefs[type];
     if (!def) {
       return;
@@ -778,6 +783,8 @@ const createScene = async () => {
 
     squares.forEach((squareId) => {
       const affordable = Object.entries(pieceDefs).filter(([type, def]) => {
+        const [row] = squareId.split("-").map(Number);
+        if (type === "pawn" && (row === 0 || row === 7)) return false;
         return counts[aiColor][type] < def.max && budgets[aiColor] >= def.value;
       });
       if (affordable.length === 0) {
@@ -816,6 +823,8 @@ const createScene = async () => {
   let engineWorker = null;
   let gameInProgress = false;
   let currentTurn = "white";
+  let initialFen = "";
+  let moveHistory = [];
 
   const toAlgebraic = (row, col) => {
     const file = String.fromCharCode(97 + col);
@@ -849,36 +858,50 @@ const createScene = async () => {
 
   const generateFEN = (turn) => {
     let fen = "";
+
+    let pieceCount = 0;
+
     for (let row = 0; row < 8; row++) {
       let empty = 0;
+
       for (let col = 0; col < 8; col++) {
         const squareId = `${row}-${col}`;
+
         const piece = placedPieces.get(squareId);
+
         if (piece) {
+          pieceCount++;
+
           if (empty > 0) {
             fen += empty;
+
             empty = 0;
           }
+
           fen += toPieceChar(piece.type, piece.color);
         } else {
           empty++;
         }
       }
+
       if (empty > 0) {
         fen += empty;
       }
+
       if (row < 7) {
         fen += "/";
       }
     }
+
     fen += ` ${turn === "white" ? "w" : "b"} - - 0 1`;
+
+    console.log("Generated FEN:", fen, "Pieces in FEN:", pieceCount);
+
     return fen;
   };
 
-
-
   const executeEngineMove = (move) => {
-    console.log("Executing move:", move);
+    console.log("Executing move:", move, "Current turn:", currentTurn);
     const from = move.substring(0, 2);
     const to = move.substring(2, 4);
     const fromCoord = fromAlgebraic(from);
@@ -888,114 +911,106 @@ const createScene = async () => {
     const toSq = `${toCoord.row}-${toCoord.col}`;
 
     let piece = placedPieces.get(fromSq);
+    let actualKey = fromSq;
+
     if (!piece) {
-      console.warn("Piece not found at", fromSq, "Attempting fuzzy search...");
-      // Fuzzy search: maybe coordinates are flipped or off by one?
-      // Or maybe my algebraic conversion is slightly wrong.
-      // Let's iterate all pieces and see if any match our expected row/col
+      console.warn("Piece not found at", fromSq, "Scanning map...");
       for (const [key, p] of placedPieces.entries()) {
-         const [r, c] = key.split('-').map(Number);
-         if (r === fromCoord.row && c === fromCoord.col) {
-             console.log("Found piece at", key, "matching", fromSq);
-             piece = p;
-             // Update the map key to match reality if needed, but for now just use it
-             break;
-         }
+        if (p.color === currentTurn) {
+          console.log("  Found", p.color, p.type, "at", key);
+        }
+        const [r, c] = key.split("-").map(Number);
+        if (r === fromCoord.row && c === fromCoord.col) {
+          console.log("  Match found at key:", key);
+          piece = p;
+          actualKey = key;
+          break;
+        }
       }
     }
 
     if (!piece) {
-        console.warn("Fuzzy search failed. Checking for ANY piece of current turn color...");
-        // Maybe the engine coordinate system is rotated or flipped relative to ours.
-        // Let's print all white pieces if turn is white
-        let candidates = [];
-        for (const [key, p] of placedPieces.entries()) {
-            if (p.color === currentTurn) {
-                candidates.push({key, type: p.type});
-            }
-        }
-        console.log("Candidates for", currentTurn, ":", candidates);
-        
-        // If engine says f4e3, it means piece at f4 moves to e3.
-        // f4 is file=5, rank=4. 
-        // toAlgebraic(4, 5) -> f4.
-        // row=4, col=5.
-        // So we expect key "4-5".
-        
-        // Is it possible the engine sees the board differently?
-        // Stockfish uses standard chess: a1 is bottom-left (White side).
-        // Our board: row 0 is Top (Black side, rank 8), row 7 is Bottom (White side, rank 1).
-        // toAlgebraic: rank = 8 - row.
-        // row 7 -> rank 1. Correct.
-        // row 0 -> rank 8. Correct.
-        // col 0 -> file a. Correct.
-        // col 7 -> file h. Correct.
-        
-        // Let's see if we can find a piece at (7-row, 7-col) just in case of rotation?
-        const rotatedRow = 7 - fromCoord.row;
-        const rotatedCol = 7 - fromCoord.col;
-        const rotatedKey = `${rotatedRow}-${rotatedCol}`;
-        const rotatedPiece = placedPieces.get(rotatedKey);
-        
-        if (rotatedPiece && rotatedPiece.color === currentTurn) {
-             console.log("Found piece at ROTATED coordinate", rotatedKey);
-             // piece = rotatedPiece; 
-             // We won't reassign just yet, let's see what happens.
-             // Actually, if we rotate the FROM, we must rotate the TO as well!
-             // Let's assume the ENGINE sees the board flipped.
-             // So if engine says g7f6 (1-6 to 2-5), it might mean (6-1 to 5-2)
-             
-             // Wait, if we are playing as White (bottom), rows 6,7 are us.
-             // Engine sees White at bottom (ranks 1,2 -> rows 7,6).
-             // If engine says g7f6, that is Black moving a pawn from g7 to f6.
-             // g7 is row=1, col=6.
-             // Our candidate list printed 7 items.
-             
-             // Let's check if the piece at 1-6 actually exists in our map.
-             // If it doesn't, maybe we indexed it as 6-1?
-             // row 1 is top (Black). row 6 is bottom (White).
-             // If we placed Black pieces at top, they should be at row 0, 1.
-             // g7 -> row 1, col 6.
-             
-             // If map key is "1-6", then placedPieces.get("1-6") should work.
-             // Why did it fail? "Piece not found at 1-6".
-             // Maybe the key is "1-6" but the type is wrong? No, get() returns undefined.
-             
-             // Let's print the keys of the candidates to be sure.
-        }
-    }
-
-    if (!piece) {
-      console.error("Piece DEFINITELY not found at", fromSq);
-      console.log("All keys:", Array.from(placedPieces.keys()));
+      console.error(
+        "Move FAILED: No piece for turn",
+        currentTurn,
+        "at",
+        fromSq,
+      );
+      console.log("History:", moveHistory);
+      console.log("Initial FEN:", initialFen);
+      console.log("Available keys:", Array.from(placedPieces.keys()));
       gameInProgress = false;
+      if (startBattleBtn) {
+        startBattleBtn.textContent = "Fight!";
+        startBattleBtn.disabled = false;
+      }
       return;
     }
 
     if (placedPieces.has(toSq)) {
+      console.log("Capture! Removing piece at", toSq);
       removePiece(toSq);
     }
 
+    // Move animation (instant for now)
     piece.root.position.x = toCoord.col * tileSize - offset;
-    piece.root.position.z = (7 - toCoord.row) * tileSize - offset; 
-    // Wait, Rank 8 (row 0) should be z = 7 * tileSize - offset?
-    // Let's re-verify: row 0 is Rank 8.
-    // tile.position.z = row * tileSize - offset.
-    // row 0: z = -offset.
-    // row 7: z = offset.
-    // So row 0 is Rank 8, row 7 is Rank 1.
-    // Rank 1 (row 7) is z = offset.
-    // Rank 8 (row 0) is z = -offset.
-    // If fromAlgebraic gives toCoord.row = 0 for Rank 8, then z should be 0 * tileSize - offset = -offset.
-    // Correct! So z = toCoord.row * tileSize - offset.
     piece.root.position.z = toCoord.row * tileSize - offset;
 
     piece.root.getChildMeshes().forEach((mesh) => {
       if (mesh.metadata) mesh.metadata.squareId = toSq;
     });
 
-    placedPieces.delete(fromSq);
+    placedPieces.delete(actualKey);
     placedPieces.set(toSq, piece);
+
+    if (move.length > 4) {
+      const promoChar = move[4].toLowerCase();
+      const promoMap = {
+        q: "queen",
+        r: "rook",
+        b: "bishop",
+        n: "knight",
+        a: "archbishop",
+        h: "chancellor",
+        c: "camel",
+        w: "wizzard",
+        z: "amazon",
+      };
+      const newType = promoMap[promoChar] || "queen";
+
+      // Update logic state
+      piece.type = newType;
+
+      // Swap the 3D mesh
+      const oldRoot = piece.root;
+      const base = pieceTemplates[newType];
+      if (base) {
+        const newRoot = base.clone(
+          `${piece.color}-${newType}-${toSq}`,
+          null,
+          false,
+        );
+        newRoot.setEnabled(true);
+        newRoot.position.x = oldRoot.position.x;
+        newRoot.position.z = oldRoot.position.z;
+        newRoot.position.y = 0;
+        const baseYaw = pieceYawFix[newType] || 0;
+        newRoot.rotation = new Vector3(
+          0,
+          baseYaw + (piece.color === "black" ? Math.PI : 0),
+          0,
+        );
+        newRoot.getChildMeshes().forEach((mesh) => {
+          mesh.material = piece.color === "white" ? baseWhite : baseBlack;
+          mesh.metadata = { squareId: toSq, isPiece: true };
+        });
+        piece.root = newRoot;
+        oldRoot.dispose();
+      }
+    }
+    // ------------------------------------------
+
+    moveHistory.push(move);
 
     currentTurn = currentTurn === "white" ? "black" : "white";
     checkFinalWinner();
@@ -1005,8 +1020,12 @@ const createScene = async () => {
   };
 
   const checkFinalWinner = () => {
-    const whiteLeft = Array.from(placedPieces.values()).some((p) => p.color === "white");
-    const blackLeft = Array.from(placedPieces.values()).some((p) => p.color === "black");
+    const whiteLeft = Array.from(placedPieces.values()).some(
+      (p) => p.color === "white",
+    );
+    const blackLeft = Array.from(placedPieces.values()).some(
+      (p) => p.color === "black",
+    );
 
     if (!whiteLeft && !blackLeft) {
       alert("It's a draw!");
@@ -1029,27 +1048,29 @@ const createScene = async () => {
 
   const requestEngineMove = () => {
     if (!gameInProgress) return;
-    const fen = generateFEN(currentTurn);
-    console.log("Sending FEN:", fen);
-    engineWorker.postMessage(`position fen ${fen}`);
-    engineWorker.postMessage("go movetime 500");
+
+    const historyStr =
+      moveHistory.length > 0 ? " moves " + moveHistory.join(" ") : "";
+    const positionCmd = `position fen ${initialFen}${historyStr}`;
+    console.log("Sending position:", positionCmd);
+
+    engineWorker.postMessage(positionCmd);
+    engineWorker.postMessage("go movetime 1000");
   };
 
   const initEngine = () => {
     if (engineWorker) {
-        // If engine exists, just ensure it's ready and start
-        gameInProgress = true;
-        currentTurn = "white";
-        // We assume it's already configured if it exists. 
-        // But to be safe, we can re-send isready check or just start.
-        // Let's just start for now, assuming previous session left it in good state.
-        requestEngineMove();
-        return;
+      gameInProgress = true;
+      currentTurn = "white";
+      requestEngineMove();
+      return;
     }
-    
+
     console.log("Initializing worker...");
-    engineWorker = new Worker(new URL("/engine/chess-worker.js", window.location.origin));
-    
+    engineWorker = new Worker(
+      new URL("/engine/chess-worker.js", window.location.origin),
+    );
+
     engineWorker.onerror = (err) => {
       console.error("Worker Error:", err);
     };
@@ -1057,18 +1078,19 @@ const createScene = async () => {
     engineWorker.onmessage = (e) => {
       const line = e.data;
       console.log("Engine says:", line);
-      
+
       if (line === "ready") {
         console.log("Engine ready. Sending configuration...");
         engineWorker.postMessage("uci");
         setTimeout(() => {
-            engineWorker.postMessage("setoption name UCI_Variant value mychess");
-            engineWorker.postMessage("isready");
+          engineWorker.postMessage("setoption name UCI_Variant value mychess");
+          engineWorker.postMessage("ucinewgame");
+          engineWorker.postMessage("isready");
         }, 100);
       } else if (line === "readyok") {
         console.log("Engine configured and ready. Starting battle.");
         if (gameInProgress) {
-            requestEngineMove();
+          requestEngineMove();
         }
       } else if (line.startsWith("bestmove")) {
         const move = line.split(" ")[1];
@@ -1088,15 +1110,15 @@ const createScene = async () => {
   if (startBattleBtn) {
     startBattleBtn.addEventListener("click", () => {
       if (gameInProgress) return;
-      
+
       gameInProgress = true;
       startBattleBtn.textContent = "Battle in progress...";
       startBattleBtn.disabled = true;
       currentTurn = "white";
 
-      // If engine not initialized, this will trigger the init sequence
-      // which eventually calls requestEngineMove on 'readyok'.
-      // If engine IS initialized, initEngine() will call requestEngineMove immediately.
+      initialFen = generateFEN("white");
+      moveHistory = [];
+
       initEngine();
     });
   }
