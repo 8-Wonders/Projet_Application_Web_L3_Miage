@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@babylonjs/core": "^7.0.0",
-    "@babylonjs/loaders": "^7.0.0"
+    "@babylonjs/loaders": "^7.0.0",
+    "fairy-stockfish-nnue.wasm": "^1.1.11"
   },
   "devDependencies": {
     "vite": "^5.0.0"
