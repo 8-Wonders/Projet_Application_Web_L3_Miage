@@ -3,51 +3,99 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Babylon + Vite</title>
+    <title>Jeu auto chess</title>
   </head>
   <body>
     <div class="overlay" id="sidePicker">
       <div class="overlay-card">
         <div class="panel-title">Choose Your Color</div>
-        <p class="overlay-text">Pick a side to start placing pieces. The AI will auto-fill the opposite side.</p>
+        <p class="overlay-text">
+          Pick a side to start placing pieces. The AI will auto-fill the
+          opposite side.
+        </p>
         <div class="overlay-actions">
           <button class="piece-btn" id="pickWhite">Play White</button>
           <button class="piece-btn" id="pickBlack">Play Black</button>
         </div>
       </div>
     </div>
+    <div class="overlay hidden" id="moveModal">
+      <div class="overlay-card move-card">
+        <div class="panel-title" id="moveTitle">Piece movement</div>
+        <p class="overlay-text" id="moveText"></p>
+        <div class="overlay-actions">
+          <button class="piece-btn" id="closeMove">Close</button>
+        </div>
+      </div>
+    </div>
     <div class="layout">
       <aside class="sidebar">
         <div class="panel-title">Piece Picker</div>
-        <div class="budget" id="budgetWhite">Your budget: 39</div>
-        <div class="budget" id="budgetBlack">AI budget: 39</div>
-        <div class="piece-group" data-color="white">
-          <div class="group-title">White</div>
-          <button class="piece-btn" data-piece="white-pawn">Pawn</button>
-          <button class="piece-btn" data-piece="white-rook">Rook</button>
-          <button class="piece-btn" data-piece="white-knight">Knight</button>
-          <button class="piece-btn" data-piece="white-bishop">Bishop</button>
-          <button class="piece-btn" data-piece="white-queen">Queen</button>
-          <button class="piece-btn" data-piece="white-king">King</button>
-          <button class="piece-btn" data-piece="white-camel">Camel</button>
-          <button class="piece-btn" data-piece="white-wizzard">Wizzard</button>
-          <button class="piece-btn" data-piece="white-archbishop">Archbishop</button>
-          <button class="piece-btn" data-piece="white-chancellor">Chancellor</button>
-          <button class="piece-btn" data-piece="white-amazon">Amazon</button>
+        <div class="budget-row">
+          <div class="budget" id="budgetWhite">Your budget: 39</div>
+          <div class="budget" id="budgetBlack">AI budget: 39</div>
         </div>
-        <div class="piece-group" data-color="black">
-          <div class="group-title">Black</div>
-          <button class="piece-btn" data-piece="black-pawn">Pawn</button>
-          <button class="piece-btn" data-piece="black-rook">Rook</button>
-          <button class="piece-btn" data-piece="black-knight">Knight</button>
-          <button class="piece-btn" data-piece="black-bishop">Bishop</button>
-          <button class="piece-btn" data-piece="black-queen">Queen</button>
-          <button class="piece-btn" data-piece="black-king">King</button>
-          <button class="piece-btn" data-piece="black-camel">Camel</button>
-          <button class="piece-btn" data-piece="black-wizzard">Wizzard</button>
-          <button class="piece-btn" data-piece="black-archbishop">Archbishop</button>
-          <button class="piece-btn" data-piece="black-chancellor">Chancellor</button>
-          <button class="piece-btn" data-piece="black-amazon">Amazon</button>
+        <div class="picker">
+          <div class="picker-grid">
+            <div class="piece-group" data-color="white">
+              <div class="group-title">White</div>
+              <button class="piece-btn" data-piece="white-pawn">Pawn</button>
+              <button class="piece-btn" data-piece="white-rook">Rook</button>
+              <button class="piece-btn" data-piece="white-knight">
+                Knight
+              </button>
+              <button class="piece-btn" data-piece="white-bishop">
+                Bishop
+              </button>
+              <button class="piece-btn" data-piece="white-queen">Queen</button>
+              <button class="piece-btn" data-piece="white-king">King</button>
+              <button class="piece-btn" data-piece="white-camel">Camel</button>
+              <button class="piece-btn" data-piece="white-wizzard">
+                Wizard
+              </button>
+              <button class="piece-btn" data-piece="white-archbishop">
+                Archbishop
+              </button>
+              <button class="piece-btn" data-piece="white-chancellor">
+                Chancellor
+              </button>
+              <button class="piece-btn" data-piece="white-amazon">
+                Amazon
+              </button>
+            </div>
+            <div class="piece-group" data-color="black">
+              <div class="group-title">Black</div>
+              <button class="piece-btn" data-piece="black-pawn">Pawn</button>
+              <button class="piece-btn" data-piece="black-rook">Rook</button>
+              <button class="piece-btn" data-piece="black-knight">
+                Knight
+              </button>
+              <button class="piece-btn" data-piece="black-bishop">
+                Bishop
+              </button>
+              <button class="piece-btn" data-piece="black-queen">Queen</button>
+              <button class="piece-btn" data-piece="black-king">King</button>
+              <button class="piece-btn" data-piece="black-camel">Camel</button>
+              <button class="piece-btn" data-piece="black-wizzard">
+                Wizard
+              </button>
+              <button class="piece-btn" data-piece="black-archbishop">
+                Archbishop
+              </button>
+              <button class="piece-btn" data-piece="black-chancellor">
+                Chancellor
+              </button>
+              <button class="piece-btn" data-piece="black-amazon">
+                Amazon
+              </button>
+            </div>
+          </div>
+          <div class="preview-panel">
+            <div class="preview-title">Preview</div>
+            <div class="preview-name" id="previewName">Select a piece</div>
+            <canvas id="previewCanvas"></canvas>
+            <button class="piece-btn" id="aboutMove">About move</button>
+          </div>
         </div>
         <button class="clear-btn" id="clearBoard">Clear Board</button>
         <div class="hint">Click a piece, then click a square to place it.</div>

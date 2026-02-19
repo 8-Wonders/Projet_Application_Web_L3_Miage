@@ -15,7 +15,7 @@ body {
 }
 
 .sidebar {
-  width: 240px;
+  width: 380px;
   padding: 18px 16px;
   box-sizing: border-box;
   background: linear-gradient(180deg, #11182a 0%, #0b1020 100%);
@@ -35,6 +35,7 @@ body {
 .piece-group {
   display: grid;
   gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .group-title {
@@ -42,6 +43,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 1px;
   color: #8ea1c8;
+  grid-column: 1 / -1;
 }
 
 .piece-btn,
@@ -79,6 +81,54 @@ body {
 .budget {
   font-size: 13px;
   color: #c6d0e6;
+}
+
+.budget-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px;
+  gap: 14px;
+}
+
+.picker-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.preview-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #0f172c;
+  border: 1px solid #1f2a45;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.preview-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #8ea1c8;
+}
+
+.preview-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#previewCanvas {
+  width: 100%;
+  height: 160px;
+  border-radius: 10px;
+  background: radial-gradient(circle at top, #1a2442, #0b1020);
+  border: 1px solid #1b2540;
+  display: block;
 }
 
 .clear-btn {
@@ -130,6 +180,10 @@ body {
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
 }
 
+.move-card {
+  width: min(420px, 90vw);
+}
+
 .overlay-text {
   font-size: 13px;
   color: #b6c2dd;
@@ -144,4 +198,20 @@ body {
 
 .hidden {
   display: none;
+}
+
+@media (max-width: 980px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #1b2540;
+  }
+
+  .picker {
+    grid-template-columns: 1fr;
+  }
 }

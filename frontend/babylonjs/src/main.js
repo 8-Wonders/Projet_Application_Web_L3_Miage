@@ -16,6 +16,17 @@ import "./style.css";
 
 const canvas = document.getElementById("renderCanvas");
 const engine = new Engine(canvas, true);
+const previewCanvas = document.getElementById("previewCanvas");
+const previewNameEl = document.getElementById("previewName");
+const moveModal = document.getElementById("moveModal");
+const moveTitleEl = document.getElementById("moveTitle");
+const moveTextEl = document.getElementById("moveText");
+const closeMoveButton = document.getElementById("closeMove");
+const aboutMoveButton = document.getElementById("aboutMove");
+let previewEngine = null;
+let previewScene = null;
+let previewRoot = null;
+let previewCamera = null;
 canvas.addEventListener("contextmenu", (event) => {
   event.preventDefault();
 });
@@ -23,7 +34,14 @@ canvas.addEventListener("contextmenu", (event) => {
 const createScene = async () => {
   const scene = new Scene(engine);
 
-  const camera = new ArcRotateCamera("camera", Math.PI / 4, Math.PI / 3, 18, new Vector3(0, 0, 0), scene);
+  const camera = new ArcRotateCamera(
+    "camera",
+    Math.PI / 4,
+    Math.PI / 3,
+    18,
+    new Vector3(0, 0, 0),
+    scene,
+  );
   camera.attachControl(canvas, true);
   camera.lowerBetaLimit = 0.3;
   camera.upperBetaLimit = 1.2;
@@ -46,6 +64,46 @@ const createScene = async () => {
     chancellor: { value: 8, max: 2 },
     amazon: { value: 12, max: 1 },
   };
+  const pieceAssets = {
+    pawn: { file: "Pawn.glb", height: 1.4 },
+    rook: { file: "Rook.glb", height: 1.5 },
+    knight: { file: "Knight.glb", height: 1.6 },
+    bishop: { file: "Bishop.glb", height: 1.6 },
+    queen: { file: "Queen.glb", height: 1.8 },
+    king: { file: "King.glb", height: 1.9 },
+    camel: { file: "camel.stl", height: 1.6 },
+    wizzard: { file: "wizzard.stl", height: 1.4 },
+    archbishop: { file: "Archbishop21.stl", height: 1.8 },
+    chancellor: { file: "Marshall.stl", height: 1.8 },
+    amazon: { file: "Amazon_Dragon.stl", height: 2.2 },
+  };
+  const pieceMoves = {
+    pawn: "Forward 1 square (2 from starting rank), captures 1 square diagonally forward.",
+    rook: "Any number of squares vertically or horizontally.",
+    knight: "L-shape: 2 squares in one direction, then 1 perpendicular. Jumps.",
+    bishop: "Any number of squares diagonally.",
+    queen: "Any number of squares vertically, horizontally, or diagonally.",
+    king: "1 square in any direction.",
+    camel: "Leaps in a (3,1) L-shape. Jumps.",
+    wizzard:
+      "Combines Ferz and Camel: Ferz moves 1 square diagonally; Camel is a (3,1) leaper. Jumps.",
+    archbishop: "Bishop or knight (combined).",
+    chancellor: "Rook or knight (combined).",
+    amazon: "Queen or knight (combined).",
+  };
+  const pieceLabels = {
+    pawn: "Pawn",
+    rook: "Rook",
+    knight: "Knight",
+    bishop: "Bishop",
+    queen: "Queen",
+    king: "King",
+    camel: "Camel",
+    wizzard: "Wizard",
+    archbishop: "Archbishop",
+    chancellor: "Chancellor",
+    amazon: "Amazon",
+  };
 
   const boardRoot = new TransformNode("boardRoot", scene);
 
@@ -61,7 +119,11 @@ const createScene = async () => {
   const tiles = [];
   for (let row = 0; row < 8; row += 1) {
     for (let col = 0; col < 8; col += 1) {
-      const tile = MeshBuilder.CreateBox(`tile-${row}-${col}`, { width: tileSize, depth: tileSize, height: 0.2 }, scene);
+      const tile = MeshBuilder.CreateBox(
+        `tile-${row}-${col}`,
+        { width: tileSize, depth: tileSize, height: 0.2 },
+        scene,
+      );
       tile.position.x = col * tileSize - offset;
       tile.position.z = row * tileSize - offset;
       tile.position.y = -0.1;
@@ -85,10 +147,167 @@ const createScene = async () => {
   const pieceYawFix = {
     knight: -Math.PI / 2,
   };
+  const showMoveModal = (type) => {
+    if (!moveModal || !moveTitleEl || !moveTextEl) {
+      return;
+    }
+    const label = pieceLabels[type] || type;
+    moveTitleEl.textContent = `${label} movement`;
+    moveTextEl.textContent = pieceMoves[type] || "No movement info available.";
+    moveModal.classList.remove("hidden");
+  };
+
+  const hideMoveModal = () => {
+    if (!moveModal) {
+      return;
+    }
+    moveModal.classList.add("hidden");
+  };
+
+  if (closeMoveButton) {
+    closeMoveButton.addEventListener("click", hideMoveModal);
+  }
+  if (moveModal) {
+    moveModal.addEventListener("click", (event) => {
+      if (event.target === moveModal) {
+        hideMoveModal();
+      }
+    });
+  }
+
+  let previewWhiteMaterial = null;
+  let previewBlackMaterial = null;
+
+  const updatePreview = async (type, color) => {
+    if (!previewCanvas || !previewScene || !previewCamera) {
+      return;
+    }
+    const asset = pieceAssets[type];
+    if (!asset) {
+      return;
+    }
+    if (previewRoot) {
+      previewRoot.dispose();
+      previewRoot = null;
+    }
+    previewRoot = new TransformNode(`preview-${type}`, previewScene);
+    if (previewNameEl) {
+      previewNameEl.textContent = pieceLabels[type] || type;
+    }
+
+    let meshes = [];
+    try {
+      const result = await SceneLoader.ImportMeshAsync(
+        "",
+        "/assets/",
+        asset.file,
+        previewScene,
+      );
+      meshes = result.meshes.filter(
+        (mesh) => mesh.getTotalVertices && mesh.getTotalVertices() > 0,
+      );
+      meshes.forEach((mesh) => {
+        mesh.parent = previewRoot;
+      });
+      normalizeMeshes(
+        `preview-${type}`,
+        meshes,
+        previewRoot,
+        asset.height,
+        previewScene,
+      );
+    } catch (e) {
+      const fallback = MeshBuilder.CreateCylinder(
+        `preview-${type}-fallback`,
+        {
+          height: asset.height,
+          diameterTop: 0.8,
+          diameterBottom: 1,
+        },
+        previewScene,
+      );
+      meshes = [fallback];
+      normalizeMeshes(
+        `preview-${type}`,
+        meshes,
+        previewRoot,
+        asset.height,
+        previewScene,
+      );
+    }
+
+    const material =
+      color === "black" ? previewBlackMaterial : previewWhiteMaterial;
+    if (material) {
+      meshes.forEach((mesh) => {
+        mesh.material = material;
+      });
+    }
+
+    const bounds = getBounds(previewRoot.getChildMeshes());
+    const center = bounds.min.add(bounds.max).scale(0.5);
+    const size = bounds.max.subtract(bounds.min);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    previewCamera.setTarget(center);
+    previewCamera.radius = Math.max(3, maxDim * 2.4);
+  };
+
+  const initPreview = () => {
+    if (!previewCanvas) {
+      return;
+    }
+    previewEngine = new Engine(previewCanvas, true);
+    previewScene = new Scene(previewEngine);
+    previewCamera = new ArcRotateCamera(
+      "previewCamera",
+      Math.PI / 2,
+      Math.PI / 3,
+      4,
+      Vector3.Zero(),
+      previewScene,
+    );
+    previewCamera.attachControl(previewCanvas, false);
+    previewCamera.inputs.clear();
+    previewCamera.lowerRadiusLimit = 3;
+    previewCamera.upperRadiusLimit = 6;
+
+    const previewLight = new HemisphericLight(
+      "previewLight",
+      new Vector3(0, 1, 0),
+      previewScene,
+    );
+    previewLight.intensity = 0.95;
+
+    previewWhiteMaterial = new StandardMaterial("previewWhite", previewScene);
+    previewWhiteMaterial.diffuseColor = new Color3(0.95, 0.94, 0.9);
+    previewWhiteMaterial.specularColor = new Color3(0.2, 0.2, 0.2);
+
+    previewBlackMaterial = new StandardMaterial("previewBlack", previewScene);
+    previewBlackMaterial.diffuseColor = new Color3(0.33, 0.24, 0.19);
+    previewBlackMaterial.specularColor = new Color3(0.08, 0.08, 0.08);
+
+    previewScene.onBeforeRenderObservable.add(() => {
+      if (previewRoot) {
+        previewRoot.rotation.y += 0.01;
+      }
+    });
+
+    previewEngine.runRenderLoop(() => {
+      previewScene.render();
+    });
+  };
 
   const getBounds = (meshes) => {
-    let min = new Vector3(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
-    let max = new Vector3(Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY);
+    let min = new Vector3(
+      Number.POSITIVE_INFINITY,
+      Number.POSITIVE_INFINITY,
+      Number.POSITIVE_INFINITY,
+    );
+    let max = new Vector3(
+      Number.NEGATIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+    );
     meshes.forEach((mesh) => {
       if (!mesh.getBoundingInfo) {
         return;
@@ -103,12 +322,12 @@ const createScene = async () => {
     return { min, max };
   };
 
-  const registerFromMeshes = (name, meshes, root, targetHeight) => {
+  const normalizeMeshes = (name, meshes, root, targetHeight, targetScene) => {
     if (meshes.length === 0) {
       throw new Error(`No mesh data for ${name}`);
     }
     // Create a container for adjustment (scaling, centering)
-    const adjuster = new TransformNode(`${name}-adjuster`, scene);
+    const adjuster = new TransformNode(`${name}-adjuster`, targetScene);
     adjuster.parent = root;
 
     // Re-parent meshes to the adjuster FIRST (while adjuster is at identity)
@@ -129,6 +348,10 @@ const createScene = async () => {
     // Move the bottom-center to the origin after scaling.
     adjuster.scaling = new Vector3(scale, scale, scale);
     adjuster.position = bottomCenter.scale(-scale);
+  };
+
+  const registerFromMeshes = (name, meshes, root, targetHeight) => {
+    normalizeMeshes(name, meshes, root, targetHeight, scene);
 
     root.setEnabled(false);
     pieceTemplates[name] = root;
@@ -143,51 +366,82 @@ const createScene = async () => {
   const registerAssetPiece = async (name, filename, targetHeight) => {
     console.log(`Loading asset: ${name} from ${filename}`);
     try {
-        const result = await SceneLoader.ImportMeshAsync("", "/assets/", filename, scene);
-        const root = new TransformNode(`${name}-root`, scene);
-        const meshes = result.meshes.filter((mesh) => mesh.getTotalVertices && mesh.getTotalVertices() > 0);
-        
-        // Initial parenting to root to ensure they are together, though registerFromMeshes will move them
-        meshes.forEach((mesh) => {
-          mesh.parent = root;
-        });
-        
-        registerFromMeshes(name, meshes, root, targetHeight);
-        console.log(`Successfully loaded: ${name}`);
+      const result = await SceneLoader.ImportMeshAsync(
+        "",
+        "/assets/",
+        filename,
+        scene,
+      );
+      const root = new TransformNode(`${name}-root`, scene);
+      const meshes = result.meshes.filter(
+        (mesh) => mesh.getTotalVertices && mesh.getTotalVertices() > 0,
+      );
+
+      // Initial parenting to root to ensure they are together, though registerFromMeshes will move them
+      meshes.forEach((mesh) => {
+        mesh.parent = root;
+      });
+
+      registerFromMeshes(name, meshes, root, targetHeight);
+      console.log(`Successfully loaded: ${name}`);
     } catch (e) {
-        console.error(`Failed to load ${name}:`, e);
-        throw e; // Rethrow to trigger fallback
+      console.error(`Failed to load ${name}:`, e);
+      throw e; // Rethrow to trigger fallback
     }
   };
 
   const loadPieces = async () => {
     const makePawn = () => {
-      const mesh = MeshBuilder.CreateCylinder("pawnBase", { height: 1.2, diameterTop: 0.7, diameterBottom: 0.9 }, scene);
+      const mesh = MeshBuilder.CreateCylinder(
+        "pawnBase",
+        { height: 1.2, diameterTop: 0.7, diameterBottom: 0.9 },
+        scene,
+      );
       mesh.position.y = 0.6;
       registerShapePiece("pawn", mesh, 1.4);
     };
     const makeRook = () => {
-      const mesh = MeshBuilder.CreateBox("rookBase", { height: 1.4, width: 0.9, depth: 0.9 }, scene);
+      const mesh = MeshBuilder.CreateBox(
+        "rookBase",
+        { height: 1.4, width: 0.9, depth: 0.9 },
+        scene,
+      );
       mesh.position.y = 0.7;
       registerShapePiece("rook", mesh, 1.5);
     };
     const makeKnight = () => {
-      const mesh = MeshBuilder.CreateSphere("knightBase", { diameter: 1.2 }, scene);
+      const mesh = MeshBuilder.CreateSphere(
+        "knightBase",
+        { diameter: 1.2 },
+        scene,
+      );
       mesh.position.y = 0.6;
       registerShapePiece("knight", mesh, 1.6);
     };
     const makeBishop = () => {
-      const mesh = MeshBuilder.CreateCylinder("bishopBase", { height: 1.6, diameterTop: 0.5, diameterBottom: 0.9 }, scene);
+      const mesh = MeshBuilder.CreateCylinder(
+        "bishopBase",
+        { height: 1.6, diameterTop: 0.5, diameterBottom: 0.9 },
+        scene,
+      );
       mesh.position.y = 0.8;
       registerShapePiece("bishop", mesh, 1.6);
     };
     const makeQueen = () => {
-      const mesh = MeshBuilder.CreateCylinder("queenBase", { height: 1.8, diameterTop: 0.8, diameterBottom: 1 }, scene);
+      const mesh = MeshBuilder.CreateCylinder(
+        "queenBase",
+        { height: 1.8, diameterTop: 0.8, diameterBottom: 1 },
+        scene,
+      );
       mesh.position.y = 0.9;
       registerShapePiece("queen", mesh, 1.8);
     };
     const makeKing = () => {
-      const mesh = MeshBuilder.CreateCylinder("kingBase", { height: 2, diameterTop: 0.7, diameterBottom: 1 }, scene);
+      const mesh = MeshBuilder.CreateCylinder(
+        "kingBase",
+        { height: 2, diameterTop: 0.7, diameterBottom: 1 },
+        scene,
+      );
       mesh.position.y = 1;
       registerShapePiece("king", mesh, 1.9);
     };
@@ -226,7 +480,11 @@ const createScene = async () => {
     try {
       await registerAssetPiece("camel", "camel.stl", 1.6);
     } catch {
-      const camel = MeshBuilder.CreateCylinder("camelBase", { height: 1.6, diameterTop: 0.4, diameterBottom: 1 }, scene);
+      const camel = MeshBuilder.CreateCylinder(
+        "camelBase",
+        { height: 1.6, diameterTop: 0.4, diameterBottom: 1 },
+        scene,
+      );
       camel.position.y = 0.8;
       registerShapePiece("camel", camel, 1.6);
     }
@@ -234,7 +492,11 @@ const createScene = async () => {
     try {
       await registerAssetPiece("wizzard", "wizzard.stl", 1.4);
     } catch {
-      const wizzard = MeshBuilder.CreateBox("wizzardBase", { height: 1.4, width: 1, depth: 0.7 }, scene);
+      const wizzard = MeshBuilder.CreateBox(
+        "wizzardBase",
+        { height: 1.4, width: 1, depth: 0.7 },
+        scene,
+      );
       wizzard.position.y = 0.7;
       registerShapePiece("wizzard", wizzard, 1.4);
     }
@@ -242,11 +504,15 @@ const createScene = async () => {
     try {
       await registerAssetPiece("archbishop", "Archbishop21.stl", 1.8);
     } catch {
-      const archbishop = MeshBuilder.CreateCylinder("archbishopBase", {
-        height: 1.8,
-        diameterTop: 0.5,
-        diameterBottom: 1,
-      }, scene);
+      const archbishop = MeshBuilder.CreateCylinder(
+        "archbishopBase",
+        {
+          height: 1.8,
+          diameterTop: 0.5,
+          diameterBottom: 1,
+        },
+        scene,
+      );
       archbishop.position.y = 0.9;
       registerShapePiece("archbishop", archbishop, 1.8);
     }
@@ -254,7 +520,11 @@ const createScene = async () => {
     try {
       await registerAssetPiece("chancellor", "Marshall.stl", 1.8);
     } catch {
-      const chancellor = MeshBuilder.CreateBox("chancellorBase", { height: 1.8, width: 1, depth: 1 }, scene);
+      const chancellor = MeshBuilder.CreateBox(
+        "chancellorBase",
+        { height: 1.8, width: 1, depth: 1 },
+        scene,
+      );
       chancellor.position.y = 0.9;
       registerShapePiece("chancellor", chancellor, 1.8);
     }
@@ -262,7 +532,11 @@ const createScene = async () => {
     try {
       await registerAssetPiece("amazon", "Amazon_Dragon.stl", 2.2);
     } catch {
-      const amazon = MeshBuilder.CreateCylinder("amazonBase", { height: 2.2, diameterTop: 0.8, diameterBottom: 1.1 }, scene);
+      const amazon = MeshBuilder.CreateCylinder(
+        "amazonBase",
+        { height: 2.2, diameterTop: 0.8, diameterBottom: 1.1 },
+        scene,
+      );
       amazon.position.y = 1.1;
       registerShapePiece("amazon", amazon, 2.2);
     }
@@ -343,8 +617,28 @@ const createScene = async () => {
       selectButtons.forEach((btn) => btn.classList.remove("active"));
       button.classList.add("active");
       selectedPiece = button.dataset.piece;
+      if (selectedPiece) {
+        const [color, type] = selectedPiece.split("-");
+        updatePreview(type, color);
+      }
     });
   });
+
+  if (aboutMoveButton) {
+    aboutMoveButton.addEventListener("click", () => {
+      if (!selectedPiece) {
+        if (moveModal && moveTitleEl && moveTextEl) {
+          moveTitleEl.textContent = "Select a piece";
+          moveTextEl.textContent =
+            "Choose a piece first to see its movement rules.";
+          moveModal.classList.remove("hidden");
+        }
+        return;
+      }
+      const [, type] = selectedPiece.split("-");
+      showMoveModal(type);
+    });
+  }
 
   const clearButton = document.getElementById("clearBoard");
   if (clearButton) {
@@ -365,7 +659,10 @@ const createScene = async () => {
     existing.root.dispose();
     placedPieces.delete(squareId);
     budgets[existing.color] += existing.value;
-    counts[existing.color][existing.type] = Math.max(0, counts[existing.color][existing.type] - 1);
+    counts[existing.color][existing.type] = Math.max(
+      0,
+      counts[existing.color][existing.type] - 1,
+    );
   };
 
   const isAllowedRow = (color, row) => {
@@ -397,19 +694,32 @@ const createScene = async () => {
       return;
     }
 
-    const instanceRoot = base.clone(`${selectedPiece}-${squareId}`, null, false);
+    const instanceRoot = base.clone(
+      `${selectedPiece}-${squareId}`,
+      null,
+      false,
+    );
     console.log(`Placed piece: ${selectedPiece} at ${squareId}`);
     instanceRoot.setEnabled(true);
     instanceRoot.position.x = col * tileSize - offset;
     instanceRoot.position.z = row * tileSize - offset;
     instanceRoot.position.y = 0;
     const baseYaw = pieceYawFix[type] || 0;
-    instanceRoot.rotation = new Vector3(0, baseYaw + (color === "black" ? Math.PI : 0), 0);
+    instanceRoot.rotation = new Vector3(
+      0,
+      baseYaw + (color === "black" ? Math.PI : 0),
+      0,
+    );
     instanceRoot.getChildMeshes().forEach((mesh) => {
       mesh.material = color === "white" ? baseWhite : baseBlack;
       mesh.metadata = { squareId, isPiece: true };
     });
-    placedPieces.set(squareId, { root: instanceRoot, color, type, value: def.value });
+    placedPieces.set(squareId, {
+      root: instanceRoot,
+      color,
+      type,
+      value: def.value,
+    });
     budgets[color] -= def.value;
     counts[color][type] += 1;
     updateUI();
@@ -497,7 +807,11 @@ const createScene = async () => {
 
     const isRightClick = pointerInfo.event?.button === 2;
     if (isRightClick) {
-      const pick = scene.pick(scene.pointerX, scene.pointerY, (mesh) => !!mesh.metadata?.isPiece);
+      const pick = scene.pick(
+        scene.pointerX,
+        scene.pointerY,
+        (mesh) => !!mesh.metadata?.isPiece,
+      );
       if (pick?.hit && pick.pickedMesh?.metadata?.squareId) {
         const squareId = pick.pickedMesh.metadata.squareId;
         const entry = placedPieces.get(squareId);
@@ -509,7 +823,11 @@ const createScene = async () => {
       return;
     }
 
-    const pick = scene.pick(scene.pointerX, scene.pointerY, (mesh) => !!mesh.metadata?.squareId);
+    const pick = scene.pick(
+      scene.pointerX,
+      scene.pointerY,
+      (mesh) => !!mesh.metadata?.squareId,
+    );
     if (!pick?.hit || !pick.pickedMesh?.metadata?.squareId) {
       return;
     }
@@ -520,6 +838,7 @@ const createScene = async () => {
   });
 
   await loadPieces();
+  initPreview();
   updateUI();
   return scene;
 };
@@ -532,4 +851,7 @@ engine.runRenderLoop(() => {
 
 window.addEventListener("resize", () => {
   engine.resize();
+  if (previewEngine) {
+    previewEngine.resize();
+  }
 });
