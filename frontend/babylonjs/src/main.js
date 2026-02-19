@@ -41,7 +41,7 @@ const createScene = async () => {
     queen: { value: 9, max: 1 },
     king: { value: 0, max: 1 },
     camel: { value: 3, max: 2 },
-    zebra: { value: 3, max: 2 },
+    wizzard: { value: 3, max: 2 },
     archbishop: { value: 7, max: 2 },
     chancellor: { value: 8, max: 2 },
     amazon: { value: 12, max: 1 },
@@ -231,9 +231,13 @@ const createScene = async () => {
       registerShapePiece("camel", camel, 1.6);
     }
 
-    const zebra = MeshBuilder.CreateBox("zebraBase", { height: 1.4, width: 1, depth: 0.7 }, scene);
-    zebra.position.y = 0.7;
-    registerShapePiece("zebra", zebra, 1.4);
+    try {
+      await registerAssetPiece("wizzard", "wizzard.stl", 1.4);
+    } catch {
+      const wizzard = MeshBuilder.CreateBox("wizzardBase", { height: 1.4, width: 1, depth: 0.7 }, scene);
+      wizzard.position.y = 0.7;
+      registerShapePiece("wizzard", wizzard, 1.4);
+    }
 
     try {
       await registerAssetPiece("archbishop", "Archbishop21.stl", 1.8);
@@ -247,9 +251,13 @@ const createScene = async () => {
       registerShapePiece("archbishop", archbishop, 1.8);
     }
 
-    const chancellor = MeshBuilder.CreateBox("chancellorBase", { height: 1.8, width: 1, depth: 1 }, scene);
-    chancellor.position.y = 0.9;
-    registerShapePiece("chancellor", chancellor, 1.8);
+    try {
+      await registerAssetPiece("chancellor", "Marshall.stl", 1.8);
+    } catch {
+      const chancellor = MeshBuilder.CreateBox("chancellorBase", { height: 1.8, width: 1, depth: 1 }, scene);
+      chancellor.position.y = 0.9;
+      registerShapePiece("chancellor", chancellor, 1.8);
+    }
 
     try {
       await registerAssetPiece("amazon", "Amazon_Dragon.stl", 2.2);
