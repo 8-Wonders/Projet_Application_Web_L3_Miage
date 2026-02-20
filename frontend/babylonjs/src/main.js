@@ -126,11 +126,11 @@ const createScene = async () => {
     mammoth: { value: 5, max: 2 },
   };
   const pieceAssets = {
-    pawn: { file: "Pawn.glb", height: 1.4 },
-    rook: { file: "Rook.glb", height: 1.5 },
-    knight: { file: "Knight.glb", height: 1.6 },
-    bishop: { file: "Bishop.glb", height: 1.6 },
-    queen: { file: "Queen.glb", height: 1.8 },
+    pawn: { file: "pawn.stl", height: 1.4 },
+    rook: { file: "rook.stl", height: 1.5 },
+    knight: { file: "knight.stl", height: 1.6 },
+    bishop: { file: "bishop.stl", height: 1.6 },
+    queen: { file: "queen.stl", height: 1.8 },
     camel: { file: "camel.stl", height: 1.6 },
     wizzard: { file: "wizzard.stl", height: 1.4 },
     archbishop: { file: "Archbishop21.stl", height: 1.8 },
@@ -529,27 +529,27 @@ const createScene = async () => {
     };
 
     try {
-      await registerAssetPiece("pawn", "Pawn.glb", 1.4);
+      await registerAssetPiece("pawn", "pawn.stl", 1.4);
     } catch {
       makePawn();
     }
     try {
-      await registerAssetPiece("rook", "Rook.glb", 1.5);
+      await registerAssetPiece("rook", "rook.stl", 1.5);
     } catch {
       makeRook();
     }
     try {
-      await registerAssetPiece("knight", "Knight.glb", 1.6);
+      await registerAssetPiece("knight", "knight.stl", 1.6);
     } catch {
       makeKnight();
     }
     try {
-      await registerAssetPiece("bishop", "Bishop.glb", 1.6);
+      await registerAssetPiece("bishop", "bishop.stl", 1.6);
     } catch {
       makeBishop();
     }
     try {
-      await registerAssetPiece("queen", "Queen.glb", 1.8);
+      await registerAssetPiece("queen", "queen.stl", 1.8);
     } catch {
       makeQueen();
     }
@@ -633,11 +633,7 @@ const createScene = async () => {
     try {
       await registerAssetPiece("fool", "fool.stl", 1.2);
     } catch {
-      const fool = MeshBuilder.CreateSphere(
-        "foolBase",
-        { diameter: 1 },
-        scene,
-      );
+      const fool = MeshBuilder.CreateSphere("foolBase", { diameter: 1 }, scene);
       fool.position.y = 0.6;
       registerShapePiece("fool", fool, 1.2);
     }
@@ -1425,11 +1421,9 @@ const createScene = async () => {
     if (gameInProgress) {
       return;
     }
-    const isPointerDown =
-      pointerInfo.type === PointerEventTypes.POINTERDOWN;
+    const isPointerDown = pointerInfo.type === PointerEventTypes.POINTERDOWN;
     const isPointerUp = pointerInfo.type === PointerEventTypes.POINTERUP;
-    const isPointerMove =
-      pointerInfo.type === PointerEventTypes.POINTERMOVE;
+    const isPointerMove = pointerInfo.type === PointerEventTypes.POINTERMOVE;
     if (!isPointerDown && !isPointerUp && !isPointerMove) {
       return;
     }
@@ -1486,8 +1480,7 @@ const createScene = async () => {
           ghost.position.copyFrom(entry.root.position);
           ghost.rotation.copyFrom(entry.root.rotation);
           ghost.getChildMeshes().forEach((mesh) => {
-            mesh.material =
-              entry.color === "white" ? ghostWhite : ghostBlack;
+            mesh.material = entry.color === "white" ? ghostWhite : ghostBlack;
             mesh.isPickable = false;
           });
           dragState.active = true;
