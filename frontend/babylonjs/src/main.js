@@ -121,6 +121,9 @@ const createScene = async () => {
     archbishop: { value: 7, max: 2 },
     chancellor: { value: 8, max: 2 },
     amazon: { value: 12, max: 1 },
+    immobilizer: { value: 5, max: 1 },
+    fool: { value: 0, max: 1 },
+    mammoth: { value: 5, max: 2 },
   };
   const pieceAssets = {
     pawn: { file: "Pawn.glb", height: 1.4 },
@@ -133,6 +136,9 @@ const createScene = async () => {
     archbishop: { file: "Archbishop21.stl", height: 1.8 },
     chancellor: { file: "Marshall.stl", height: 1.8 },
     amazon: { file: "Amazon_Dragon.stl", height: 2.2 },
+    immobilizer: { file: "Immobilizer.stl", height: 1.8 },
+    fool: { file: "fool.stl", height: 1.2 },
+    mammoth: { file: "Mammoth.stl", height: 2 },
   };
   const pieceMoves = {
     pawn: "Forward 1 square (2 from starting rank), captures 1 square diagonally forward.",
@@ -146,6 +152,11 @@ const createScene = async () => {
     archbishop: "Bishop or knight (combined).",
     chancellor: "Rook or knight (combined).",
     amazon: "Queen or knight (combined).",
+    immobilizer:
+      "Moves like a queen but cannot capture. Freezing aura is not enforced in the engine.",
+    fool: "Cannot move or capture.",
+    mammoth:
+      "King + Alfil + Dabbaba: 1 square any direction, or a 2-square diagonal/orthogonal leap. Jumps.",
   };
   const pieceLabels = {
     pawn: "Pawn",
@@ -158,6 +169,9 @@ const createScene = async () => {
     archbishop: "Archbishop",
     chancellor: "Chancellor",
     amazon: "Amazon",
+    immobilizer: "Immobilizer",
+    fool: "Fool",
+    mammoth: "Mammoth",
   };
 
   const boardRoot = new TransformNode("boardRoot", scene);
@@ -603,6 +617,42 @@ const createScene = async () => {
       amazon.position.y = 1.1;
       registerShapePiece("amazon", amazon, 2.2);
     }
+
+    try {
+      await registerAssetPiece("immobilizer", "Immobilizer.stl", 1.8);
+    } catch {
+      const immobilizer = MeshBuilder.CreateBox(
+        "immobilizerBase",
+        { height: 1.8, width: 1, depth: 1 },
+        scene,
+      );
+      immobilizer.position.y = 0.9;
+      registerShapePiece("immobilizer", immobilizer, 1.8);
+    }
+
+    try {
+      await registerAssetPiece("fool", "fool.stl", 1.2);
+    } catch {
+      const fool = MeshBuilder.CreateSphere(
+        "foolBase",
+        { diameter: 1 },
+        scene,
+      );
+      fool.position.y = 0.6;
+      registerShapePiece("fool", fool, 1.2);
+    }
+
+    try {
+      await registerAssetPiece("mammoth", "Mammoth.stl", 2);
+    } catch {
+      const mammoth = MeshBuilder.CreateCylinder(
+        "mammothBase",
+        { height: 2, diameterTop: 1, diameterBottom: 1.2 },
+        scene,
+      );
+      mammoth.position.y = 1;
+      registerShapePiece("mammoth", mammoth, 2);
+    }
   };
 
   const placedPieces = new Map();
@@ -971,12 +1021,14 @@ const createScene = async () => {
       knight: "n",
       bishop: "b",
       queen: "q",
-      king: "k",
       camel: "c",
       wizzard: "w",
       archbishop: "a",
       chancellor: "h",
       amazon: "z",
+      immobilizer: "i",
+      fool: "f",
+      mammoth: "m",
     };
     const c = chars[type] || "p";
     return color === "white" ? c.toUpperCase() : c.toLowerCase();
@@ -1133,6 +1185,9 @@ const createScene = async () => {
         c: "camel",
         w: "wizzard",
         z: "amazon",
+        i: "immobilizer",
+        f: "fool",
+        m: "mammoth",
       };
       const newType = promoMap[promoChar] || "queen";
 
