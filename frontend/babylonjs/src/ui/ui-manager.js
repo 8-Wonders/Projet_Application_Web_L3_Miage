@@ -32,6 +32,21 @@ export class UIManager {
     this.onStartBattle = null;
 
     this.attachEvents();
+    this.decoratePieceButtons();
+  }
+
+  decoratePieceButtons() {
+    this.selectButtons.forEach((button) => {
+      const pieceId = button.dataset.piece;
+      if (!pieceId) {
+        return;
+      }
+      const [, type] = pieceId.split("-");
+      const def = this.pieceDefs[type];
+      const label = this.pieceLabels[type] || type;
+      button.classList.add("piece-option");
+      button.innerHTML = `<span class="piece-price">${def.value}</span><span class="piece-name">${label}</span>`;
+    });
   }
 
   attachEvents() {
@@ -183,16 +198,10 @@ export class UIManager {
         return;
       }
       const def = this.pieceDefs[type];
-      const canAfford =
+      const canUse =
         budgets[color] >= def.value && counts[color][type] < def.max;
-      button.disabled = !canAfford;
-      if (!canAfford && button.classList.contains("active")) {
-        button.classList.remove("active");
-        this.selectedPiece = null;
-        if (this.onPieceSelected) {
-          this.onPieceSelected(null);
-        }
-      }
+      button.disabled = false;
+      button.classList.toggle("unaffordable", !canUse);
     });
   }
 

@@ -450,21 +450,31 @@ const createScene = async () => {
     if (!analysisFillEl) {
       return;
     }
-    let whiteValue = 0;
-    let blackValue = 0;
-    placedPieces.forEach((entry) => {
-      if (entry.color === "white") {
-        whiteValue += entry.value;
-      } else {
-        blackValue += entry.value;
-      }
-    });
-    const total = whiteValue + blackValue;
     let ratio = 0.5;
-    if (total > 0) {
-      ratio = whiteValue / total;
+    if (lastEvalScore) {
+      const { type, value } = lastEvalScore;
+      if (type === "mate") {
+        ratio = value >= 0 ? 0.98 : 0.02;
+      } else {
+        const capped = Math.min(1000, Math.max(-1000, value));
+        ratio = (capped + 1000) / 2000;
+      }
+    } else {
+      let whiteValue = 0;
+      let blackValue = 0;
+      placedPieces.forEach((entry) => {
+        if (entry.color === "white") {
+          whiteValue += entry.value;
+        } else {
+          blackValue += entry.value;
+        }
+      });
+      const total = whiteValue + blackValue;
+      if (total > 0) {
+        ratio = whiteValue / total;
+      }
     }
-    const clamped = Math.min(0.95, Math.max(0.05, ratio));
+    const clamped = Math.min(0.98, Math.max(0.02, ratio));
     analysisFillEl.style.height = `${Math.round(clamped * 100)}%`;
   };
 
@@ -537,6 +547,7 @@ const createScene = async () => {
   const engineClient = new EngineClient(
     new URL("/engine/chess-worker.js", window.location.origin),
   );
+  let lastEvalScore = null;
 
   const toAlgebraic = (row, col) => {
     const file = String.fromCharCode(97 + col);
@@ -653,6 +664,13 @@ const createScene = async () => {
     }
 
     const isCapture = placedPieces.has(toSq);
+    if (piece.type === "pawn" && fromCoord.col !== toCoord.col && !isCapture) {
+      const epSq = `${fromCoord.row}-${toCoord.col}`;
+      if (placedPieces.has(epSq)) {
+        console.log("En Passant capture! Removing piece at", epSq);
+        removePiece(epSq);
+      }
+    }
     if (isCapture) {
       console.log("Capture! Removing piece at", toSq);
       removePiece(toSq);
@@ -816,6 +834,19 @@ const createScene = async () => {
     console.log("Initializing worker...");
     engineClient.onLine = (line) => {
       console.log("Engine says:", line);
+      if (line.includes("score ")) {
+        const match = line.match(/score (cp|mate) (-?\d+)/);
+        if (match) {
+          const type = match[1];
+          let value = Number(match[2]);
+          // Stockfish eval is from the side to move; convert to white POV.
+          if (currentTurn === "black") {
+            value *= -1;
+          }
+          lastEvalScore = { type, value };
+          updateAnalysisBar();
+        }
+      }
     };
     engineClient.onBestMove = (move) => {
       console.log("Best move received:", move);
@@ -823,22 +854,11 @@ const createScene = async () => {
         setTimeout(() => executeEngineMove(move), 300);
         return;
       }
-      console.log("Battle concluded (no move).");
+      console.log("Battle concluded (no moves left).");
       if (!gameInProgress) {
         return;
       }
-      noMoveCount += 1;
-      if (noMoveCount >= 2) {
-        alert("No legal moves for either side.");
-        gameInProgress = false;
-        uiManager.setStartBattleState({ inProgress: false });
-        setAnalysisVisible(false);
-        return;
-      }
-      currentTurn = currentTurn === "white" ? "black" : "white";
-      initialFen = generateFEN(placedPieces, currentTurn);
-      moveHistory = [];
-      requestEngineMove();
+      resolveAnnihilation();
     };
     engineClient.startBattle(() => {
       if (gameInProgress) {
@@ -853,6 +873,7 @@ const createScene = async () => {
     unlockAudio();
     gameInProgress = true;
     desyncRetries = 0;
+    lastEvalScore = null;
     setAnalysisVisible(true);
     updateAnalysisBar();
     uiManager.setStartBattleState({ inProgress: true });

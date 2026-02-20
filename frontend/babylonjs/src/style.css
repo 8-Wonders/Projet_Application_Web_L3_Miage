@@ -59,6 +59,31 @@ body {
   transition: transform 0.08s ease, border-color 0.08s ease, background 0.08s ease;
 }
 
+.piece-option {
+  padding: 0;
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  text-align: left;
+}
+
+.piece-option .piece-price {
+  flex: 0 0 20%;
+  min-width: 30px;
+  background: #1d2b4f;
+  color: #e5e7ef;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid #2a3555;
+}
+
+.piece-option .piece-name {
+  flex: 1;
+  padding: 8px 10px;
+}
+
 .piece-btn:hover,
 .clear-btn:hover,
 .overlay-actions .piece-btn:hover {
@@ -76,6 +101,11 @@ body {
   cursor: not-allowed;
   transform: none;
   border-color: #2a3555;
+}
+
+.piece-btn.unaffordable {
+  opacity: 0.6;
+  border-color: #314062;
 }
 
 .budget {
