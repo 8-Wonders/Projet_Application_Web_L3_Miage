@@ -15,18 +15,27 @@ import {
 import "@babylonjs/core/Audio/audioEngine";
 import "@babylonjs/loaders";
 import "./style.css";
+import {
+  pieceAssets,
+  pieceDefs,
+  pieceLabels,
+  pieceMoves,
+  pieceYawFix,
+  pieceYOffset,
+} from "./piece-data.js";
+import { buildPieceLibrary, getBounds, normalizeMeshes } from "./pieces.js";
+import { generateFEN } from "./game/fen.js";
+import { EngineClient } from "./game/engine-client.js";
+import { UIManager } from "./ui/ui-manager.js";
+
 
 const canvas = document.getElementById("renderCanvas");
 const engine = new Engine(canvas, true, { audioEngine: true });
 const previewCanvas = document.getElementById("previewCanvas");
 const previewNameEl = document.getElementById("previewName");
-const moveModal = document.getElementById("moveModal");
-const moveTitleEl = document.getElementById("moveTitle");
-const moveTextEl = document.getElementById("moveText");
-const closeMoveButton = document.getElementById("closeMove");
-const aboutMoveButton = document.getElementById("aboutMove");
 const analysisBarEl = document.getElementById("analysisBar");
 const analysisFillEl = document.getElementById("analysisFill");
+const uiManager = new UIManager({ pieceDefs, pieceLabels, pieceMoves });
 let previewEngine = null;
 let previewScene = null;
 let previewRoot = null;
@@ -110,69 +119,6 @@ const createScene = async () => {
   document.addEventListener("keydown", unlockAudio, { once: true });
 
   const START_BUDGET = 39;
-  const pieceDefs = {
-    pawn: { value: 1, max: 8 },
-    rook: { value: 5, max: 2 },
-    knight: { value: 3, max: 2 },
-    bishop: { value: 3, max: 2 },
-    queen: { value: 9, max: 1 },
-    camel: { value: 3, max: 2 },
-    wizzard: { value: 3, max: 2 },
-    archbishop: { value: 7, max: 2 },
-    chancellor: { value: 8, max: 2 },
-    amazon: { value: 12, max: 1 },
-    immobilizer: { value: 5, max: 1 },
-    fool: { value: 0, max: 1 },
-    mammoth: { value: 5, max: 2 },
-  };
-  const pieceAssets = {
-    pawn: { file: "pawn.stl", height: 1.4 },
-    rook: { file: "rook.stl", height: 1.5 },
-    knight: { file: "knight.stl", height: 1.6 },
-    bishop: { file: "bishop.stl", height: 1.6 },
-    queen: { file: "queen.stl", height: 1.8 },
-    camel: { file: "camel.stl", height: 1.6 },
-    wizzard: { file: "wizzard.stl", height: 1.4 },
-    archbishop: { file: "Archbishop21.stl", height: 1.8 },
-    chancellor: { file: "Marshall.stl", height: 1.8 },
-    amazon: { file: "Amazon_Dragon.stl", height: 2.2 },
-    immobilizer: { file: "Immobilizer.stl", height: 1.8 },
-    fool: { file: "fool.stl", height: 1.2 },
-    mammoth: { file: "Mammoth.stl", height: 2 },
-  };
-  const pieceMoves = {
-    pawn: "Forward 1 square (2 from starting rank), captures 1 square diagonally forward.",
-    rook: "Any number of squares vertically or horizontally.",
-    knight: "L-shape: 2 squares in one direction, then 1 perpendicular. Jumps.",
-    bishop: "Any number of squares diagonally.",
-    queen: "Any number of squares vertically, horizontally, or diagonally.",
-    camel: "Leaps in a (3,1) L-shape. Jumps.",
-    wizzard:
-      "Combines Ferz and Camel: Ferz moves 1 square diagonally; Camel is a (3,1) leaper. Jumps.",
-    archbishop: "Bishop or knight (combined).",
-    chancellor: "Rook or knight (combined).",
-    amazon: "Queen or knight (combined).",
-    immobilizer:
-      "Moves like a queen but cannot capture. Freezing aura is not enforced in the engine.",
-    fool: "Cannot move or capture.",
-    mammoth:
-      "King + Alfil + Dabbaba: 1 square any direction, or a 2-square diagonal/orthogonal leap. Jumps.",
-  };
-  const pieceLabels = {
-    pawn: "Pawn",
-    rook: "Rook",
-    knight: "Knight",
-    bishop: "Bishop",
-    queen: "Queen",
-    camel: "Camel",
-    wizzard: "Wizard",
-    archbishop: "Archbishop",
-    chancellor: "Chancellor",
-    amazon: "Amazon",
-    immobilizer: "Immobilizer",
-    fool: "Fool",
-    mammoth: "Mammoth",
-  };
 
   const boardRoot = new TransformNode("boardRoot", scene);
 
@@ -230,42 +176,7 @@ const createScene = async () => {
   };
 
   const pieceTemplates = {};
-  const pieceYawFix = {
-    knight: -Math.PI / 2,
-  };
-  const pieceYOffset = {
-    pawn: 0.12,
-    rook: 0.12,
-    knight: 0.12,
-    queen: 0.12,
-  };
-  const showMoveModal = (type) => {
-    if (!moveModal || !moveTitleEl || !moveTextEl) {
-      return;
-    }
-    const label = pieceLabels[type] || type;
-    moveTitleEl.textContent = `${label} movement`;
-    moveTextEl.textContent = pieceMoves[type] || "No movement info available.";
-    moveModal.classList.remove("hidden");
-  };
-
-  const hideMoveModal = () => {
-    if (!moveModal) {
-      return;
-    }
-    moveModal.classList.add("hidden");
-  };
-
-  if (closeMoveButton) {
-    closeMoveButton.addEventListener("click", hideMoveModal);
-  }
-  if (moveModal) {
-    moveModal.addEventListener("click", (event) => {
-      if (event.target === moveModal) {
-        hideMoveModal();
-      }
-    });
-  }
+  // Move modal is managed by UIManager.
 
   let previewWhiteMaterial = null;
   let previewBlackMaterial = null;
@@ -389,266 +300,9 @@ const createScene = async () => {
     });
   };
 
-  const getBounds = (meshes) => {
-    let min = new Vector3(
-      Number.POSITIVE_INFINITY,
-      Number.POSITIVE_INFINITY,
-      Number.POSITIVE_INFINITY,
-    );
-    let max = new Vector3(
-      Number.NEGATIVE_INFINITY,
-      Number.NEGATIVE_INFINITY,
-      Number.NEGATIVE_INFINITY,
-    );
-    meshes.forEach((mesh) => {
-      if (!mesh.getBoundingInfo) {
-        return;
-      }
-      // Ensure bounds are up to date for accurate scaling/placement.
-      mesh.refreshBoundingInfo(true);
-      mesh.computeWorldMatrix(true);
-      const bounds = mesh.getBoundingInfo().boundingBox;
-      min = Vector3.Minimize(min, bounds.minimumWorld);
-      max = Vector3.Maximize(max, bounds.maximumWorld);
-    });
-    return { min, max };
-  };
-
-  const normalizeMeshes = (name, meshes, root, targetHeight, targetScene) => {
-    if (meshes.length === 0) {
-      throw new Error(`No mesh data for ${name}`);
-    }
-    // Create a container for adjustment (scaling, centering)
-    const adjuster = new TransformNode(`${name}-adjuster`, targetScene);
-    adjuster.parent = root;
-
-    // Re-parent meshes to the adjuster FIRST (while adjuster is at identity)
-    meshes.forEach((mesh) => {
-      mesh.setParent(adjuster);
-    });
-
-    const bounds = getBounds(meshes);
-    const height = bounds.max.y - bounds.min.y;
-    if (!Number.isFinite(height) || height <= 0) {
-      throw new Error(`Invalid bounds for ${name}`);
-    }
-
-    const scale = targetHeight / height;
-    const center = bounds.min.add(bounds.max).scale(0.5);
-    const bottomCenter = new Vector3(center.x, bounds.min.y, center.z);
-
-    // Move the bottom-center to the origin after scaling.
-    adjuster.scaling = new Vector3(scale, scale, scale);
-    adjuster.position = bottomCenter.scale(-scale);
-  };
-
-  const registerFromMeshes = (name, meshes, root, targetHeight) => {
-    normalizeMeshes(name, meshes, root, targetHeight, scene);
-
-    root.setEnabled(false);
-    pieceTemplates[name] = root;
-  };
-
-  const registerShapePiece = (name, mesh, targetHeight) => {
-    const root = new TransformNode(`${name}-root`, scene);
-    // mesh.parent = root; // Will be reparented in registerFromMeshes
-    registerFromMeshes(name, [mesh], root, targetHeight);
-  };
-
-  const registerAssetPiece = async (name, filename, targetHeight) => {
-    console.log(`Loading asset: ${name} from ${filename}`);
-    try {
-      const result = await SceneLoader.ImportMeshAsync(
-        "",
-        "/assets/",
-        filename,
-        scene,
-      );
-      const root = new TransformNode(`${name}-root`, scene);
-      const meshes = result.meshes.filter(
-        (mesh) => mesh.getTotalVertices && mesh.getTotalVertices() > 0,
-      );
-
-      meshes.forEach((mesh) => {
-        mesh.parent = root;
-      });
-
-      registerFromMeshes(name, meshes, root, targetHeight);
-      console.log(`Successfully loaded: ${name}`);
-    } catch (e) {
-      console.error(`Failed to load ${name}:`, e);
-      throw e;
-    }
-  };
-
   const loadPieces = async () => {
-    const makePawn = () => {
-      const mesh = MeshBuilder.CreateCylinder(
-        "pawnBase",
-        { height: 1.2, diameterTop: 0.7, diameterBottom: 0.9 },
-        scene,
-      );
-      mesh.position.y = 0.6;
-      registerShapePiece("pawn", mesh, 1.4);
-    };
-    const makeRook = () => {
-      const mesh = MeshBuilder.CreateBox(
-        "rookBase",
-        { height: 1.4, width: 0.9, depth: 0.9 },
-        scene,
-      );
-      mesh.position.y = 0.7;
-      registerShapePiece("rook", mesh, 1.5);
-    };
-    const makeKnight = () => {
-      const mesh = MeshBuilder.CreateSphere(
-        "knightBase",
-        { diameter: 1.2 },
-        scene,
-      );
-      mesh.position.y = 0.6;
-      registerShapePiece("knight", mesh, 1.6);
-    };
-    const makeBishop = () => {
-      const mesh = MeshBuilder.CreateCylinder(
-        "bishopBase",
-        { height: 1.6, diameterTop: 0.5, diameterBottom: 0.9 },
-        scene,
-      );
-      mesh.position.y = 0.8;
-      registerShapePiece("bishop", mesh, 1.6);
-    };
-    const makeQueen = () => {
-      const mesh = MeshBuilder.CreateCylinder(
-        "queenBase",
-        { height: 1.8, diameterTop: 0.8, diameterBottom: 1 },
-        scene,
-      );
-      mesh.position.y = 0.9;
-      registerShapePiece("queen", mesh, 1.8);
-    };
-
-    try {
-      await registerAssetPiece("pawn", "pawn.stl", 1.4);
-    } catch {
-      makePawn();
-    }
-    try {
-      await registerAssetPiece("rook", "rook.stl", 1.5);
-    } catch {
-      makeRook();
-    }
-    try {
-      await registerAssetPiece("knight", "knight.stl", 1.6);
-    } catch {
-      makeKnight();
-    }
-    try {
-      await registerAssetPiece("bishop", "bishop.stl", 1.6);
-    } catch {
-      makeBishop();
-    }
-    try {
-      await registerAssetPiece("queen", "queen.stl", 1.8);
-    } catch {
-      makeQueen();
-    }
-
-    try {
-      await registerAssetPiece("camel", "camel.stl", 1.6);
-    } catch {
-      const camel = MeshBuilder.CreateCylinder(
-        "camelBase",
-        { height: 1.6, diameterTop: 0.4, diameterBottom: 1 },
-        scene,
-      );
-      camel.position.y = 0.8;
-      registerShapePiece("camel", camel, 1.6);
-    }
-
-    try {
-      await registerAssetPiece("wizzard", "wizzard.stl", 1.4);
-    } catch {
-      const wizzard = MeshBuilder.CreateBox(
-        "wizzardBase",
-        { height: 1.4, width: 1, depth: 0.7 },
-        scene,
-      );
-      wizzard.position.y = 0.7;
-      registerShapePiece("wizzard", wizzard, 1.4);
-    }
-
-    try {
-      await registerAssetPiece("archbishop", "Archbishop21.stl", 1.8);
-    } catch {
-      const archbishop = MeshBuilder.CreateCylinder(
-        "archbishopBase",
-        {
-          height: 1.8,
-          diameterTop: 0.5,
-          diameterBottom: 1,
-        },
-        scene,
-      );
-      archbishop.position.y = 0.9;
-      registerShapePiece("archbishop", archbishop, 1.8);
-    }
-
-    try {
-      await registerAssetPiece("chancellor", "Marshall.stl", 1.8);
-    } catch {
-      const chancellor = MeshBuilder.CreateBox(
-        "chancellorBase",
-        { height: 1.8, width: 1, depth: 1 },
-        scene,
-      );
-      chancellor.position.y = 0.9;
-      registerShapePiece("chancellor", chancellor, 1.8);
-    }
-
-    try {
-      await registerAssetPiece("amazon", "Amazon_Dragon.stl", 2.2);
-    } catch {
-      const amazon = MeshBuilder.CreateCylinder(
-        "amazonBase",
-        { height: 2.2, diameterTop: 0.8, diameterBottom: 1.1 },
-        scene,
-      );
-      amazon.position.y = 1.1;
-      registerShapePiece("amazon", amazon, 2.2);
-    }
-
-    try {
-      await registerAssetPiece("immobilizer", "Immobilizer.stl", 1.8);
-    } catch {
-      const immobilizer = MeshBuilder.CreateBox(
-        "immobilizerBase",
-        { height: 1.8, width: 1, depth: 1 },
-        scene,
-      );
-      immobilizer.position.y = 0.9;
-      registerShapePiece("immobilizer", immobilizer, 1.8);
-    }
-
-    try {
-      await registerAssetPiece("fool", "fool.stl", 1.2);
-    } catch {
-      const fool = MeshBuilder.CreateSphere("foolBase", { diameter: 1 }, scene);
-      fool.position.y = 0.6;
-      registerShapePiece("fool", fool, 1.2);
-    }
-
-    try {
-      await registerAssetPiece("mammoth", "Mammoth.stl", 2);
-    } catch {
-      const mammoth = MeshBuilder.CreateCylinder(
-        "mammothBase",
-        { height: 2, diameterTop: 1, diameterBottom: 1.2 },
-        scene,
-      );
-      mammoth.position.y = 1;
-      registerShapePiece("mammoth", mammoth, 2);
-    }
+    const library = buildPieceLibrary(scene, pieceTemplates);
+    await library.loadAll();
   };
 
   const placedPieces = new Map();
@@ -661,104 +315,15 @@ const createScene = async () => {
   let playerColor = null;
   let aiColor = null;
 
-  const budgetWhiteEl = document.getElementById("budgetWhite");
-  const budgetBlackEl = document.getElementById("budgetBlack");
-  const sidePicker = document.getElementById("sidePicker");
-  const pickWhite = document.getElementById("pickWhite");
-  const pickBlack = document.getElementById("pickBlack");
-  const selectButtons = document.querySelectorAll(".piece-group .piece-btn");
-  const groupWhite = document.querySelector('.piece-group[data-color="white"]');
-  const groupBlack = document.querySelector('.piece-group[data-color="black"]');
   const updateUI = () => {
-    if (!playerColor || !aiColor) {
-      if (groupWhite) groupWhite.classList.add("hidden");
-      if (groupBlack) groupBlack.classList.add("hidden");
-    } else {
-      const showWhite = playerColor === "white";
-      if (groupWhite) groupWhite.classList.toggle("hidden", !showWhite);
-      if (groupBlack) groupBlack.classList.toggle("hidden", showWhite);
-    }
-
-    if (budgetWhiteEl) {
-      const label = playerColor
-        ? playerColor === "white"
-          ? "Your budget"
-          : "AI budget"
-        : "White budget";
-      budgetWhiteEl.textContent = `${label}: ${budgets.white}`;
-    }
-    if (budgetBlackEl) {
-      const label = playerColor
-        ? playerColor === "black"
-          ? "Your budget"
-          : "AI budget"
-        : "Black budget";
-      budgetBlackEl.textContent = `${label}: ${budgets.black}`;
-    }
-
-    selectButtons.forEach((button) => {
-      if (!playerColor) {
-        button.disabled = true;
-        button.classList.remove("active");
-        return;
-      }
-      const [color, type] = button.dataset.piece.split("-");
-      if (color !== playerColor) {
-        button.disabled = true;
-        button.classList.remove("active");
-        return;
-      }
-      const { value, max } = pieceDefs[type];
-      const canAfford = budgets[color] >= value && counts[color][type] < max;
-      button.disabled = !canAfford;
-      if (!canAfford && button.classList.contains("active")) {
-        button.classList.remove("active");
-        selectedPiece = null;
-      }
-    });
+    uiManager.setPieceVisibility(playerColor, aiColor);
+    uiManager.setBudgets(budgets, playerColor);
+    uiManager.updateAvailability(budgets, counts, playerColor);
   };
 
-  selectButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      if (button.disabled) {
-        return;
-      }
-      selectButtons.forEach((btn) => btn.classList.remove("active"));
-      button.classList.add("active");
-      selectedPiece = button.dataset.piece;
-      if (selectedPiece) {
-        const [color, type] = selectedPiece.split("-");
-        updatePreview(type, color);
-      }
-    });
-  });
+  // About-move is handled in UIManager.
 
-  if (aboutMoveButton) {
-    aboutMoveButton.addEventListener("click", () => {
-      if (!selectedPiece) {
-        if (moveModal && moveTitleEl && moveTextEl) {
-          moveTitleEl.textContent = "Select a piece";
-          moveTextEl.textContent =
-            "Choose a piece first to see its movement rules.";
-          moveModal.classList.remove("hidden");
-        }
-        return;
-      }
-      const [, type] = selectedPiece.split("-");
-      showMoveModal(type);
-    });
-  }
-
-  const clearButton = document.getElementById("clearBoard");
-  if (clearButton) {
-    clearButton.addEventListener("click", () => {
-      if (!playerColor) {
-        return;
-      }
-      clearColor(playerColor);
-      updateUI();
-    });
-  }
+  // Clear button is handled by UIManager.
 
   const removePiece = (squareId) => {
     const existing = placedPieces.get(squareId);
@@ -939,18 +504,16 @@ const createScene = async () => {
     });
 
     selectedPiece = null;
-    selectButtons.forEach((btn) => btn.classList.remove("active"));
+    uiManager.clearSelection();
     updateUI();
   };
 
   const setSide = (color) => {
     playerColor = color;
     aiColor = color === "white" ? "black" : "white";
-    if (sidePicker) {
-      sidePicker.classList.add("hidden");
-    }
+    uiManager.setSidePickerVisible(false);
     selectedPiece = null;
-    selectButtons.forEach((btn) => btn.classList.remove("active"));
+    uiManager.clearSelection();
     placedPieces.forEach((entry) => entry.root.dispose());
     placedPieces.clear();
     budgets.white = START_BUDGET;
@@ -964,16 +527,16 @@ const createScene = async () => {
   };
 
   // Chess Engine & Battle Logic
-  let engineWorker = null;
   let gameInProgress = false;
   let currentTurn = "white";
   let initialFen = "";
   let moveHistory = [];
   let desyncRetries = 0;
   const MAX_DESYNC_RETRIES = 2;
-  let engineConfigured = false;
-  let waitingForEngine = false;
   let noMoveCount = 0;
+  const engineClient = new EngineClient(
+    new URL("/engine/chess-worker.js", window.location.origin),
+  );
 
   const toAlgebraic = (row, col) => {
     const file = String.fromCharCode(97 + col);
@@ -1010,69 +573,7 @@ const createScene = async () => {
         return base;
     }
   };
-  const toPieceChar = (type, color) => {
-    const chars = {
-      pawn: "p",
-      rook: "r",
-      knight: "n",
-      bishop: "b",
-      queen: "q",
-      camel: "c",
-      wizzard: "w",
-      archbishop: "a",
-      chancellor: "h",
-      amazon: "z",
-      immobilizer: "i",
-      fool: "f",
-      mammoth: "m",
-    };
-    const c = chars[type] || "p";
-    return color === "white" ? c.toUpperCase() : c.toLowerCase();
-  };
-
-  const generateFEN = (turn) => {
-    let fen = "";
-
-    let pieceCount = 0;
-
-    for (let row = 0; row < 8; row++) {
-      let empty = 0;
-
-      for (let col = 0; col < 8; col++) {
-        const squareId = `${row}-${col}`;
-
-        const piece = placedPieces.get(squareId);
-
-        if (piece) {
-          pieceCount++;
-
-          if (empty > 0) {
-            fen += empty;
-
-            empty = 0;
-          }
-
-          fen += toPieceChar(piece.type, piece.color);
-        } else {
-          empty++;
-        }
-      }
-
-      if (empty > 0) {
-        fen += empty;
-      }
-
-      if (row < 7) {
-        fen += "/";
-      }
-    }
-
-    fen += ` ${turn === "white" ? "w" : "b"} - - 0 1`;
-
-    console.log("Generated FEN:", fen, "Pieces in FEN:", pieceCount);
-
-    return fen;
-  };
+  // FEN generation lives in src/game/fen.js.
 
   const executeEngineMove = (move) => {
     console.log("Executing move:", move, "Current turn:", currentTurn);
@@ -1142,7 +643,7 @@ const createScene = async () => {
       if (gameInProgress && desyncRetries < MAX_DESYNC_RETRIES) {
         desyncRetries += 1;
         console.warn("Resyncing engine position after desync attempt.");
-        initialFen = generateFEN(currentTurn);
+        initialFen = generateFEN(placedPieces, currentTurn);
         moveHistory = [];
         requestEngineMove();
         return;
@@ -1264,9 +765,8 @@ const createScene = async () => {
       gameInProgress = false;
     }
 
-    if (!gameInProgress && startBattleBtn) {
-      startBattleBtn.textContent = "Fight!";
-      startBattleBtn.disabled = false;
+    if (!gameInProgress) {
+      uiManager.setStartBattleState({ inProgress: false });
     }
     if (!gameInProgress) {
       setAnalysisVisible(false);
@@ -1297,10 +797,7 @@ const createScene = async () => {
       alert("Battle ended in a draw!");
     }
     gameInProgress = false;
-    if (startBattleBtn) {
-      startBattleBtn.textContent = "Fight!";
-      startBattleBtn.disabled = false;
-    }
+    uiManager.setStartBattleState({ inProgress: false });
     setAnalysisVisible(false);
   }
 
@@ -1312,110 +809,76 @@ const createScene = async () => {
     const positionCmd = `position fen ${initialFen}${historyStr}`;
     console.log("Sending position:", positionCmd);
 
-    engineWorker.postMessage(positionCmd);
-    engineWorker.postMessage("go movetime 5000");
-  };
-
-  const configureEngineForBattle = () => {
-    if (!engineWorker) {
-      return;
-    }
-    engineConfigured = false;
-    engineWorker.postMessage("setoption name UCI_Variant value mychess");
-    engineWorker.postMessage("ucinewgame");
-    engineWorker.postMessage("isready");
+    engineClient.requestMove(positionCmd, "go movetime 5000");
   };
 
   const initEngine = () => {
-    if (engineWorker) {
-      configureEngineForBattle();
-      return;
-    }
-
     console.log("Initializing worker...");
-    engineWorker = new Worker(
-      new URL("/engine/chess-worker.js", window.location.origin),
-    );
-
-    engineWorker.onerror = (err) => {
-      console.error("Worker Error:", err);
-    };
-
-    engineWorker.onmessage = (e) => {
-      const line = e.data;
+    engineClient.onLine = (line) => {
       console.log("Engine says:", line);
-
-      if (line === "ready") {
-        console.log("Engine ready. Sending configuration...");
-        engineWorker.postMessage("uci");
-      } else if (line === "uciok") {
-        configureEngineForBattle();
-      } else if (line === "readyok") {
-        console.log("Engine configured and ready. Starting battle.");
-        engineConfigured = true;
-        if (gameInProgress && waitingForEngine) {
-          waitingForEngine = false;
-          requestEngineMove();
-        }
-      } else if (line.startsWith("bestmove")) {
-        const move = line.split(" ")[1];
-        console.log("Best move received:", move);
-        if (move && move !== "(none)" && move !== "null") {
-          setTimeout(() => executeEngineMove(move), 300);
-        } else {
-          console.log("Battle concluded (no move).");
-          if (!gameInProgress) {
-            return;
-          }
-          noMoveCount += 1;
-          if (noMoveCount >= 2) {
-            alert("No legal moves for either side.");
-            gameInProgress = false;
-            if (startBattleBtn) {
-              startBattleBtn.textContent = "Fight!";
-              startBattleBtn.disabled = false;
-            }
-            setAnalysisVisible(false);
-            return;
-          }
-          currentTurn = currentTurn === "white" ? "black" : "white";
-          initialFen = generateFEN(currentTurn);
-          moveHistory = [];
-          requestEngineMove();
-        }
-      }
     };
+    engineClient.onBestMove = (move) => {
+      console.log("Best move received:", move);
+      if (move && move !== "(none)" && move !== "null") {
+        setTimeout(() => executeEngineMove(move), 300);
+        return;
+      }
+      console.log("Battle concluded (no move).");
+      if (!gameInProgress) {
+        return;
+      }
+      noMoveCount += 1;
+      if (noMoveCount >= 2) {
+        alert("No legal moves for either side.");
+        gameInProgress = false;
+        uiManager.setStartBattleState({ inProgress: false });
+        setAnalysisVisible(false);
+        return;
+      }
+      currentTurn = currentTurn === "white" ? "black" : "white";
+      initialFen = generateFEN(placedPieces, currentTurn);
+      moveHistory = [];
+      requestEngineMove();
+    };
+    engineClient.startBattle(() => {
+      if (gameInProgress) {
+        requestEngineMove();
+      }
+    });
   };
 
-  const startBattleBtn = document.getElementById("startBattle");
-  if (startBattleBtn) {
-    startBattleBtn.addEventListener("click", () => {
-      if (gameInProgress) return;
+  uiManager.onStartBattle = () => {
+    if (gameInProgress) return;
 
-      unlockAudio();
-      gameInProgress = true;
-      waitingForEngine = true;
-      engineConfigured = false;
-      desyncRetries = 0;
-      setAnalysisVisible(true);
-      updateAnalysisBar();
-      startBattleBtn.textContent = "Battle in progress...";
-      startBattleBtn.disabled = true;
-      currentTurn = "white";
+    unlockAudio();
+    gameInProgress = true;
+    desyncRetries = 0;
+    setAnalysisVisible(true);
+    updateAnalysisBar();
+    uiManager.setStartBattleState({ inProgress: true });
+    currentTurn = "white";
 
-      initialFen = generateFEN("white");
-      moveHistory = [];
+    initialFen = generateFEN(placedPieces, "white");
+    moveHistory = [];
 
-      initEngine();
-    });
-  }
+    initEngine();
+  };
 
-  if (pickWhite) {
-    pickWhite.addEventListener("click", () => setSide("white"));
-  }
-  if (pickBlack) {
-    pickBlack.addEventListener("click", () => setSide("black"));
-  }
+  uiManager.onPickSide = (color) => setSide(color);
+  uiManager.onClearBoard = () => {
+    if (!playerColor) {
+      return;
+    }
+    clearColor(playerColor);
+    updateUI();
+  };
+  uiManager.onPieceSelected = (pieceId) => {
+    selectedPiece = pieceId;
+    if (selectedPiece) {
+      const [color, type] = selectedPiece.split("-");
+      updatePreview(type, color);
+    }
+  };
 
   scene.onPointerObservable.add((pointerInfo) => {
     if (gameInProgress) {

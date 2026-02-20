@@ -28,6 +28,7 @@ async function initializeEngine() {
 [mychess]
 parent = chess
 noking = true
+stalemateValue = loss
 customPiece1 = c:C:C
 customPiece2 = w:W:FC
 customPiece3 = a:A:BN
