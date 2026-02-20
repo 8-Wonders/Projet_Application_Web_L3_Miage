@@ -116,7 +116,6 @@ const createScene = async () => {
     knight: { value: 3, max: 2 },
     bishop: { value: 3, max: 2 },
     queen: { value: 9, max: 1 },
-    king: { value: 0, max: 1 },
     camel: { value: 3, max: 2 },
     wizzard: { value: 3, max: 2 },
     archbishop: { value: 7, max: 2 },
@@ -129,7 +128,6 @@ const createScene = async () => {
     knight: { file: "Knight.glb", height: 1.6 },
     bishop: { file: "Bishop.glb", height: 1.6 },
     queen: { file: "Queen.glb", height: 1.8 },
-    king: { file: "King.glb", height: 1.9 },
     camel: { file: "camel.stl", height: 1.6 },
     wizzard: { file: "wizzard.stl", height: 1.4 },
     archbishop: { file: "Archbishop21.stl", height: 1.8 },
@@ -142,7 +140,6 @@ const createScene = async () => {
     knight: "L-shape: 2 squares in one direction, then 1 perpendicular. Jumps.",
     bishop: "Any number of squares diagonally.",
     queen: "Any number of squares vertically, horizontally, or diagonally.",
-    king: "1 square in any direction.",
     camel: "Leaps in a (3,1) L-shape. Jumps.",
     wizzard:
       "Combines Ferz and Camel: Ferz moves 1 square diagonally; Camel is a (3,1) leaper. Jumps.",
@@ -156,7 +153,6 @@ const createScene = async () => {
     knight: "Knight",
     bishop: "Bishop",
     queen: "Queen",
-    king: "King",
     camel: "Camel",
     wizzard: "Wizard",
     archbishop: "Archbishop",
@@ -197,10 +193,14 @@ const createScene = async () => {
   const baseWhite = new StandardMaterial("whitePiece", scene);
   baseWhite.diffuseColor = new Color3(0.95, 0.94, 0.9);
   baseWhite.specularColor = new Color3(0.2, 0.2, 0.2);
+  baseWhite.alpha = 1;
+  baseWhite.useVertexAlpha = false;
 
   const baseBlack = new StandardMaterial("blackPiece", scene);
   baseBlack.diffuseColor = new Color3(0.33, 0.24, 0.19);
   baseBlack.specularColor = new Color3(0.08, 0.08, 0.08);
+  baseBlack.alpha = 1;
+  baseBlack.useVertexAlpha = false;
 
   const ghostWhite = baseWhite.clone("ghostWhite");
   ghostWhite.alpha = 0.45;
@@ -210,9 +210,20 @@ const createScene = async () => {
   ghostBlack.alpha = 0.45;
   ghostBlack.backFaceCulling = false;
 
+  const applyOpaqueMaterial = (mesh, material) => {
+    mesh.material = material;
+    mesh.hasVertexAlpha = false;
+  };
+
   const pieceTemplates = {};
   const pieceYawFix = {
     knight: -Math.PI / 2,
+  };
+  const pieceYOffset = {
+    pawn: 0.12,
+    rook: 0.12,
+    knight: 0.12,
+    queen: 0.12,
   };
   const showMoveModal = (type) => {
     if (!moveModal || !moveTitleEl || !moveTextEl) {
@@ -502,15 +513,6 @@ const createScene = async () => {
       mesh.position.y = 0.9;
       registerShapePiece("queen", mesh, 1.8);
     };
-    const makeKing = () => {
-      const mesh = MeshBuilder.CreateCylinder(
-        "kingBase",
-        { height: 2, diameterTop: 0.7, diameterBottom: 1 },
-        scene,
-      );
-      mesh.position.y = 1;
-      registerShapePiece("king", mesh, 1.9);
-    };
 
     try {
       await registerAssetPiece("pawn", "Pawn.glb", 1.4);
@@ -536,11 +538,6 @@ const createScene = async () => {
       await registerAssetPiece("queen", "Queen.glb", 1.8);
     } catch {
       makeQueen();
-    }
-    try {
-      await registerAssetPiece("king", "King.glb", 1.9);
-    } catch {
-      makeKing();
     }
 
     try {
@@ -770,7 +767,7 @@ const createScene = async () => {
     instanceRoot.setEnabled(true);
     instanceRoot.position.x = col * tileSize - offset;
     instanceRoot.position.z = row * tileSize - offset;
-    instanceRoot.position.y = 0;
+    instanceRoot.position.y = pieceYOffset[type] || 0;
     const baseYaw = pieceYawFix[type] || 0;
     instanceRoot.rotation = new Vector3(
       0,
@@ -778,7 +775,7 @@ const createScene = async () => {
       0,
     );
     instanceRoot.getChildMeshes().forEach((mesh) => {
-      mesh.material = color === "white" ? baseWhite : baseBlack;
+      applyOpaqueMaterial(mesh, color === "white" ? baseWhite : baseBlack);
       mesh.metadata = { squareId, isPiece: true };
     });
     placedPieces.set(squareId, {
@@ -811,6 +808,7 @@ const createScene = async () => {
     }
     entry.root.position.x = col * tileSize - offset;
     entry.root.position.z = row * tileSize - offset;
+    entry.root.position.y = pieceYOffset[entry.type] || 0;
     entry.root.getChildMeshes().forEach((mesh) => {
       if (mesh.metadata) {
         mesh.metadata.squareId = toSq;
@@ -881,8 +879,6 @@ const createScene = async () => {
       placePiece(squareId, row, col);
     };
 
-    placeRandomPiece(squares.shift(), "king");
-
     squares.forEach((squareId) => {
       const affordable = Object.entries(pieceDefs).filter(([type, def]) => {
         const [row] = squareId.split("-").map(Number);
@@ -927,6 +923,11 @@ const createScene = async () => {
   let currentTurn = "white";
   let initialFen = "";
   let moveHistory = [];
+  let desyncRetries = 0;
+  const MAX_DESYNC_RETRIES = 2;
+  let engineConfigured = false;
+  let waitingForEngine = false;
+  let noMoveCount = 0;
 
   const toAlgebraic = (row, col) => {
     const file = String.fromCharCode(97 + col);
@@ -940,6 +941,29 @@ const createScene = async () => {
     return { row, col };
   };
 
+  const mapAlgebraicCoord = (sq, mode) => {
+    const file = sq.charCodeAt(0) - 97;
+    const rank = parseInt(sq[1]);
+    const base = { row: 8 - rank, col: file };
+    switch (mode) {
+      case "flip-row":
+        return { row: 7 - base.row, col: base.col };
+      case "flip-col":
+        return { row: base.row, col: 7 - base.col };
+      case "flip-both":
+        return { row: 7 - base.row, col: 7 - base.col };
+      case "transpose":
+        return { row: base.col, col: base.row };
+      case "transpose-flip-row":
+        return { row: base.col, col: 7 - base.row };
+      case "transpose-flip-col":
+        return { row: 7 - base.col, col: base.row };
+      case "transpose-flip-both":
+        return { row: 7 - base.col, col: 7 - base.row };
+      default:
+        return base;
+    }
+  };
   const toPieceChar = (type, color) => {
     const chars = {
       pawn: "p",
@@ -1006,14 +1030,40 @@ const createScene = async () => {
     console.log("Executing move:", move, "Current turn:", currentTurn);
     const from = move.substring(0, 2);
     const to = move.substring(2, 4);
-    const fromCoord = fromAlgebraic(from);
-    const toCoord = fromAlgebraic(to);
+    let fromCoord = fromAlgebraic(from);
+    let toCoord = fromAlgebraic(to);
 
     const fromSq = `${fromCoord.row}-${fromCoord.col}`;
     const toSq = `${toCoord.row}-${toCoord.col}`;
 
     let piece = placedPieces.get(fromSq);
     let actualKey = fromSq;
+
+    if (!piece) {
+      const altModes = [
+        "flip-row",
+        "flip-col",
+        "flip-both",
+        "transpose",
+        "transpose-flip-row",
+        "transpose-flip-col",
+        "transpose-flip-both",
+      ];
+      for (const mode of altModes) {
+        const altFrom = mapAlgebraicCoord(from, mode);
+        const altTo = mapAlgebraicCoord(to, mode);
+        const altSq = `${altFrom.row}-${altFrom.col}`;
+        const altPiece = placedPieces.get(altSq);
+        if (altPiece && altPiece.color === currentTurn) {
+          console.warn("Move coords remapped using", mode);
+          fromCoord = altFrom;
+          toCoord = altTo;
+          piece = altPiece;
+          actualKey = altSq;
+          break;
+        }
+      }
+    }
 
     if (!piece) {
       console.warn("Piece not found at", fromSq, "Scanning map...");
@@ -1041,12 +1091,15 @@ const createScene = async () => {
       console.log("History:", moveHistory);
       console.log("Initial FEN:", initialFen);
       console.log("Available keys:", Array.from(placedPieces.keys()));
-      gameInProgress = false;
-      setAnalysisVisible(false);
-      if (startBattleBtn) {
-        startBattleBtn.textContent = "Fight!";
-        startBattleBtn.disabled = false;
+      if (gameInProgress && desyncRetries < MAX_DESYNC_RETRIES) {
+        desyncRetries += 1;
+        console.warn("Resyncing engine position after desync attempt.");
+        initialFen = generateFEN(currentTurn);
+        moveHistory = [];
+        requestEngineMove();
+        return;
       }
+      resolveAnnihilation();
       return;
     }
 
@@ -1098,7 +1151,7 @@ const createScene = async () => {
         newRoot.setEnabled(true);
         newRoot.position.x = oldRoot.position.x;
         newRoot.position.z = oldRoot.position.z;
-        newRoot.position.y = 0;
+        newRoot.position.y = pieceYOffset[newType] || 0;
         const baseYaw = pieceYawFix[newType] || 0;
         newRoot.rotation = new Vector3(
           0,
@@ -1106,7 +1159,10 @@ const createScene = async () => {
           0,
         );
         newRoot.getChildMeshes().forEach((mesh) => {
-          mesh.material = piece.color === "white" ? baseWhite : baseBlack;
+          applyOpaqueMaterial(
+            mesh,
+            piece.color === "white" ? baseWhite : baseBlack,
+          );
           mesh.metadata = { squareId: toSq, isPiece: true };
         });
         piece.root = newRoot;
@@ -1128,6 +1184,8 @@ const createScene = async () => {
     // ------------------------------------------
 
     moveHistory.push(move);
+    noMoveCount = 0;
+    desyncRetries = 0;
 
     currentTurn = currentTurn === "white" ? "black" : "white";
     checkFinalWinner();
@@ -1164,7 +1222,7 @@ const createScene = async () => {
     }
   };
 
-  const resolveAnnihilation = () => {
+  function resolveAnnihilation() {
     let whiteValue = 0;
     let blackValue = 0;
     placedPieces.forEach((entry) => {
@@ -1193,7 +1251,7 @@ const createScene = async () => {
       startBattleBtn.disabled = false;
     }
     setAnalysisVisible(false);
-  };
+  }
 
   const requestEngineMove = () => {
     if (!gameInProgress) return;
@@ -1204,14 +1262,22 @@ const createScene = async () => {
     console.log("Sending position:", positionCmd);
 
     engineWorker.postMessage(positionCmd);
-    engineWorker.postMessage("go movetime 1000");
+    engineWorker.postMessage("go movetime 5000");
+  };
+
+  const configureEngineForBattle = () => {
+    if (!engineWorker) {
+      return;
+    }
+    engineConfigured = false;
+    engineWorker.postMessage("setoption name UCI_Variant value mychess");
+    engineWorker.postMessage("ucinewgame");
+    engineWorker.postMessage("isready");
   };
 
   const initEngine = () => {
     if (engineWorker) {
-      gameInProgress = true;
-      currentTurn = "white";
-      requestEngineMove();
+      configureEngineForBattle();
       return;
     }
 
@@ -1231,14 +1297,13 @@ const createScene = async () => {
       if (line === "ready") {
         console.log("Engine ready. Sending configuration...");
         engineWorker.postMessage("uci");
-        setTimeout(() => {
-          engineWorker.postMessage("setoption name UCI_Variant value mychess");
-          engineWorker.postMessage("ucinewgame");
-          engineWorker.postMessage("isready");
-        }, 100);
+      } else if (line === "uciok") {
+        configureEngineForBattle();
       } else if (line === "readyok") {
         console.log("Engine configured and ready. Starting battle.");
-        if (gameInProgress) {
+        engineConfigured = true;
+        if (gameInProgress && waitingForEngine) {
+          waitingForEngine = false;
           requestEngineMove();
         }
       } else if (line.startsWith("bestmove")) {
@@ -1248,7 +1313,24 @@ const createScene = async () => {
           setTimeout(() => executeEngineMove(move), 300);
         } else {
           console.log("Battle concluded (no move).");
-          resolveAnnihilation();
+          if (!gameInProgress) {
+            return;
+          }
+          noMoveCount += 1;
+          if (noMoveCount >= 2) {
+            alert("No legal moves for either side.");
+            gameInProgress = false;
+            if (startBattleBtn) {
+              startBattleBtn.textContent = "Fight!";
+              startBattleBtn.disabled = false;
+            }
+            setAnalysisVisible(false);
+            return;
+          }
+          currentTurn = currentTurn === "white" ? "black" : "white";
+          initialFen = generateFEN(currentTurn);
+          moveHistory = [];
+          requestEngineMove();
         }
       }
     };
@@ -1261,6 +1343,9 @@ const createScene = async () => {
 
       unlockAudio();
       gameInProgress = true;
+      waitingForEngine = true;
+      engineConfigured = false;
+      desyncRetries = 0;
       setAnalysisVisible(true);
       updateAnalysisBar();
       startBattleBtn.textContent = "Battle in progress...";
@@ -1376,7 +1461,7 @@ const createScene = async () => {
       }
       dragState.ghost.position.x = col * tileSize - offset;
       dragState.ghost.position.z = row * tileSize - offset;
-      dragState.ghost.position.y = 0;
+      dragState.ghost.position.y = pieceYOffset[dragState.entry.type] || 0;
       dragState.toSq = squareId;
       return;
     }
