@@ -148,6 +148,29 @@ body {
   position: relative;
 }
 
+#analysisBar {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 18px;
+  height: calc(100% - 32px);
+  border-radius: 10px;
+  background: #10172b;
+  border: 1px solid #263255;
+  overflow: hidden;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.45);
+  z-index: 2;
+}
+
+#analysisFill {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 50%;
+  background: linear-gradient(180deg, #f8f6f0 0%, #c7c2b4 100%);
+  transition: height 0.2s ease;
+}
+
 #renderCanvas {
   display: block;
   width: 100%;
@@ -213,5 +236,11 @@ body {
 
   .picker {
     grid-template-columns: 1fr;
+  }
+
+  #analysisBar {
+    right: 8px;
+    top: 8px;
+    height: calc(100% - 16px);
   }
 }

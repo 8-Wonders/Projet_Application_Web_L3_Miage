@@ -10,12 +10,14 @@ import {
   Color3,
   TransformNode,
   SceneLoader,
+  Sound,
 } from "@babylonjs/core";
+import "@babylonjs/core/Audio/audioEngine";
 import "@babylonjs/loaders";
 import "./style.css";
 
 const canvas = document.getElementById("renderCanvas");
-const engine = new Engine(canvas, true);
+const engine = new Engine(canvas, true, { audioEngine: true });
 const previewCanvas = document.getElementById("previewCanvas");
 const previewNameEl = document.getElementById("previewName");
 const moveModal = document.getElementById("moveModal");
@@ -23,6 +25,8 @@ const moveTitleEl = document.getElementById("moveTitle");
 const moveTextEl = document.getElementById("moveText");
 const closeMoveButton = document.getElementById("closeMove");
 const aboutMoveButton = document.getElementById("aboutMove");
+const analysisBarEl = document.getElementById("analysisBar");
+const analysisFillEl = document.getElementById("analysisFill");
 let previewEngine = null;
 let previewScene = null;
 let previewRoot = null;
@@ -68,6 +72,42 @@ const createScene = async () => {
 
   const light = new HemisphericLight("light", new Vector3(0, 1, 0), scene);
   light.intensity = 0.9;
+
+  const sounds = {
+    move: new Sound("move-self", "/assets/sounds/move-self.mp3", scene, null, {
+      volume: 0.4,
+    }),
+    capture: new Sound("capture", "/assets/sounds/capture.mp3", scene, null, {
+      volume: 0.5,
+    }),
+    castle: new Sound("castle", "/assets/sounds/castle.mp3", scene, null, {
+      volume: 0.5,
+    }),
+    promote: new Sound("promote", "/assets/sounds/promote.mp3", scene, null, {
+      volume: 0.55,
+    }),
+  };
+
+  const playSound = (sound) => {
+    if (!sound) {
+      return;
+    }
+    if (sound.isPlaying) {
+      sound.stop();
+    }
+    sound.play();
+  };
+
+  const unlockAudio = () => {
+    const audioEngine = Engine.audioEngine || engine.getAudioEngine?.();
+    if (audioEngine && !audioEngine.unlocked) {
+      audioEngine.unlock();
+    }
+  };
+
+  canvas.addEventListener("pointerdown", unlockAudio, { once: true });
+  document.addEventListener("pointerdown", unlockAudio, { once: true });
+  document.addEventListener("keydown", unlockAudio, { once: true });
 
   const START_BUDGET = 39;
   const pieceDefs = {
@@ -161,6 +201,14 @@ const createScene = async () => {
   const baseBlack = new StandardMaterial("blackPiece", scene);
   baseBlack.diffuseColor = new Color3(0.33, 0.24, 0.19);
   baseBlack.specularColor = new Color3(0.08, 0.08, 0.08);
+
+  const ghostWhite = baseWhite.clone("ghostWhite");
+  ghostWhite.alpha = 0.45;
+  ghostWhite.backFaceCulling = false;
+
+  const ghostBlack = baseBlack.clone("ghostBlack");
+  ghostBlack.alpha = 0.45;
+  ghostBlack.backFaceCulling = false;
 
   const pieceTemplates = {};
   const pieceYawFix = {
@@ -694,11 +742,6 @@ const createScene = async () => {
 
     const [color, type] = selectedPiece.split("-");
 
-    if (type === "pawn" && (row === 0 || row === 7)) {
-      alert("Pawns cannot be placed on the first or last rank.");
-      return;
-    }
-
     const def = pieceDefs[type];
     if (!def) {
       return;
@@ -747,6 +790,36 @@ const createScene = async () => {
     budgets[color] -= def.value;
     counts[color][type] += 1;
     updateUI();
+    playSound(sounds.move);
+    updateAnalysisBar();
+  };
+
+  const movePiece = (fromSq, toSq) => {
+    if (fromSq === toSq) {
+      return;
+    }
+    const entry = placedPieces.get(fromSq);
+    if (!entry) {
+      return;
+    }
+    if (placedPieces.has(toSq)) {
+      return;
+    }
+    const [row, col] = toSq.split("-").map(Number);
+    if (!isAllowedRow(entry.color, row)) {
+      return;
+    }
+    entry.root.position.x = col * tileSize - offset;
+    entry.root.position.z = row * tileSize - offset;
+    entry.root.getChildMeshes().forEach((mesh) => {
+      if (mesh.metadata) {
+        mesh.metadata.squareId = toSq;
+      }
+    });
+    placedPieces.delete(fromSq);
+    placedPieces.set(toSq, entry);
+    playSound(sounds.move);
+    updateAnalysisBar();
   };
 
   const clearColor = (color) => {
@@ -755,6 +828,35 @@ const createScene = async () => {
         removePiece(squareId);
       }
     });
+  };
+
+  const setAnalysisVisible = (visible) => {
+    if (!analysisBarEl) {
+      return;
+    }
+    analysisBarEl.classList.toggle("hidden", !visible);
+  };
+
+  const updateAnalysisBar = () => {
+    if (!analysisFillEl) {
+      return;
+    }
+    let whiteValue = 0;
+    let blackValue = 0;
+    placedPieces.forEach((entry) => {
+      if (entry.color === "white") {
+        whiteValue += entry.value;
+      } else {
+        blackValue += entry.value;
+      }
+    });
+    const total = whiteValue + blackValue;
+    let ratio = 0.5;
+    if (total > 0) {
+      ratio = whiteValue / total;
+    }
+    const clamped = Math.min(0.95, Math.max(0.05, ratio));
+    analysisFillEl.style.height = `${Math.round(clamped * 100)}%`;
   };
 
   const randomizeAI = () => {
@@ -940,6 +1042,7 @@ const createScene = async () => {
       console.log("Initial FEN:", initialFen);
       console.log("Available keys:", Array.from(placedPieces.keys()));
       gameInProgress = false;
+      setAnalysisVisible(false);
       if (startBattleBtn) {
         startBattleBtn.textContent = "Fight!";
         startBattleBtn.disabled = false;
@@ -947,7 +1050,8 @@ const createScene = async () => {
       return;
     }
 
-    if (placedPieces.has(toSq)) {
+    const isCapture = placedPieces.has(toSq);
+    if (isCapture) {
       console.log("Capture! Removing piece at", toSq);
       removePiece(toSq);
     }
@@ -963,7 +1067,8 @@ const createScene = async () => {
     placedPieces.delete(actualKey);
     placedPieces.set(toSq, piece);
 
-    if (move.length > 4) {
+    const isPromotion = move.length > 4;
+    if (isPromotion) {
       const promoChar = move[4].toLowerCase();
       const promoMap = {
         q: "queen",
@@ -1008,6 +1113,18 @@ const createScene = async () => {
         oldRoot.dispose();
       }
     }
+    const isCastling =
+      piece.type === "king" && Math.abs(fromCoord.col - toCoord.col) === 2;
+    if (isPromotion) {
+      playSound(sounds.promote);
+    } else if (isCapture) {
+      playSound(sounds.capture);
+    } else if (isCastling) {
+      playSound(sounds.castle);
+    } else {
+      playSound(sounds.move);
+    }
+    updateAnalysisBar();
     // ------------------------------------------
 
     moveHistory.push(move);
@@ -1036,14 +1153,46 @@ const createScene = async () => {
     } else if (!blackLeft) {
       alert("White wins the battle!");
       gameInProgress = false;
-    } else if (!gameInProgress) {
-      alert("Battle ended in a stalemate!");
     }
 
     if (!gameInProgress && startBattleBtn) {
       startBattleBtn.textContent = "Fight!";
       startBattleBtn.disabled = false;
     }
+    if (!gameInProgress) {
+      setAnalysisVisible(false);
+    }
+  };
+
+  const resolveAnnihilation = () => {
+    let whiteValue = 0;
+    let blackValue = 0;
+    placedPieces.forEach((entry) => {
+      if (entry.color === "white") {
+        whiteValue += entry.value;
+      } else {
+        blackValue += entry.value;
+      }
+    });
+    if (whiteValue === 0 && blackValue === 0) {
+      alert("It's a draw!");
+    } else if (whiteValue === 0) {
+      alert("Black wins the battle!");
+    } else if (blackValue === 0) {
+      alert("White wins the battle!");
+    } else if (whiteValue > blackValue) {
+      alert("White wins on material!");
+    } else if (blackValue > whiteValue) {
+      alert("Black wins on material!");
+    } else {
+      alert("Battle ended in a draw!");
+    }
+    gameInProgress = false;
+    if (startBattleBtn) {
+      startBattleBtn.textContent = "Fight!";
+      startBattleBtn.disabled = false;
+    }
+    setAnalysisVisible(false);
   };
 
   const requestEngineMove = () => {
@@ -1099,8 +1248,7 @@ const createScene = async () => {
           setTimeout(() => executeEngineMove(move), 300);
         } else {
           console.log("Battle concluded (no move).");
-          gameInProgress = false;
-          checkFinalWinner();
+          resolveAnnihilation();
         }
       }
     };
@@ -1111,7 +1259,10 @@ const createScene = async () => {
     startBattleBtn.addEventListener("click", () => {
       if (gameInProgress) return;
 
+      unlockAudio();
       gameInProgress = true;
+      setAnalysisVisible(true);
+      updateAnalysisBar();
       startBattleBtn.textContent = "Battle in progress...";
       startBattleBtn.disabled = true;
       currentTurn = "white";
@@ -1134,25 +1285,124 @@ const createScene = async () => {
     if (gameInProgress) {
       return;
     }
-    if (pointerInfo.type !== PointerEventTypes.POINTERDOWN) {
+    const isPointerDown =
+      pointerInfo.type === PointerEventTypes.POINTERDOWN;
+    const isPointerUp = pointerInfo.type === PointerEventTypes.POINTERUP;
+    const isPointerMove =
+      pointerInfo.type === PointerEventTypes.POINTERMOVE;
+    if (!isPointerDown && !isPointerUp && !isPointerMove) {
       return;
     }
 
-    const isRightClick = pointerInfo.event?.button === 2;
-    if (isRightClick) {
-      const pick = scene.pick(
+    if (isPointerDown) {
+      const isRightClick = pointerInfo.event?.button === 2;
+      if (isRightClick) {
+        const pick = scene.pick(
+          scene.pointerX,
+          scene.pointerY,
+          (mesh) => !!mesh.metadata?.isPiece,
+        );
+        if (pick?.hit && pick.pickedMesh?.metadata?.squareId) {
+          const squareId = pick.pickedMesh.metadata.squareId;
+          const entry = placedPieces.get(squareId);
+          if (entry && entry.color === playerColor) {
+            removePiece(squareId);
+            updateUI();
+          }
+        }
+        return;
+      }
+    }
+
+    if (!scene.metadata) {
+      scene.metadata = {};
+    }
+    if (!scene.metadata.dragState) {
+      scene.metadata.dragState = {
+        active: false,
+        fromSq: null,
+        entry: null,
+        ghost: null,
+      };
+    }
+    const dragState = scene.metadata.dragState;
+
+    if (isPointerDown) {
+      const pickPiece = scene.pick(
         scene.pointerX,
         scene.pointerY,
         (mesh) => !!mesh.metadata?.isPiece,
       );
-      if (pick?.hit && pick.pickedMesh?.metadata?.squareId) {
-        const squareId = pick.pickedMesh.metadata.squareId;
+      if (pickPiece?.hit && pickPiece.pickedMesh?.metadata?.squareId) {
+        const squareId = pickPiece.pickedMesh.metadata.squareId;
         const entry = placedPieces.get(squareId);
         if (entry && entry.color === playerColor) {
-          removePiece(squareId);
-          updateUI();
+          const ghost = entry.root.clone(
+            `${entry.color}-${entry.type}-${squareId}-ghost`,
+            null,
+            false,
+          );
+          ghost.setEnabled(true);
+          ghost.position.copyFrom(entry.root.position);
+          ghost.rotation.copyFrom(entry.root.rotation);
+          ghost.getChildMeshes().forEach((mesh) => {
+            mesh.material =
+              entry.color === "white" ? ghostWhite : ghostBlack;
+            mesh.isPickable = false;
+          });
+          dragState.active = true;
+          dragState.fromSq = squareId;
+          dragState.entry = entry;
+          dragState.ghost = ghost;
+          camera.detachControl();
+          return;
         }
       }
+    }
+
+    if (isPointerMove && dragState.active) {
+      const pick = scene.pick(
+        scene.pointerX,
+        scene.pointerY,
+        (mesh) => !!mesh.metadata?.squareId && !mesh.metadata?.isPiece,
+      );
+      if (!pick?.hit || !pick.pickedMesh?.metadata?.squareId) {
+        return;
+      }
+      const squareId = pick.pickedMesh.metadata.squareId;
+      const [row, col] = squareId.split("-").map(Number);
+      if (!isAllowedRow(dragState.entry.color, row)) {
+        return;
+      }
+      dragState.ghost.position.x = col * tileSize - offset;
+      dragState.ghost.position.z = row * tileSize - offset;
+      dragState.ghost.position.y = 0;
+      dragState.toSq = squareId;
+      return;
+    }
+
+    if (isPointerUp && dragState.active) {
+      const targetSq = dragState.toSq || dragState.fromSq;
+      if (
+        targetSq &&
+        targetSq !== dragState.fromSq &&
+        !placedPieces.has(targetSq)
+      ) {
+        movePiece(dragState.fromSq, targetSq);
+      }
+      if (dragState.ghost) {
+        dragState.ghost.dispose();
+      }
+      camera.attachControl(canvas, true);
+      dragState.active = false;
+      dragState.fromSq = null;
+      dragState.toSq = null;
+      dragState.entry = null;
+      dragState.ghost = null;
+      return;
+    }
+
+    if (!isPointerDown || dragState.active) {
       return;
     }
 
