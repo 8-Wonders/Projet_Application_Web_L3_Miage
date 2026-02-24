@@ -2,6 +2,14 @@ import { GBScreen } from "./gb/screen.js";
 import { ImageViewerGame } from "./games/image_viewer.js";
 import { SnakeGame } from "./games/snake.js";
 
+export const Mode = {
+  menu: 0,
+  pause: 1,
+  game: 2,
+  gameOver: 3,
+  image: 4,
+};
+
 export class GBApp {
   constructor() {
     this.display = document.getElementById("gb-display");
@@ -18,7 +26,7 @@ export class GBApp {
       root: this.display,
       palette: this.palette,
     });
-    this.mode = "menu";
+    this.mode = Mode.menu;
     this.game = new SnakeGame(this.screen, {
       cellSize: 8,
       cellGap: 1,
@@ -82,7 +90,7 @@ export class GBApp {
   }
 
   showMenu() {
-    this.mode = "menu";
+    this.mode = Mode.menu;
     this.drawMenu();
   }
 
@@ -100,7 +108,7 @@ export class GBApp {
 
   showPauseMenu() {
     this.prevMode = this.mode;
-    this.mode = "pause";
+    this.mode = Mode.pause;
     this.renderPauseMenu();
   }
 
@@ -120,15 +128,6 @@ export class GBApp {
         fontFamily: "EarlyGameBoy, monospace",
         fontSize: 10,
       });
-      if (i < lines.length - 1) {
-        this.screen.drawRect(
-          0,
-          lineY + lineHeight - 2,
-          this.screen.cols,
-          1,
-          "cell-c2",
-        );
-      }
     }
   }
 
@@ -147,10 +146,10 @@ export class GBApp {
   startLoop() {
     if (this.loopId) clearInterval(this.loopId);
     this.loopId = setInterval(() => {
-      if (this.mode === "game") {
+      if (this.mode === Mode.game) {
         this.game.step(this.appleSprite);
         if (this.game.gameOver) {
-          this.mode = "gameover";
+          this.mode = Mode.gameOver;
           this.renderGameOverScreen();
           return;
         }
@@ -160,7 +159,7 @@ export class GBApp {
   }
 
   startSnake() {
-    this.mode = "game";
+    this.mode = Mode.game;
     this.game.segmentSprite = this.snakeBodySprite;
     this.game.headSprite = this.snakeHeadSprite;
     this.game.reset();
@@ -173,13 +172,13 @@ export class GBApp {
       const { key } = event;
       if (key.startsWith("Arrow")) event.preventDefault();
       if (key === "Escape" || key === "s" || key === "S") {
-        if (this.mode === "game" || this.mode === "image") {
+        if (this.mode === Mode.game || this.mode === Mode.image) {
           event.preventDefault();
           this.showPauseMenu();
           return;
         }
       }
-      if (this.mode === "menu") {
+      if (this.mode === Mode.menu) {
         if (key === "ArrowLeft") {
           this.menuIndex =
             (this.menuIndex - 1 + this.menuOptions.length) %
@@ -196,23 +195,23 @@ export class GBApp {
           const selected = this.menuOptions[this.menuIndex]?.id;
           if (selected === "snake") this.startSnake();
           if (selected === "image") {
-            this.mode = "image";
+            this.mode = Mode.image;
             this.renderImageMode();
           }
           return;
         }
       }
-      if (this.mode === "gameover") {
+      if (this.mode === Mode.gameOver) {
         if (key === "s" || key === "S") {
           this.startSnake();
         }
         if (key === "Escape") this.showMenu();
         return;
       }
-      if (this.mode === "game") {
+      if (this.mode === Mode.game) {
         this.game.setDirection(key);
       }
-      if (this.mode === "image") {
+      if (this.mode === Mode.image) {
         if (key === "l" || key === "L") {
           this.imageInput?.click();
           return;
@@ -222,13 +221,13 @@ export class GBApp {
           return;
         }
       }
-      if (this.mode === "pause") {
+      if (this.mode === Mode.pause) {
         if (key === "c" || key === "C") {
           if (this.prevMode === "image") {
-            this.mode = "image";
+            this.mode = Mode.image;
             this.renderImageMode();
           } else {
-            this.mode = "game";
+            this.mode = Mode.game;
             this.game.draw(this.appleSprite);
           }
         }
@@ -247,7 +246,7 @@ export class GBApp {
       const img = new Image();
       img.onload = () => {
         this.imageGame.setImage(img);
-        this.mode = "image";
+        this.mode = Mode.image;
         this.imageGame.reloadImage();
         URL.revokeObjectURL(url);
       };
