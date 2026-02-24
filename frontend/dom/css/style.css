@@ -1,0 +1,50 @@
+:root {
+  --color1: #b4de7e;
+  --color2: #b8ab12;
+  --color3: #96521b;
+  --color4: #482425;
+}
+
+.cell-c1 {
+  background-color: var(--color1);
+}
+
+.cell-c2 {
+  background-color: var(--color2);
+}
+
+.cell-c3 {
+  background-color: var(--color3);
+}
+
+.cell-c4 {
+  background-color: var(--color4);
+}
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: black;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+#gb-display {
+  display: grid;
+  grid-template-columns: repeat(160, 1fr);
+  grid-template-rows: repeat(144, 1fr);
+
+  width: min(90vw, 90vh * 1.1111);
+  aspect-ratio: 160 / 144;
+
+  border: 4px solid #222;
+}
+
+.pixel {
+  background-color: var(--color1);
+}
