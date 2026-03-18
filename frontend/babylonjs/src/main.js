@@ -149,6 +149,33 @@ const createScene = async () => {
     }
   }
 
+  const benchMaterial = new StandardMaterial("benchMaterial", scene);
+  benchMaterial.diffuseColor = new Color3(0.5, 0.5, 0.6); // Slightly bluish-grey to stand out
+
+  const benchTiles = [];
+  for (let col = 0; col < 8; col += 1) {
+    const tile = MeshBuilder.CreateBox(
+      `bench-tile-${col}`,
+      { width: tileSize, depth: tileSize, height: 0.15 },
+      scene,
+    );
+
+    // Align with the columns of the board
+    tile.position.x = col * tileSize - offset;
+    // Push it closer to the camera, away from the main 8x8 grid
+    tile.position.z = -1.5 * tileSize - offset;
+    tile.position.y = -0.1;
+
+    tile.material = benchMaterial;
+
+    // IMPORTANT: Note the custom squareId format "bench-X"
+    tile.metadata = { squareId: `bench-${col}`, isBench: true };
+    tile.isPickable = true;
+    tile.parent = boardRoot;
+    benchTiles.push(tile);
+  }
+  // -------------------------------
+
   const baseWhite = new StandardMaterial("whitePiece", scene);
   baseWhite.diffuseColor = new Color3(0.95, 0.94, 0.9);
   baseWhite.specularColor = new Color3(0.2, 0.2, 0.2);
@@ -327,7 +354,7 @@ const createScene = async () => {
     }
     existing.root.dispose();
     placedPieces.delete(squareId);
-    
+
     // ONLY refund the budget if the user is removing a piece during setup phase
     if (!isCombatDeath) {
       budgets[existing.color] += existing.value;
@@ -338,40 +365,50 @@ const createScene = async () => {
     }
   };
 
-  const isAllowedRow = (color, row) => {
-    return color === "white" ? row >= 4 : row <= 3;
+  const getTileCoordinates = (squareId) => {
+    if (squareId.startsWith("bench-")) {
+      const col = parseInt(squareId.split("-")[1], 10);
+      // zPos maps to the -1.5 offset we used when creating the bench mesh
+      return { isBench: true, row: -1, col, zPos: -1.5 };
+    }
+    const [row, col] = squareId.split("-").map(Number);
+    return { isBench: false, row, col, zPos: row };
   };
 
-  const placePiece = (squareId, row, col) => {
-    if (!selectedPiece) {
-      return;
+  const isAllowedPlacement = (color, squareId) => {
+    const coords = getTileCoordinates(squareId);
+    if (coords.isBench) {
+      return color === "white"; // Only the human player (white) can use the bench
     }
+    return color === "white" ? coords.row >= 4 : coords.row <= 3;
+  };
+
+  const placePiece = (squareId) => {
+    if (!selectedPiece) return;
 
     const [color, type] = selectedPiece.split("-");
+    const coords = getTileCoordinates(squareId);
 
-    if (type === "pawn" && (row === 0 || row === 7)) {
+    if (
+      type === "pawn" &&
+      !coords.isBench &&
+      (coords.row === 0 || coords.row === 7)
+    ) {
       console.warn("Pawns cannot be placed on the first or last ranks.");
-      return; 
+      return;
     }
 
     const def = pieceDefs[type];
-    if (!def) {
-      return;
-    }
-    if (counts[color][type] >= def.max || budgets[color] < def.value) {
-      return;
-    }
+    if (!def) return;
 
-    if (!isAllowedRow(color, row)) {
-      return;
-    }
+    if (counts[color][type] >= def.max || budgets[color] < def.value) return;
+    if (!isAllowedPlacement(color, squareId)) return;
 
     removePiece(squareId);
 
     const base = pieceTemplates[type];
-    if (!base || budgets[color] < def.value || counts[color][type] >= def.max) {
+    if (!base || budgets[color] < def.value || counts[color][type] >= def.max)
       return;
-    }
 
     const instanceRoot = base.clone(
       `${selectedPiece}-${squareId}`,
@@ -379,20 +416,24 @@ const createScene = async () => {
       false,
     );
     console.log(`Placed piece: ${selectedPiece} at ${squareId}`);
+
     instanceRoot.setEnabled(true);
-    instanceRoot.position.x = col * tileSize - offset;
-    instanceRoot.position.z = row * tileSize - offset;
+    instanceRoot.position.x = coords.col * tileSize - offset;
+    instanceRoot.position.z = coords.zPos * tileSize - offset; // Uses zPos for bench offset
     instanceRoot.position.y = pieceYOffset[type] || 0;
+
     const baseYaw = pieceYawFix[type] || 0;
     instanceRoot.rotation = new Vector3(
       0,
       baseYaw + (color === "black" ? Math.PI : 0),
       0,
     );
+
     instanceRoot.getChildMeshes().forEach((mesh) => {
       applyOpaqueMaterial(mesh, color === "white" ? baseWhite : baseBlack);
       mesh.metadata = { squareId, isPiece: true };
     });
+
     placedPieces.set(squareId, {
       root: instanceRoot,
       color,
@@ -401,40 +442,39 @@ const createScene = async () => {
     });
     budgets[color] -= def.value;
     counts[color][type] += 1;
+
     updateUI();
     playSound(sounds.move);
     updateAnalysisBar();
   };
 
   const movePiece = (fromSq, toSq) => {
-    if (fromSq === toSq) {
-      return;
-    }
-    const entry = placedPieces.get(fromSq);
-    if (!entry) {
-      return;
-    }
-    if (placedPieces.has(toSq)) {
-      return;
-    }
-    const [row, col] = toSq.split("-").map(Number);
-    if (!isAllowedRow(entry.color, row)) {
-      return;
-    }
+    if (fromSq === toSq) return;
 
-    if (entry.type === "pawn" && (row === 0 || row === 7)) {
+    const entry = placedPieces.get(fromSq);
+    if (!entry) return;
+    if (placedPieces.has(toSq)) return;
+
+    const toCoords = getTileCoordinates(toSq);
+    if (!isAllowedPlacement(entry.color, toSq)) return;
+
+    if (
+      entry.type === "pawn" &&
+      !toCoords.isBench &&
+      (toCoords.row === 0 || toCoords.row === 7)
+    ) {
       console.warn("Pawns cannot be placed on the first or last ranks.");
       return;
     }
 
-    entry.root.position.x = col * tileSize - offset;
-    entry.root.position.z = row * tileSize - offset;
+    entry.root.position.x = toCoords.col * tileSize - offset;
+    entry.root.position.z = toCoords.zPos * tileSize - offset; // Uses zPos for bench offset
     entry.root.position.y = pieceYOffset[entry.type] || 0;
+
     entry.root.getChildMeshes().forEach((mesh) => {
-      if (mesh.metadata) {
-        mesh.metadata.squareId = toSq;
-      }
+      if (mesh.metadata) mesh.metadata.squareId = toSq;
     });
+
     placedPieces.delete(fromSq);
     placedPieces.set(toSq, entry);
     playSound(sounds.move);
@@ -496,8 +536,7 @@ const createScene = async () => {
     const squares = tiles
       .map((tile) => tile.metadata.squareId)
       .filter((squareId) => {
-        const [row] = squareId.split("-").map((value) => Number(value));
-        return isAllowedRow(aiColor, row);
+        return isAllowedPlacement(aiColor, squareId);
       });
     for (let i = squares.length - 1; i > 0; i -= 1) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -505,15 +544,19 @@ const createScene = async () => {
     }
 
     const placeRandomPiece = (squareId, type) => {
-      const [row, col] = squareId.split("-").map((value) => Number(value));
       selectedPiece = `${aiColor}-${type}`;
-      placePiece(squareId, row, col);
+      placePiece(squareId);
     };
 
     squares.forEach((squareId) => {
       const affordable = Object.entries(pieceDefs).filter(([type, def]) => {
-        const [row] = squareId.split("-").map(Number);
-        if (type === "pawn" && (row === 0 || row === 7)) return false;
+        const coords = getTileCoordinates(squareId);
+        if (
+          type === "pawn" &&
+          !coords.isBench &&
+          (coords.row === 0 || coords.row === 7)
+        )
+          return false;
         return counts[aiColor][type] < def.max && budgets[aiColor] >= def.value;
       });
       if (affordable.length === 0) {
@@ -923,12 +966,14 @@ const createScene = async () => {
         return;
       }
       const squareId = pick.pickedMesh.metadata.squareId;
-      const [row, col] = squareId.split("-").map(Number);
-      if (!isAllowedRow(dragState.entry.color, row)) {
+
+      const coords = getTileCoordinates(squareId);
+      if (!isAllowedPlacement(dragState.entry.color, squareId)) {
         return;
       }
-      dragState.ghost.position.x = col * tileSize - offset;
-      dragState.ghost.position.z = row * tileSize - offset;
+      dragState.ghost.position.x = coords.col * tileSize - offset;
+      dragState.ghost.position.z = coords.zPos * tileSize - offset;
+
       dragState.ghost.position.y = pieceYOffset[dragState.entry.type] || 0;
       dragState.toSq = squareId;
       return;
@@ -969,8 +1014,7 @@ const createScene = async () => {
     }
 
     const squareId = pick.pickedMesh.metadata.squareId;
-    const [row, col] = squareId.split("-").map((value) => Number(value));
-    placePiece(squareId, row, col);
+    placePiece(squareId);
   });
 
   await loadPieces();
