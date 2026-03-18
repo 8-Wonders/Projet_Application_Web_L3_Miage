@@ -28,7 +28,6 @@ import { generateFEN } from "./game/fen.js";
 import { EngineClient } from "./game/engine-client.js";
 import { UIManager } from "./ui/ui-manager.js";
 
-
 const canvas = document.getElementById("renderCanvas");
 const engine = new Engine(canvas, true, { audioEngine: true });
 const previewCanvas = document.getElementById("previewCanvas");
@@ -176,7 +175,6 @@ const createScene = async () => {
   };
 
   const pieceTemplates = {};
-  // Move modal is managed by UIManager.
 
   let previewWhiteMaterial = null;
   let previewBlackMaterial = null;
@@ -321,10 +319,6 @@ const createScene = async () => {
     uiManager.updateAvailability(budgets, counts, playerColor);
   };
 
-  // About-move is handled in UIManager.
-
-  // Clear button is handled by UIManager.
-
   const removePiece = (squareId) => {
     const existing = placedPieces.get(squareId);
     if (!existing) {
@@ -349,6 +343,12 @@ const createScene = async () => {
     }
 
     const [color, type] = selectedPiece.split("-");
+
+    // NEW: Prevent illegal pawn placement on the 1st and 8th ranks
+    if (type === "pawn" && (row === 0 || row === 7)) {
+      console.warn("Pawns cannot be placed on the first or last ranks.");
+      return; 
+    }
 
     const def = pieceDefs[type];
     if (!def) {
@@ -417,6 +417,13 @@ const createScene = async () => {
     if (!isAllowedRow(entry.color, row)) {
       return;
     }
+
+    // NEW: Prevent dragging a pawn to an illegal setup row
+    if (entry.type === "pawn" && (row === 0 || row === 7)) {
+      console.warn("Pawns cannot be placed on the first or last ranks.");
+      return;
+    }
+
     entry.root.position.x = col * tileSize - offset;
     entry.root.position.z = row * tileSize - offset;
     entry.root.position.y = pieceYOffset[entry.type] || 0;
@@ -549,97 +556,24 @@ const createScene = async () => {
   );
   let lastEvalScore = null;
 
-  const toAlgebraic = (row, col) => {
-    const file = String.fromCharCode(97 + col);
-    const rank = 8 - row;
-    return `${file}${rank}`;
-  };
-
   const fromAlgebraic = (sq) => {
     const col = sq.charCodeAt(0) - 97;
     const row = 8 - parseInt(sq[1]);
     return { row, col };
   };
 
-  const mapAlgebraicCoord = (sq, mode) => {
-    const file = sq.charCodeAt(0) - 97;
-    const rank = parseInt(sq[1]);
-    const base = { row: 8 - rank, col: file };
-    switch (mode) {
-      case "flip-row":
-        return { row: 7 - base.row, col: base.col };
-      case "flip-col":
-        return { row: base.row, col: 7 - base.col };
-      case "flip-both":
-        return { row: 7 - base.row, col: 7 - base.col };
-      case "transpose":
-        return { row: base.col, col: base.row };
-      case "transpose-flip-row":
-        return { row: base.col, col: 7 - base.row };
-      case "transpose-flip-col":
-        return { row: 7 - base.col, col: base.row };
-      case "transpose-flip-both":
-        return { row: 7 - base.col, col: 7 - base.row };
-      default:
-        return base;
-    }
-  };
-  // FEN generation lives in src/game/fen.js.
-
   const executeEngineMove = (move) => {
     console.log("Executing move:", move, "Current turn:", currentTurn);
     const from = move.substring(0, 2);
     const to = move.substring(2, 4);
-    let fromCoord = fromAlgebraic(from);
-    let toCoord = fromAlgebraic(to);
+    const fromCoord = fromAlgebraic(from);
+    const toCoord = fromAlgebraic(to);
 
     const fromSq = `${fromCoord.row}-${fromCoord.col}`;
     const toSq = `${toCoord.row}-${toCoord.col}`;
 
-    let piece = placedPieces.get(fromSq);
-    let actualKey = fromSq;
-
-    if (!piece) {
-      const altModes = [
-        "flip-row",
-        "flip-col",
-        "flip-both",
-        "transpose",
-        "transpose-flip-row",
-        "transpose-flip-col",
-        "transpose-flip-both",
-      ];
-      for (const mode of altModes) {
-        const altFrom = mapAlgebraicCoord(from, mode);
-        const altTo = mapAlgebraicCoord(to, mode);
-        const altSq = `${altFrom.row}-${altFrom.col}`;
-        const altPiece = placedPieces.get(altSq);
-        if (altPiece && altPiece.color === currentTurn) {
-          console.warn("Move coords remapped using", mode);
-          fromCoord = altFrom;
-          toCoord = altTo;
-          piece = altPiece;
-          actualKey = altSq;
-          break;
-        }
-      }
-    }
-
-    if (!piece) {
-      console.warn("Piece not found at", fromSq, "Scanning map...");
-      for (const [key, p] of placedPieces.entries()) {
-        if (p.color === currentTurn) {
-          console.log("  Found", p.color, p.type, "at", key);
-        }
-        const [r, c] = key.split("-").map(Number);
-        if (r === fromCoord.row && c === fromCoord.col) {
-          console.log("  Match found at key:", key);
-          piece = p;
-          actualKey = key;
-          break;
-        }
-      }
-    }
+    const piece = placedPieces.get(fromSq);
+    const actualKey = fromSq;
 
     if (!piece) {
       console.error(
