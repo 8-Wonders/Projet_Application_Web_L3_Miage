@@ -319,18 +319,23 @@ const createScene = async () => {
     uiManager.updateAvailability(budgets, counts, playerColor);
   };
 
-  const removePiece = (squareId) => {
+  // ADDED: isCombatDeath flag to prevent refunding captured pieces
+  const removePiece = (squareId, isCombatDeath = false) => {
     const existing = placedPieces.get(squareId);
     if (!existing) {
       return;
     }
     existing.root.dispose();
     placedPieces.delete(squareId);
-    budgets[existing.color] += existing.value;
-    counts[existing.color][existing.type] = Math.max(
-      0,
-      counts[existing.color][existing.type] - 1,
-    );
+    
+    // ONLY refund the budget if the user is removing a piece during setup phase
+    if (!isCombatDeath) {
+      budgets[existing.color] += existing.value;
+      counts[existing.color][existing.type] = Math.max(
+        0,
+        counts[existing.color][existing.type] - 1,
+      );
+    }
   };
 
   const isAllowedRow = (color, row) => {
@@ -344,7 +349,6 @@ const createScene = async () => {
 
     const [color, type] = selectedPiece.split("-");
 
-    // NEW: Prevent illegal pawn placement on the 1st and 8th ranks
     if (type === "pawn" && (row === 0 || row === 7)) {
       console.warn("Pawns cannot be placed on the first or last ranks.");
       return; 
@@ -418,7 +422,6 @@ const createScene = async () => {
       return;
     }
 
-    // NEW: Prevent dragging a pawn to an illegal setup row
     if (entry.type === "pawn" && (row === 0 || row === 7)) {
       console.warn("Pawns cannot be placed on the first or last ranks.");
       return;
@@ -602,12 +605,12 @@ const createScene = async () => {
       const epSq = `${fromCoord.row}-${toCoord.col}`;
       if (placedPieces.has(epSq)) {
         console.log("En Passant capture! Removing piece at", epSq);
-        removePiece(epSq);
+        removePiece(epSq, true); // ADDED: true to skip budget refund
       }
     }
     if (isCapture) {
       console.log("Capture! Removing piece at", toSq);
-      removePiece(toSq);
+      removePiece(toSq, true); // ADDED: true to skip budget refund
     }
 
     // Move animation (instant for now)
@@ -642,6 +645,8 @@ const createScene = async () => {
 
       // Update logic state
       piece.type = newType;
+      // ADDED: Update the piece's value for tiebreakers
+      piece.value = pieceDefs[newType].value;
 
       // Swap the 3D mesh
       const oldRoot = piece.root;
@@ -673,14 +678,11 @@ const createScene = async () => {
         oldRoot.dispose();
       }
     }
-    const isCastling =
-      piece.type === "king" && Math.abs(fromCoord.col - toCoord.col) === 2;
+
     if (isPromotion) {
       playSound(sounds.promote);
     } else if (isCapture) {
       playSound(sounds.capture);
-    } else if (isCastling) {
-      playSound(sounds.castle);
     } else {
       playSound(sounds.move);
     }
