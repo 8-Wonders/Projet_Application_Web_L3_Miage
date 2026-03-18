@@ -174,7 +174,6 @@ const createScene = async () => {
     tile.parent = boardRoot;
     benchTiles.push(tile);
   }
-  // -------------------------------
 
   const baseWhite = new StandardMaterial("whitePiece", scene);
   baseWhite.diffuseColor = new Color3(0.95, 0.94, 0.9);
@@ -336,6 +335,77 @@ const createScene = async () => {
     white: Object.fromEntries(Object.keys(pieceDefs).map((key) => [key, 0])),
     black: Object.fromEntries(Object.keys(pieceDefs).map((key) => [key, 0])),
   };
+
+  const playerState = {
+    gold: 10,
+    hp: 100,
+    level: 1,
+  };
+  let currentShop = [null, null, null, null, null]; // 5 shop slots
+
+  const generateShopItems = () => {
+    currentShop = [];
+    const pieceTypes = Object.keys(pieceDefs).filter((p) => p !== "fool"); // Exclude joke pieces
+
+    for (let i = 0; i < 5; i++) {
+      const randomType =
+        pieceTypes[Math.floor(Math.random() * pieceTypes.length)];
+      currentShop.push(randomType);
+    }
+
+    // Tell the UI to update
+    uiManager.clearShopSelection();
+    uiManager.renderShop(currentShop, playerState);
+  };
+
+  const buyFromShop = (shopIndex) => {
+    const type = currentShop[shopIndex];
+    if (!type) return; // Slot is already empty
+
+    const cost = pieceDefs[type].value;
+
+    if (playerState.gold >= cost) {
+      // 1. Find the first empty bench slot
+      let emptyBenchIndex = -1;
+      for (let i = 0; i < 8; i++) {
+        if (!placedPieces.has(`bench-${i}`)) {
+          emptyBenchIndex = i;
+          break;
+        }
+      }
+
+      if (emptyBenchIndex !== -1) {
+        // 2. Deduct gold and clear the shop slot
+        playerState.gold -= cost;
+        currentShop[shopIndex] = null;
+
+        // 3. Spawn the piece directly on the bench
+        selectedPiece = `white-${type}`;
+        placePiece(`bench-${emptyBenchIndex}`);
+        selectedPiece = null; // Clear selection so it doesn't follow the cursor
+
+        // 4. Update the UI
+        uiManager.renderShop(currentShop, playerState);
+      } else {
+        console.warn("Your bench is full!");
+      }
+    } else {
+      console.warn("Not enough gold!");
+    }
+  };
+
+  // Give the UI manager access to the buy function
+  uiManager.onBuyPiece = buyFromShop;
+
+  uiManager.onReroll = () => {
+    if (playerState.gold >= 2) {
+      playerState.gold -= 2;
+      generateShopItems();
+    } else {
+      console.warn("Not enough gold to reroll!");
+    }
+  };
+
   let selectedPiece = null;
   let playerColor = null;
   let aiColor = null;
@@ -401,14 +471,14 @@ const createScene = async () => {
     const def = pieceDefs[type];
     if (!def) return;
 
-    if (counts[color][type] >= def.max || budgets[color] < def.value) return;
+    // if (counts[color][type] >= def.max || budgets[color] < def.value) return;
     if (!isAllowedPlacement(color, squareId)) return;
 
     removePiece(squareId);
 
     const base = pieceTemplates[type];
-    if (!base || budgets[color] < def.value || counts[color][type] >= def.max)
-      return;
+    // if (!base || budgets[color] < def.value || counts[color][type] >= def.max) return;
+    if (!base) return;
 
     const instanceRoot = base.clone(
       `${selectedPiece}-${squareId}`,
@@ -440,8 +510,12 @@ const createScene = async () => {
       type,
       value: def.value,
     });
-    budgets[color] -= def.value;
-    counts[color][type] += 1;
+
+    // For AI randomization, we still use budgets and counts to limit pieces
+    if (color === aiColor) {
+      budgets[color] -= def.value;
+      counts[color][type] += 1;
+    }
 
     updateUI();
     playSound(sounds.move);
@@ -512,11 +586,13 @@ const createScene = async () => {
     } else {
       let whiteValue = 0;
       let blackValue = 0;
-      placedPieces.forEach((entry) => {
-        if (entry.color === "white") {
-          whiteValue += entry.value;
-        } else {
-          blackValue += entry.value;
+      placedPieces.forEach((entry, sq) => {
+        if (!sq.startsWith("bench")) {
+          if (entry.color === "white") {
+            whiteValue += entry.value;
+          } else {
+            blackValue += entry.value;
+          }
         }
       });
       const total = whiteValue + blackValue;
@@ -730,7 +806,6 @@ const createScene = async () => {
       playSound(sounds.move);
     }
     updateAnalysisBar();
-    // ------------------------------------------
 
     moveHistory.push(move);
     noMoveCount = 0;
@@ -743,59 +818,102 @@ const createScene = async () => {
     }
   };
 
+  let preCombatPlayerState = [];
+
+  const endCombat = (playerWon, damageTaken) => {
+    gameInProgress = false;
+    uiManager.setStartBattleState({ inProgress: false });
+    setAnalysisVisible(false);
+
+    if (!playerWon && damageTaken > 0) {
+      playerState.hp -= damageTaken;
+      if (playerState.hp <= 0) {
+        alert(`Game Over! You survived to Round ${playerState.level}.`);
+        location.reload();
+        return;
+      } else {
+        alert(`You lost the round! Took ${damageTaken} damage.`);
+      }
+    } else if (playerWon) {
+      alert("You won the round!");
+    } else {
+      alert("Round ended in a draw!");
+    }
+
+    playerState.level += 1;
+    playerState.gold += 5; // +5 Gold per round
+
+    // Clear board
+    placedPieces.forEach((entry) => entry.root.dispose());
+    placedPieces.clear();
+
+    // Restore player pieces
+    preCombatPlayerState.forEach((saved) => {
+      selectedPiece = `white-${saved.type}`;
+      placePiece(saved.squareId);
+    });
+    selectedPiece = null;
+
+    // Generate new shop
+    generateShopItems();
+
+    // Generate new AI
+    budgets.black = START_BUDGET + playerState.level * 2; // Make AI harder
+    Object.keys(counts.black).forEach((k) => (counts.black[k] = 0));
+    randomizeAI();
+
+    updateUI();
+  };
+
   const checkFinalWinner = () => {
-    const whiteLeft = Array.from(placedPieces.values()).some(
-      (p) => p.color === "white",
-    );
-    const blackLeft = Array.from(placedPieces.values()).some(
-      (p) => p.color === "black",
-    );
+    let whiteBoardLeft = false;
+    let blackBoardLeft = false;
 
-    if (!whiteLeft && !blackLeft) {
-      alert("It's a draw!");
-      gameInProgress = false;
-    } else if (!whiteLeft) {
-      alert("Black wins the battle!");
-      gameInProgress = false;
-    } else if (!blackLeft) {
-      alert("White wins the battle!");
-      gameInProgress = false;
-    }
+    placedPieces.forEach((p, sq) => {
+      if (!sq.startsWith("bench")) {
+        if (p.color === "white") whiteBoardLeft = true;
+        if (p.color === "black") blackBoardLeft = true;
+      }
+    });
 
-    if (!gameInProgress) {
-      uiManager.setStartBattleState({ inProgress: false });
-    }
-    if (!gameInProgress) {
-      setAnalysisVisible(false);
+    if (!whiteBoardLeft && !blackBoardLeft) {
+      endCombat(false, 0); // Draw
+    } else if (!whiteBoardLeft) {
+      let blackValue = 0;
+      placedPieces.forEach((p, sq) => {
+        if (p.color === "black" && !sq.startsWith("bench"))
+          blackValue += p.value;
+      });
+      endCombat(false, blackValue); // Black wins
+    } else if (!blackBoardLeft) {
+      endCombat(true, 0); // White wins
     }
   };
 
   function resolveAnnihilation() {
     let whiteValue = 0;
     let blackValue = 0;
-    placedPieces.forEach((entry) => {
-      if (entry.color === "white") {
-        whiteValue += entry.value;
-      } else {
-        blackValue += entry.value;
+    placedPieces.forEach((entry, sq) => {
+      if (!sq.startsWith("bench")) {
+        if (entry.color === "white") {
+          whiteValue += entry.value;
+        } else {
+          blackValue += entry.value;
+        }
       }
     });
+
     if (whiteValue === 0 && blackValue === 0) {
-      alert("It's a draw!");
+      endCombat(false, 0);
     } else if (whiteValue === 0) {
-      alert("Black wins the battle!");
+      endCombat(false, blackValue);
     } else if (blackValue === 0) {
-      alert("White wins the battle!");
-    } else if (whiteValue > blackValue) {
-      alert("White wins on material!");
-    } else if (blackValue > whiteValue) {
-      alert("Black wins on material!");
+      endCombat(true, 0);
+    } else if (whiteValue >= blackValue) {
+      endCombat(true, 0);
     } else {
-      alert("Battle ended in a draw!");
+      endCombat(false, blackValue - whiteValue);
     }
-    gameInProgress = false;
-    uiManager.setStartBattleState({ inProgress: false });
-    setAnalysisVisible(false);
   }
 
   const requestEngineMove = () => {
@@ -849,6 +967,16 @@ const createScene = async () => {
   uiManager.onStartBattle = () => {
     if (gameInProgress) return;
 
+    let hasBoardPieces = false;
+    placedPieces.forEach((p, sq) => {
+      if (p.color === "white" && !sq.startsWith("bench")) hasBoardPieces = true;
+    });
+
+    if (!hasBoardPieces) {
+      alert("Place at least one piece on the board to fight!");
+      return;
+    }
+
     unlockAudio();
     gameInProgress = true;
     desyncRetries = 0;
@@ -857,6 +985,16 @@ const createScene = async () => {
     updateAnalysisBar();
     uiManager.setStartBattleState({ inProgress: true });
     currentTurn = "white";
+
+    preCombatPlayerState = [];
+    placedPieces.forEach((entry, squareId) => {
+      if (entry.color === "white") {
+        preCombatPlayerState.push({
+          squareId: squareId,
+          type: entry.type,
+        });
+      }
+    });
 
     initialFen = generateFEN(placedPieces, "white");
     moveHistory = [];
@@ -1004,22 +1142,13 @@ const createScene = async () => {
       return;
     }
 
-    const pick = scene.pick(
-      scene.pointerX,
-      scene.pointerY,
-      (mesh) => !!mesh.metadata?.squareId,
-    );
-    if (!pick?.hit || !pick.pickedMesh?.metadata?.squareId) {
-      return;
-    }
-
-    const squareId = pick.pickedMesh.metadata.squareId;
-    placePiece(squareId);
+    // Free placement removed: Pieces must be bought from the shop now.
   });
 
   await loadPieces();
   initPreview();
   updateUI();
+  generateShopItems();
   return scene;
 };
 

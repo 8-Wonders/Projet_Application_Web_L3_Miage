@@ -9,7 +9,17 @@ export class UIManager {
     this.sidePicker = document.getElementById("sidePicker");
     this.pickWhite = document.getElementById("pickWhite");
     this.pickBlack = document.getElementById("pickBlack");
-    this.selectButtons = document.querySelectorAll(".piece-group .piece-btn");
+    
+    // Select exactly 5 shop buttons by ID
+    this.selectButtons = [
+      document.getElementById("shop-0"),
+      document.getElementById("shop-1"),
+      document.getElementById("shop-2"),
+      document.getElementById("shop-3"),
+      document.getElementById("shop-4")
+    ];
+    this.rerollBtn = document.getElementById("rerollShop");
+
     this.groupWhite = document.querySelector(
       '.piece-group[data-color="white"]',
     );
@@ -23,46 +33,104 @@ export class UIManager {
     this.moveTextEl = document.getElementById("moveText");
     this.closeMoveButton = document.getElementById("closeMove");
     this.aboutMoveButton = document.getElementById("aboutMove");
+    this.buyPieceBtn = document.getElementById("buyPieceBtn");
 
     this.selectedPiece = null;
+    this.selectedShopIndex = null;
 
     this.onPieceSelected = null;
     this.onPickSide = null;
     this.onClearBoard = null;
     this.onStartBattle = null;
+    this.onBuyPiece = null;
+    this.onReroll = null;
 
     this.attachEvents();
-    this.decoratePieceButtons();
   }
 
-  decoratePieceButtons() {
-    this.selectButtons.forEach((button) => {
-      const pieceId = button.dataset.piece;
-      if (!pieceId) {
+  renderShop(shopArray, playerState) {
+    this.selectButtons.forEach((button, index) => {
+      if (!button) return;
+      const type = shopArray[index];
+      
+      if (!type) {
+        button.innerHTML = `<span>Sold Out</span>`;
+        button.disabled = true;
+        button.classList.add("unaffordable");
+        button.onclick = null;
         return;
       }
-      const [, type] = pieceId.split("-");
+
       const def = this.pieceDefs[type];
       const label = this.pieceLabels[type] || type;
-      button.classList.add("piece-option");
-      button.innerHTML = `<span class="piece-price">${def.value}</span><span class="piece-name">${label}</span>`;
+      const canAfford = playerState.gold >= def.value;
+
+      button.classList.remove("unaffordable");
+      button.innerHTML = `<span class="piece-price">💎 ${def.value}</span><span class="piece-name">${label}</span>`;
+      button.disabled = false; // Always allow clicking to preview
+      button.classList.toggle("unaffordable", !canAfford);
+      
+      button.onclick = () => {
+        this.selectedShopIndex = index;
+        
+        // Highlight selection
+        this.selectButtons.forEach((btn) => btn?.classList.remove("active"));
+        button.classList.add("active");
+
+        // Show preview
+        if (this.onPieceSelected) {
+          this.onPieceSelected(`white-${type}`);
+        }
+
+        // Show buy button
+        if (this.buyPieceBtn) {
+          this.buyPieceBtn.style.display = "block";
+          this.buyPieceBtn.textContent = `Buy ${label} (💎 ${def.value})`;
+          this.buyPieceBtn.disabled = !canAfford;
+        }
+      };
     });
+
+    // Handle buy button visibility if the selection persists but state updates
+    if (this.buyPieceBtn && this.buyPieceBtn.style.display === "block" && this.selectedShopIndex !== null) {
+      const type = shopArray[this.selectedShopIndex];
+      if (type) {
+        const def = this.pieceDefs[type];
+        this.buyPieceBtn.disabled = playerState.gold < def.value;
+      } else {
+        this.buyPieceBtn.style.display = "none";
+      }
+    }
+
+    if (this.budgetWhiteEl) {
+      this.budgetWhiteEl.textContent = `❤️ ${playerState.hp} | ⭐ Lvl: ${playerState.level} | 🪙 Gold: ${playerState.gold}`;
+    }
+  }
+
+  clearShopSelection() {
+    this.selectedShopIndex = null;
+    this.selectButtons.forEach((btn) => btn?.classList.remove("active"));
+    if (this.buyPieceBtn) {
+      this.buyPieceBtn.style.display = "none";
+    }
   }
 
   attachEvents() {
-    this.selectButtons.forEach((button) => {
-      button.addEventListener("click", () => {
-        if (button.disabled) {
-          return;
-        }
-        this.selectButtons.forEach((btn) => btn.classList.remove("active"));
-        button.classList.add("active");
-        this.selectedPiece = button.dataset.piece;
-        if (this.onPieceSelected) {
-          this.onPieceSelected(this.selectedPiece);
+    if (this.buyPieceBtn) {
+      this.buyPieceBtn.addEventListener("click", () => {
+        if (this.onBuyPiece && this.selectedShopIndex !== null) {
+          this.onBuyPiece(this.selectedShopIndex);
         }
       });
-    });
+    }
+
+    if (this.rerollBtn) {
+      this.rerollBtn.addEventListener("click", () => {
+        if (this.onReroll) {
+          this.onReroll();
+        }
+      });
+    }
 
     if (this.pickWhite) {
       this.pickWhite.addEventListener("click", () => {
@@ -154,59 +222,20 @@ export class UIManager {
     this.startBattleBtn.disabled = inProgress;
   }
 
+  // Deprecated for Gold system, but kept for compatibility
   setBudgets(budgets, playerColor) {
-    if (this.budgetWhiteEl) {
-      const label = playerColor
-        ? playerColor === "white"
-          ? "Your budget"
-          : "AI budget"
-        : "White budget";
-      this.budgetWhiteEl.textContent = `${label}: ${budgets.white}`;
-    }
-    if (this.budgetBlackEl) {
-      const label = playerColor
-        ? playerColor === "black"
-          ? "Your budget"
-          : "AI budget"
-        : "Black budget";
-      this.budgetBlackEl.textContent = `${label}: ${budgets.black}`;
-    }
+    // We now use Gold: X in budgetWhiteEl
   }
 
   setPieceVisibility(playerColor, aiColor) {
-    if (!playerColor || !aiColor) {
-      if (this.groupWhite) this.groupWhite.classList.add("hidden");
-      if (this.groupBlack) this.groupBlack.classList.add("hidden");
-      return;
-    }
-    const showWhite = playerColor === "white";
-    if (this.groupWhite) this.groupWhite.classList.toggle("hidden", !showWhite);
-    if (this.groupBlack) this.groupBlack.classList.toggle("hidden", showWhite);
+    // Optional: Hide/Show shop based on state
   }
 
   updateAvailability(budgets, counts, playerColor) {
-    this.selectButtons.forEach((button) => {
-      if (!playerColor) {
-        button.disabled = true;
-        button.classList.remove("active");
-        return;
-      }
-      const [color, type] = button.dataset.piece.split("-");
-      if (color !== playerColor) {
-        button.disabled = true;
-        button.classList.remove("active");
-        return;
-      }
-      const def = this.pieceDefs[type];
-      const canUse =
-        budgets[color] >= def.value && counts[color][type] < def.max;
-      button.disabled = false;
-      button.classList.toggle("unaffordable", !canUse);
-    });
+    // Re-rendering shop handles availability
   }
 
   clearSelection() {
-    this.selectButtons.forEach((btn) => btn.classList.remove("active"));
     this.selectedPiece = null;
   }
 
