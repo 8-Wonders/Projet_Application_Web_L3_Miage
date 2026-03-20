@@ -761,16 +761,27 @@ const createScene = async () => {
     }
 
     const isCapture = placedPieces.has(toSq);
+    let capturedPiece = false;
+
     if (piece.type === "pawn" && fromCoord.col !== toCoord.col && !isCapture) {
       const epSq = `${fromCoord.row}-${toCoord.col}`;
       if (placedPieces.has(epSq)) {
         console.log("En Passant capture! Removing piece at", epSq);
         removePiece(epSq, true);
+        capturedPiece = true;
       }
     }
     if (isCapture) {
       console.log("Capture! Removing piece at", toSq);
       removePiece(toSq, true);
+      capturedPiece = true;
+    }
+
+    // Stagnation Logic: Reset count if a pawn moves or a piece is captured
+    if (piece.type === "pawn" || capturedPiece) {
+      noMoveCount = 0;
+    } else {
+      noMoveCount++;
     }
 
     piece.root.position.x = toCoord.col * tileSize - offset;
@@ -837,7 +848,7 @@ const createScene = async () => {
 
     if (isPromotion) {
       playSound(sounds.promote);
-    } else if (isCapture) {
+    } else if (capturedPiece) {
       playSound(sounds.capture);
     } else {
       playSound(sounds.move);
@@ -845,12 +856,19 @@ const createScene = async () => {
     updateAnalysisBar();
 
     moveHistory.push(move);
-    noMoveCount = 0;
     desyncRetries = 0;
 
     currentTurn = currentTurn === "white" ? "black" : "white";
     updateTimerVisuals(currentTurn);
     
+    // Check if the battle has stagnated for 20 plies (10 full turns)
+    if (noMoveCount >= 20) {
+      console.log("Battle stagnated! Resolving by material...");
+      alert("Battle stagnated with no captures! Resolving based on surviving material...");
+      resolveAnnihilation();
+      return;
+    }
+
     checkFinalWinner();
     if (gameInProgress) {
       requestEngineMove();
@@ -1054,6 +1072,7 @@ const createScene = async () => {
     unlockAudio();
     gameInProgress = true;
     desyncRetries = 0;
+    noMoveCount = 0; // Fix: Reset the stagnation counter for each new round!
     lastEvalScore = null;
     setAnalysisVisible(true);
     updateAnalysisBar();
