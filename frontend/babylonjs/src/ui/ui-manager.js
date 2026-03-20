@@ -9,14 +9,14 @@ export class UIManager {
     this.sidePicker = document.getElementById("sidePicker");
     this.pickWhite = document.getElementById("pickWhite");
     this.pickBlack = document.getElementById("pickBlack");
-    
+
     // Select exactly 5 shop buttons by ID
     this.selectButtons = [
       document.getElementById("shop-0"),
       document.getElementById("shop-1"),
       document.getElementById("shop-2"),
       document.getElementById("shop-3"),
-      document.getElementById("shop-4")
+      document.getElementById("shop-4"),
     ];
     this.rerollBtn = document.getElementById("rerollShop");
 
@@ -52,7 +52,7 @@ export class UIManager {
     this.selectButtons.forEach((button, index) => {
       if (!button) return;
       const type = shopArray[index];
-      
+
       if (!type) {
         button.innerHTML = `<span>Sold Out</span>`;
         button.disabled = true;
@@ -69,10 +69,11 @@ export class UIManager {
       button.innerHTML = `<span class="piece-price">💎 ${def.value}</span><span class="piece-name">${label}</span>`;
       button.disabled = false; // Always allow clicking to preview
       button.classList.toggle("unaffordable", !canAfford);
-      
+
       button.onclick = () => {
         this.selectedShopIndex = index;
-        
+        this.selectedPiece = `white-${type}`;
+
         // Highlight selection
         this.selectButtons.forEach((btn) => btn?.classList.remove("active"));
         button.classList.add("active");
@@ -92,7 +93,11 @@ export class UIManager {
     });
 
     // Handle buy button visibility if the selection persists but state updates
-    if (this.buyPieceBtn && this.buyPieceBtn.style.display === "block" && this.selectedShopIndex !== null) {
+    if (
+      this.buyPieceBtn &&
+      this.buyPieceBtn.style.display === "block" &&
+      this.selectedShopIndex !== null
+    ) {
       const type = shopArray[this.selectedShopIndex];
       if (type) {
         const def = this.pieceDefs[type];
@@ -109,6 +114,7 @@ export class UIManager {
 
   clearShopSelection() {
     this.selectedShopIndex = null;
+    this.selectedPiece = null;
     this.selectButtons.forEach((btn) => btn?.classList.remove("active"));
     if (this.buyPieceBtn) {
       this.buyPieceBtn.style.display = "none";
@@ -179,7 +185,9 @@ export class UIManager {
     }
 
     if (this.closeMoveButton) {
-      this.closeMoveButton.addEventListener("click", () => this.hideMoveModal());
+      this.closeMoveButton.addEventListener("click", () =>
+        this.hideMoveModal(),
+      );
     }
     if (this.moveModal) {
       this.moveModal.addEventListener("click", (event) => {
@@ -243,3 +251,4 @@ export class UIManager {
     return this.selectedPiece;
   }
 }
+
