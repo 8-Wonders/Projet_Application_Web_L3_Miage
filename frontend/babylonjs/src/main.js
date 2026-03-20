@@ -40,6 +40,58 @@ let previewScene = null;
 let previewRoot = null;
 let previewCamera = null;
 
+// --- 3+0 Timer UI Setup ---
+const timerContainer = document.createElement("div");
+timerContainer.id = "chess-timers";
+timerContainer.style.position = "absolute";
+timerContainer.style.top = "15px";
+timerContainer.style.right = "15px";
+timerContainer.style.display = "none";
+timerContainer.style.flexDirection = "column";
+timerContainer.style.gap = "8px";
+timerContainer.style.zIndex = "1000";
+timerContainer.style.fontFamily = "monospace";
+timerContainer.style.fontSize = "24px";
+timerContainer.style.fontWeight = "bold";
+timerContainer.style.pointerEvents = "none";
+
+const blackTimerEl = document.createElement("div");
+blackTimerEl.style.backgroundColor = "rgba(30, 30, 30, 0.85)";
+blackTimerEl.style.color = "white";
+blackTimerEl.style.padding = "8px 16px";
+blackTimerEl.style.borderRadius = "6px";
+blackTimerEl.style.border = "3px solid transparent";
+blackTimerEl.style.boxShadow = "0 4px 6px rgba(0,0,0,0.3)";
+blackTimerEl.innerText = "03:00";
+
+const whiteTimerEl = document.createElement("div");
+whiteTimerEl.style.backgroundColor = "rgba(240, 240, 240, 0.85)";
+whiteTimerEl.style.color = "black";
+whiteTimerEl.style.padding = "8px 16px";
+whiteTimerEl.style.borderRadius = "6px";
+whiteTimerEl.style.border = "3px solid transparent";
+whiteTimerEl.style.boxShadow = "0 4px 6px rgba(0,0,0,0.3)";
+whiteTimerEl.innerText = "03:00";
+
+timerContainer.appendChild(blackTimerEl);
+timerContainer.appendChild(whiteTimerEl);
+document.body.appendChild(timerContainer);
+
+let timeWhite = 180;
+let timeBlack = 180;
+let timerInterval = null;
+
+const updateTimerVisuals = (turn) => {
+  if (turn === "white") {
+    whiteTimerEl.style.borderColor = "#4ade80";
+    blackTimerEl.style.borderColor = "transparent";
+  } else {
+    blackTimerEl.style.borderColor = "#4ade80";
+    whiteTimerEl.style.borderColor = "transparent";
+  }
+};
+// --------------------------
+
 canvas.addEventListener("contextmenu", (event) => {
   event.preventDefault();
 });
@@ -121,7 +173,7 @@ const createScene = async () => {
 
   // Dynamic budget scaling
   const getPlayerTotalGold = (level) => 10 + (level - 1) * 5;
-  const getAIBudget = (level) => getPlayerTotalGold(level) + 3;
+  const getAIBudget = (playerGold) => playerGold + 2;
 
   const boardRoot = new TransformNode("boardRoot", scene);
 
@@ -329,18 +381,20 @@ const createScene = async () => {
     await library.loadAll();
   };
 
-  const placedPieces = new Map();
-  const budgets = { white: getPlayerTotalGold(1), black: getAIBudget(1) };
-  const counts = {
-    white: Object.fromEntries(Object.keys(pieceDefs).map((key) => [key, 0])),
-    black: Object.fromEntries(Object.keys(pieceDefs).map((key) => [key, 0])),
-  };
-
   const playerState = {
     gold: 10,
     hp: 100,
     level: 1,
   };
+
+  const placedPieces = new Map();
+  const budgets = { white: getPlayerTotalGold(playerState.level), black: getAIBudget(playerState.gold) };
+  
+  const counts = {
+    white: Object.fromEntries(Object.keys(pieceDefs).map((key) => [key, 0])),
+    black: Object.fromEntries(Object.keys(pieceDefs).map((key) => [key, 0])),
+  };
+
   let currentShop = [null, null, null, null, null];
 
   const generateShopItems = () => {
@@ -644,7 +698,7 @@ const createScene = async () => {
     placedPieces.clear();
     
     budgets.white = getPlayerTotalGold(playerState.level);
-    budgets.black = getAIBudget(playerState.level);
+    budgets.black = getAIBudget(playerState.gold);
     
     Object.keys(counts.white).forEach((key) => {
       counts.white[key] = 0;
@@ -662,6 +716,7 @@ const createScene = async () => {
   let desyncRetries = 0;
   const MAX_DESYNC_RETRIES = 2;
   let noMoveCount = 0;
+  let moveStartTime = 0; 
   const engineClient = new EngineClient(
     new URL("/engine/chess-worker.js", window.location.origin),
   );
@@ -794,6 +849,8 @@ const createScene = async () => {
     desyncRetries = 0;
 
     currentTurn = currentTurn === "white" ? "black" : "white";
+    updateTimerVisuals(currentTurn);
+    
     checkFinalWinner();
     if (gameInProgress) {
       requestEngineMove();
@@ -802,12 +859,29 @@ const createScene = async () => {
 
   let preCombatPlayerState = [];
 
-  const endCombat = (playerWon, damageTaken) => {
+  const endCombat = (playerWon, damageTaken, timeout = false) => {
     gameInProgress = false;
+    
+    if (timerInterval) clearInterval(timerInterval);
+    timerContainer.style.display = "none";
+    
     uiManager.setStartBattleState({ inProgress: false });
     setAnalysisVisible(false);
 
-    if (!playerWon && damageTaken > 0) {
+    if (timeout) {
+      if (!playerWon) {
+        playerState.hp -= damageTaken;
+        if (playerState.hp <= 0) {
+          alert(`Time's up! You lost on time. Game Over! You survived to Round ${playerState.level}.`);
+          location.reload();
+          return;
+        } else {
+          alert(`Time's up! You lost the round on time! Took ${damageTaken} damage.`);
+        }
+      } else {
+        alert("Time's up! Black lost on time. You won the round!");
+      }
+    } else if (!playerWon && damageTaken > 0) {
       playerState.hp -= damageTaken;
       if (playerState.hp <= 0) {
         alert(`Game Over! You survived to Round ${playerState.level}.`);
@@ -825,22 +899,34 @@ const createScene = async () => {
     playerState.level += 1;
     playerState.gold += 5; // +5 Gold per round
 
-    // Clear board
-    placedPieces.forEach((entry) => entry.root.dispose());
-    placedPieces.clear();
-
-    // Restore player pieces
+    // Refund the player's pre-combat board pieces so they don't lose their gold
     preCombatPlayerState.forEach((saved) => {
-      selectedPiece = `white-${saved.type}`;
-      placePiece(saved.squareId);
+      playerState.gold += pieceDefs[saved.type].value;
     });
+
+    // Clean the board: remove all pieces from the main board (keep bench pieces safe)
+    const toRemove = [];
+    placedPieces.forEach((entry, sq) => {
+      if (!sq.startsWith("bench") || entry.color === "black") {
+        toRemove.push(sq);
+      }
+    });
+    
+    toRemove.forEach((sq) => {
+      const piece = placedPieces.get(sq);
+      if (piece && piece.root) {
+        piece.root.dispose();
+      }
+      placedPieces.delete(sq);
+    });
+
     selectedPiece = null;
 
     // Generate new shop
     generateShopItems();
 
     // Generate new AI based on new scaling parameters
-    budgets.black = getAIBudget(playerState.level);
+    budgets.black = getAIBudget(playerState.gold);
     Object.keys(counts.black).forEach((k) => (counts.black[k] = 0));
     randomizeAI();
 
@@ -901,12 +987,13 @@ const createScene = async () => {
   const requestEngineMove = () => {
     if (!gameInProgress) return;
 
+    moveStartTime = Date.now(); 
     const historyStr =
       moveHistory.length > 0 ? " moves " + moveHistory.join(" ") : "";
     const positionCmd = `position fen ${initialFen}${historyStr}`;
     console.log("Sending position:", positionCmd);
 
-    engineClient.requestMove(positionCmd, "go movetime 5000");
+    engineClient.requestMove(positionCmd, "go movetime 3900"); 
   };
 
   const initEngine = () => {
@@ -928,15 +1015,21 @@ const createScene = async () => {
     };
     engineClient.onBestMove = (move) => {
       console.log("Best move received:", move);
+      
+      const elapsed = Date.now() - moveStartTime;
+      const delay = Math.max(0, 4000 - elapsed); 
+
       if (move && move !== "(none)" && move !== "null") {
-        setTimeout(() => executeEngineMove(move), 300);
+        setTimeout(() => executeEngineMove(move), delay);
         return;
       }
+      
       console.log("Battle concluded (no moves left).");
       if (!gameInProgress) {
         return;
       }
-      resolveAnnihilation();
+      
+      setTimeout(() => resolveAnnihilation(), delay);
     };
     engineClient.startBattle(() => {
       if (gameInProgress) {
@@ -979,6 +1072,42 @@ const createScene = async () => {
 
     initialFen = generateFEN(placedPieces, "white");
     moveHistory = [];
+    
+    // Set up and display Timer UI 
+    timeWhite = 180;
+    timeBlack = 180;
+    whiteTimerEl.innerText = "03:00";
+    blackTimerEl.innerText = "03:00";
+    timerContainer.style.display = "flex";
+    updateTimerVisuals(currentTurn);
+
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      if (!gameInProgress) return;
+
+      if (currentTurn === "white") {
+        timeWhite--;
+      } else {
+        timeBlack--;
+      }
+
+      const formatTime = (t) => {
+        const m = Math.floor(t / 60).toString().padStart(2, "0");
+        const s = (t % 60).toString().padStart(2, "0");
+        return `${m}:${s}`;
+      };
+
+      whiteTimerEl.innerText = formatTime(Math.max(0, timeWhite));
+      blackTimerEl.innerText = formatTime(Math.max(0, timeBlack));
+
+      if (timeWhite <= 0) {
+        clearInterval(timerInterval);
+        endCombat(false, 15, true); // White lost on time (15 damage penalty)
+      } else if (timeBlack <= 0) {
+        clearInterval(timerInterval);
+        endCombat(true, 0, true); // Black lost on time
+      }
+    }, 1000);
 
     initEngine();
   };
