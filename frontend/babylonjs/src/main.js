@@ -39,9 +39,11 @@ let previewEngine = null;
 let previewScene = null;
 let previewRoot = null;
 let previewCamera = null;
+
 canvas.addEventListener("contextmenu", (event) => {
   event.preventDefault();
 });
+
 // Prevent browser zoom gestures while interacting with the scene.
 window.addEventListener(
   "wheel",
@@ -117,7 +119,9 @@ const createScene = async () => {
   document.addEventListener("pointerdown", unlockAudio, { once: true });
   document.addEventListener("keydown", unlockAudio, { once: true });
 
-  const START_BUDGET = 39;
+  // Dynamic budget scaling
+  const getPlayerTotalGold = (level) => 10 + (level - 1) * 5;
+  const getAIBudget = (level) => getPlayerTotalGold(level) + 3;
 
   const boardRoot = new TransformNode("boardRoot", scene);
 
@@ -150,7 +154,7 @@ const createScene = async () => {
   }
 
   const benchMaterial = new StandardMaterial("benchMaterial", scene);
-  benchMaterial.diffuseColor = new Color3(0.5, 0.5, 0.6); // Slightly bluish-grey to stand out
+  benchMaterial.diffuseColor = new Color3(0.5, 0.5, 0.6);
 
   const benchTiles = [];
   for (let col = 0; col < 8; col += 1) {
@@ -160,15 +164,11 @@ const createScene = async () => {
       scene,
     );
 
-    // Align with the columns of the board
     tile.position.x = col * tileSize - offset;
-    // Push it closer to the camera, away from the main 8x8 grid
     tile.position.z = -1.5 * tileSize - offset;
     tile.position.y = -0.1;
 
     tile.material = benchMaterial;
-
-    // IMPORTANT: Note the custom squareId format "bench-X"
     tile.metadata = { squareId: `bench-${col}`, isBench: true };
     tile.isPickable = true;
     tile.parent = boardRoot;
@@ -330,7 +330,7 @@ const createScene = async () => {
   };
 
   const placedPieces = new Map();
-  const budgets = { white: START_BUDGET, black: START_BUDGET };
+  const budgets = { white: getPlayerTotalGold(1), black: getAIBudget(1) };
   const counts = {
     white: Object.fromEntries(Object.keys(pieceDefs).map((key) => [key, 0])),
     black: Object.fromEntries(Object.keys(pieceDefs).map((key) => [key, 0])),
@@ -341,11 +341,11 @@ const createScene = async () => {
     hp: 100,
     level: 1,
   };
-  let currentShop = [null, null, null, null, null]; // 5 shop slots
+  let currentShop = [null, null, null, null, null];
 
   const generateShopItems = () => {
     currentShop = [];
-    const pieceTypes = Object.keys(pieceDefs).filter((p) => p !== "fool"); // Exclude joke pieces
+    const pieceTypes = Object.keys(pieceDefs).filter((p) => p !== "fool");
 
     for (let i = 0; i < 5; i++) {
       const randomType =
@@ -353,19 +353,17 @@ const createScene = async () => {
       currentShop.push(randomType);
     }
 
-    // Tell the UI to update
     uiManager.clearShopSelection();
     uiManager.renderShop(currentShop, playerState);
   };
 
   const buyFromShop = (shopIndex) => {
     const type = currentShop[shopIndex];
-    if (!type) return; // Slot is already empty
+    if (!type) return;
 
     const cost = pieceDefs[type].value;
 
     if (playerState.gold >= cost) {
-      // 1. Find the first empty bench slot
       let emptyBenchIndex = -1;
       for (let i = 0; i < 8; i++) {
         if (!placedPieces.has(`bench-${i}`)) {
@@ -375,16 +373,13 @@ const createScene = async () => {
       }
 
       if (emptyBenchIndex !== -1) {
-        // 2. Deduct gold and clear the shop slot
         playerState.gold -= cost;
         currentShop[shopIndex] = null;
 
-        // 3. Spawn the piece directly on the bench
         selectedPiece = `white-${type}`;
         placePiece(`bench-${emptyBenchIndex}`);
-        selectedPiece = null; // Clear selection so it doesn't follow the cursor
+        selectedPiece = null;
 
-        // 4. Update the UI
         uiManager.renderShop(currentShop, playerState);
       } else {
         console.warn("Your bench is full!");
@@ -394,7 +389,6 @@ const createScene = async () => {
     }
   };
 
-  // Give the UI manager access to the buy function
   uiManager.onBuyPiece = buyFromShop;
 
   uiManager.onReroll = () => {
@@ -416,7 +410,6 @@ const createScene = async () => {
     uiManager.updateAvailability(budgets, counts, playerColor);
   };
 
-  // ADDED: isCombatDeath flag to prevent refunding captured pieces
   const removePiece = (squareId, isCombatDeath = false) => {
     const existing = placedPieces.get(squareId);
     if (!existing) {
@@ -425,7 +418,6 @@ const createScene = async () => {
     existing.root.dispose();
     placedPieces.delete(squareId);
 
-    // ONLY refund the budget if the user is removing a piece during setup phase
     if (!isCombatDeath) {
       budgets[existing.color] += existing.value;
       counts[existing.color][existing.type] = Math.max(
@@ -438,7 +430,6 @@ const createScene = async () => {
   const getTileCoordinates = (squareId) => {
     if (squareId.startsWith("bench-")) {
       const col = parseInt(squareId.split("-")[1], 10);
-      // zPos maps to the -1.5 offset we used when creating the bench mesh
       return { isBench: true, row: -1, col, zPos: -1.5 };
     }
     const [row, col] = squareId.split("-").map(Number);
@@ -448,7 +439,7 @@ const createScene = async () => {
   const isAllowedPlacement = (color, squareId) => {
     const coords = getTileCoordinates(squareId);
     if (coords.isBench) {
-      return color === "white"; // Only the human player (white) can use the bench
+      return color === "white";
     }
     return color === "white" ? coords.row >= 4 : coords.row <= 3;
   };
@@ -470,14 +461,11 @@ const createScene = async () => {
 
     const def = pieceDefs[type];
     if (!def) return;
-
-    // if (counts[color][type] >= def.max || budgets[color] < def.value) return;
     if (!isAllowedPlacement(color, squareId)) return;
 
     removePiece(squareId);
 
     const base = pieceTemplates[type];
-    // if (!base || budgets[color] < def.value || counts[color][type] >= def.max) return;
     if (!base) return;
 
     const instanceRoot = base.clone(
@@ -489,7 +477,7 @@ const createScene = async () => {
 
     instanceRoot.setEnabled(true);
     instanceRoot.position.x = coords.col * tileSize - offset;
-    instanceRoot.position.z = coords.zPos * tileSize - offset; // Uses zPos for bench offset
+    instanceRoot.position.z = coords.zPos * tileSize - offset;
     instanceRoot.position.y = pieceYOffset[type] || 0;
 
     const baseYaw = pieceYawFix[type] || 0;
@@ -511,7 +499,6 @@ const createScene = async () => {
       value: def.value,
     });
 
-    // For AI randomization, we still use budgets and counts to limit pieces
     if (color === aiColor) {
       budgets[color] -= def.value;
       counts[color][type] += 1;
@@ -542,7 +529,7 @@ const createScene = async () => {
     }
 
     entry.root.position.x = toCoords.col * tileSize - offset;
-    entry.root.position.z = toCoords.zPos * tileSize - offset; // Uses zPos for bench offset
+    entry.root.position.z = toCoords.zPos * tileSize - offset;
     entry.root.position.y = pieceYOffset[entry.type] || 0;
 
     entry.root.getChildMeshes().forEach((mesh) => {
@@ -655,8 +642,10 @@ const createScene = async () => {
     uiManager.clearSelection();
     placedPieces.forEach((entry) => entry.root.dispose());
     placedPieces.clear();
-    budgets.white = START_BUDGET;
-    budgets.black = START_BUDGET;
+    
+    budgets.white = getPlayerTotalGold(playerState.level);
+    budgets.black = getAIBudget(playerState.level);
+    
     Object.keys(counts.white).forEach((key) => {
       counts.white[key] = 0;
       counts.black[key] = 0;
@@ -704,9 +693,6 @@ const createScene = async () => {
         "at",
         fromSq,
       );
-      console.log("History:", moveHistory);
-      console.log("Initial FEN:", initialFen);
-      console.log("Available keys:", Array.from(placedPieces.keys()));
       if (gameInProgress && desyncRetries < MAX_DESYNC_RETRIES) {
         desyncRetries += 1;
         console.warn("Resyncing engine position after desync attempt.");
@@ -724,15 +710,14 @@ const createScene = async () => {
       const epSq = `${fromCoord.row}-${toCoord.col}`;
       if (placedPieces.has(epSq)) {
         console.log("En Passant capture! Removing piece at", epSq);
-        removePiece(epSq, true); // ADDED: true to skip budget refund
+        removePiece(epSq, true);
       }
     }
     if (isCapture) {
       console.log("Capture! Removing piece at", toSq);
-      removePiece(toSq, true); // ADDED: true to skip budget refund
+      removePiece(toSq, true);
     }
 
-    // Move animation (instant for now)
     piece.root.position.x = toCoord.col * tileSize - offset;
     piece.root.position.z = toCoord.row * tileSize - offset;
 
@@ -762,12 +747,9 @@ const createScene = async () => {
       };
       const newType = promoMap[promoChar] || "queen";
 
-      // Update logic state
       piece.type = newType;
-      // ADDED: Update the piece's value for tiebreakers
       piece.value = pieceDefs[newType].value;
 
-      // Swap the 3D mesh
       const oldRoot = piece.root;
       const base = pieceTemplates[newType];
       if (base) {
@@ -857,8 +839,8 @@ const createScene = async () => {
     // Generate new shop
     generateShopItems();
 
-    // Generate new AI
-    budgets.black = START_BUDGET + playerState.level * 2; // Make AI harder
+    // Generate new AI based on new scaling parameters
+    budgets.black = getAIBudget(playerState.level);
     Object.keys(counts.black).forEach((k) => (counts.black[k] = 0));
     randomizeAI();
 
@@ -936,7 +918,6 @@ const createScene = async () => {
         if (match) {
           const type = match[1];
           let value = Number(match[2]);
-          // Stockfish eval is from the side to move; convert to white POV.
           if (currentTurn === "black") {
             value *= -1;
           }
@@ -1141,8 +1122,6 @@ const createScene = async () => {
     if (!isPointerDown || dragState.active) {
       return;
     }
-
-    // Free placement removed: Pieces must be bought from the shop now.
   });
 
   await loadPieces();
