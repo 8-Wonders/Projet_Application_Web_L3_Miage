@@ -1,8 +1,11 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const connectDB = require('./db');
 const scoresRouter = require('./routes/scores');
+const authRouter = require('./routes/auth');
+const usersRouter = require('./routes/users');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,9 +22,59 @@ app.use(cors({
 
 // Routes API
 app.use('/api/scores', scoresRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/users', usersRouter);
 
-// Gestion des erreurs 404 pour API
-app.use((req, res) => {
+// Endpoint API racine pour vérifier rapidement que le backend répond
+app.get('/api', (req, res) => {
+  res.json({ message: 'Backend actif', endpoints: ['/api/scores', '/api/health'] });
+});
+
+// Endpoint de santé simple
+app.get('/api/health', (req, res) => {
+  res.json({ message: 'Serveur fonctionnel' });
+});
+
+// Servir le frontend "menu" sur le port backend
+const menuPath = path.join(__dirname, '..', 'frontend', 'menu');
+const domPath = path.join(__dirname, '..', 'frontend', 'dom');
+const canvasPath = path.join(__dirname, '..', 'frontend', 'canvas');
+const commonPath = path.join(__dirname, '..', 'frontend', 'common');
+const babylonPath = path.join(__dirname, '..', 'frontend', 'babylonjs');
+const babylonDistPath = path.join(babylonPath, 'dist');
+const babylonDistAssetsPath = path.join(babylonDistPath, 'assets');
+const babylonDistEnginePath = path.join(babylonDistPath, 'engine');
+
+// SharedArrayBuffer in chess worker requires a cross-origin isolated context.
+const setCrossOriginIsolation = (req, res, next) => {
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+  next();
+};
+
+app.use(express.static(menuPath));
+app.use('/dom', express.static(domPath));
+app.use('/canvas', express.static(canvasPath));
+app.use('/common', express.static(commonPath));
+app.use('/babylonjs', setCrossOriginIsolation, express.static(babylonPath));
+// Keep chess dist assets at root paths used by frontend/babylonjs/dist/index.html.
+// Declared after menu static so menu /assets can still resolve first.
+app.use('/assets', setCrossOriginIsolation, express.static(babylonDistAssetsPath));
+app.use('/engine', setCrossOriginIsolation, express.static(babylonDistEnginePath));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Avoid noisy favicon 404 in browser console.
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end();
+});
+
+// Route racine: affiche le menu
+app.get('/', (req, res) => {
+  res.sendFile(path.join(menuPath, 'index.html'));
+});
+
+// Gestion des erreurs 404 pour API uniquement
+app.use('/api', (req, res) => {
   res.status(404).json({ message: 'Route non trouvée' });
 });
 

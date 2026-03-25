@@ -18,11 +18,11 @@ playButtons.forEach((btn) => {
     
     // Redirection vers les jeux
     if (game === 'dom') {
-      window.location.href = '../canvas/jeu.html';
+      window.location.href = '/dom/index.html';
     } else if (game === 'canvas') {
-      window.location.href = '../canvas/jeu.html';
+      window.location.href = '/canvas/index.html';
     } else if (game === 'babylone') {
-      window.location.href = '../babylonjs/index.html';
+      window.location.href = '/babylonjs/dist/index.html';
     }
   });
 });

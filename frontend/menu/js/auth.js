@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:5001/api/auth';
+const API_URL = '/api/auth';
 
 let isRegisterMode = false;
 

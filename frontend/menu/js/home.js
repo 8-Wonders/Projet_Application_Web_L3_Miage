@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:5001/api';
+const API_URL = '/api';
 const DEFAULT_AVATAR = '/assets/img/pdp/pdp1.png';
 const presetAvatars = [
   '/assets/img/pdp/pdp1.png',
@@ -57,7 +57,7 @@ window.addEventListener('load', async () => {
       const savedAvatar = userData.avatar || DEFAULT_AVATAR;
       const isAbsolute = savedAvatar.startsWith('http');
       const isUploadPath = savedAvatar.startsWith('/uploads/');
-      avatarImg.src = isAbsolute ? savedAvatar : (isUploadPath ? `http://localhost:5001${savedAvatar}` : savedAvatar);
+      avatarImg.src = isAbsolute ? savedAvatar : (isUploadPath ? `${window.location.origin}${savedAvatar}` : savedAvatar);
     }
 
     // Afficher la grille d'avatars prédéfinis
@@ -233,7 +233,7 @@ if (avatarInput) {
       const avatarImg = document.getElementById('profile-avatar');
       if (avatarImg && userData.avatar) {
         const isUploadPath = userData.avatar.startsWith('/uploads/');
-        avatarImg.src = isUploadPath ? `http://localhost:5001${userData.avatar}` : userData.avatar;
+        avatarImg.src = isUploadPath ? `${window.location.origin}${userData.avatar}` : userData.avatar;
       }
     } catch (error) {
       console.error('Erreur lors du changement de photo:', error);
