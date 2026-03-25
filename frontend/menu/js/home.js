@@ -1,4 +1,5 @@
-const API_URL = '/api';
+const API_BASE_URL = typeof window.API_BASE_URL === 'string' ? window.API_BASE_URL : '';
+const API_URL = `${API_BASE_URL}/api`;
 const DEFAULT_AVATAR = '/assets/img/pdp/pdp1.png';
 const presetAvatars = [
   '/assets/img/pdp/pdp1.png',

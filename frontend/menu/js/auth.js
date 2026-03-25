@@ -1,4 +1,5 @@
-const API_URL = '/api/auth';
+const API_BASE_URL = typeof window.API_BASE_URL === 'string' ? window.API_BASE_URL : '';
+const API_URL = `${API_BASE_URL}/api/auth`;
 
 let isRegisterMode = false;
 
