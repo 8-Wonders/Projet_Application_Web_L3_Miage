@@ -39,16 +39,20 @@ app.get('/api/health', (req, res) => {
 const menuPath = path.join(__dirname, '..', 'frontend', 'menu');
 const domPath = path.join(__dirname, '..', 'frontend', 'dom');
 const canvasPath = path.join(__dirname, '..', 'frontend', 'canvas');
+const commonPath = path.join(__dirname, '..', 'frontend', 'common');
 const babylonPath = path.join(__dirname, '..', 'frontend', 'babylonjs');
 const babylonDistPath = path.join(babylonPath, 'dist');
 const babylonDistAssetsPath = path.join(babylonDistPath, 'assets');
 const babylonDistEnginePath = path.join(babylonDistPath, 'engine');
-app.use('/assets', express.static(babylonDistAssetsPath));
-app.use('/engine', express.static(babylonDistEnginePath));
 app.use(express.static(menuPath));
 app.use('/dom', express.static(domPath));
 app.use('/canvas', express.static(canvasPath));
+app.use('/common', express.static(commonPath));
 app.use('/babylonjs', express.static(babylonPath));
+// Keep chess dist assets at root paths used by frontend/babylonjs/dist/index.html.
+// Declared after menu static so menu /assets can still resolve first.
+app.use('/assets', express.static(babylonDistAssetsPath));
+app.use('/engine', express.static(babylonDistEnginePath));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Route racine: affiche le menu
