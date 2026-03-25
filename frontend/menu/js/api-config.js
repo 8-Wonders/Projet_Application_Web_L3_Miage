@@ -1,5 +1,6 @@
 // Set APP_CONFIG.API_BASE_URL to your deployed backend URL when frontend is hosted separately (e.g. GitHub Pages).
 window.APP_CONFIG = window.APP_CONFIG || {};
+window.APP_CONFIG.API_BASE_URL = window.APP_CONFIG.API_BASE_URL || 'https://projet-application-web-l3-miage.onrender.com';
 
 function normalizeApiBaseUrl(url) {
   if (!url || typeof url !== 'string') return '';
