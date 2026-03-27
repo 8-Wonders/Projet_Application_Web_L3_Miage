@@ -31,7 +31,13 @@ export const getBounds = (meshes) => {
   return { min, max };
 };
 
-export const normalizeMeshes = (name, meshes, root, targetHeight, targetScene) => {
+export const normalizeMeshes = (
+  name,
+  meshes,
+  root,
+  targetHeight,
+  targetScene,
+) => {
   if (meshes.length === 0) {
     throw new Error(`No mesh data for ${name}`);
   }

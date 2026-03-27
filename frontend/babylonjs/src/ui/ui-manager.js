@@ -263,7 +263,9 @@ export class UIManager {
   isPointerOverSellZone(px, py) {
     if (this.sellZoneEl.style.display === "none") return false;
     const rect = this.sellZoneEl.getBoundingClientRect();
-    return px >= rect.left && px <= rect.right && py >= rect.top && py <= rect.bottom;
+    return (
+      px >= rect.left && px <= rect.right && py >= rect.top && py <= rect.bottom
+    );
   }
 
   highlightSellZone(isHovered) {
@@ -290,19 +292,6 @@ export class UIManager {
       ? "Battle in progress..."
       : "Fight!";
     this.startBattleBtn.disabled = inProgress;
-  }
-
-  // Deprecated for Gold system, but kept for compatibility
-  setBudgets(budgets, playerColor) {
-    // We now use Gold: X in budgetWhiteEl
-  }
-
-  setPieceVisibility(playerColor, aiColor) {
-    // Optional: Hide/Show shop based on state
-  }
-
-  updateAvailability(budgets, counts, playerColor) {
-    // Re-rendering shop handles availability
   }
 
   clearSelection() {

@@ -393,8 +393,11 @@ const createScene = async () => {
   };
 
   const placedPieces = new Map();
-  const budgets = { white: getPlayerTotalGold(playerState.level), black: getAIBudget(playerState.gold) };
-  
+  const budgets = {
+    white: getPlayerTotalGold(playerState.level),
+    black: getAIBudget(playerState.gold),
+  };
+
   const counts = {
     white: Object.fromEntries(Object.keys(pieceDefs).map((key) => [key, 0])),
     black: Object.fromEntries(Object.keys(pieceDefs).map((key) => [key, 0])),
@@ -471,11 +474,6 @@ const createScene = async () => {
   let playerColor = null;
   let aiColor = null;
 
-  const updateUI = () => {
-    uiManager.setPieceVisibility(playerColor, aiColor);
-    uiManager.setBudgets(budgets, playerColor);
-    uiManager.updateAvailability(budgets, counts, playerColor);
-  };
 
   const removePiece = (squareId, isCombatDeath = false) => {
     const existing = placedPieces.get(squareId);
@@ -576,7 +574,6 @@ const createScene = async () => {
       counts[color][type] += 1;
     }
 
-    updateUI();
     playSound(sounds.move);
     updateAnalysisBar();
   };
@@ -703,7 +700,6 @@ const createScene = async () => {
 
     selectedPiece = null;
     uiManager.clearSelection();
-    updateUI();
   };
 
   const setSide = (color) => {
@@ -716,16 +712,15 @@ const createScene = async () => {
     positionBenchTiles(playerColor);
     placedPieces.forEach((entry) => entry.root.dispose());
     placedPieces.clear();
-    
+
     budgets.white = getPlayerTotalGold(playerState.level);
     budgets.black = getAIBudget(playerState.gold);
-    
+
     Object.keys(counts.white).forEach((key) => {
       counts.white[key] = 0;
       counts.black[key] = 0;
     });
     uiManager.renderShop(currentShop, playerState);
-    updateUI();
     randomizeAI();
   };
 
@@ -737,7 +732,7 @@ const createScene = async () => {
   let desyncRetries = 0;
   const MAX_DESYNC_RETRIES = 2;
   let noMoveCount = 0;
-  let moveStartTime = 0; 
+  let moveStartTime = 0;
   const engineClient = new EngineClient(
     new URL("/engine/chess-worker.js", window.location.origin),
   );
@@ -881,11 +876,13 @@ const createScene = async () => {
 
     currentTurn = currentTurn === "white" ? "black" : "white";
     updateTimerVisuals(currentTurn);
-    
+
     // Check if the battle has stagnated for 20 plies (10 full turns)
     if (noMoveCount >= 20) {
       console.log("Battle stagnated! Resolving by material...");
-      alert("Battle stagnated with no captures! Resolving based on surviving material...");
+      alert(
+        "Battle stagnated with no captures! Resolving based on surviving material...",
+      );
       resolveAnnihilation();
       return;
     }
@@ -900,10 +897,10 @@ const createScene = async () => {
 
   const endCombat = (playerWon, damageTaken, timeout = false) => {
     gameInProgress = false;
-    
+
     if (timerInterval) clearInterval(timerInterval);
     timerContainer.style.display = "none";
-    
+
     uiManager.setStartBattleState({ inProgress: false });
     setAnalysisVisible(false);
 
@@ -911,11 +908,15 @@ const createScene = async () => {
       if (!playerWon) {
         playerState.hp -= damageTaken;
         if (playerState.hp <= 0) {
-          alert(`Time's up! You lost on time. Game Over! You survived to Round ${playerState.level}.`);
+          alert(
+            `Time's up! You lost on time. Game Over! You survived to Round ${playerState.level}.`,
+          );
           location.reload();
           return;
         } else {
-          alert(`Time's up! You lost the round on time! Took ${damageTaken} damage.`);
+          alert(
+            `Time's up! You lost the round on time! Took ${damageTaken} damage.`,
+          );
         }
       } else {
         alert("Time's up! Black lost on time. You won the round!");
@@ -950,7 +951,7 @@ const createScene = async () => {
         sq.startsWith("bench") && entry.color === playerColor;
       if (!isPlayerBench) toRemove.push(sq);
     });
-    
+
     toRemove.forEach((sq) => {
       const piece = placedPieces.get(sq);
       if (piece && piece.root) {
@@ -969,7 +970,6 @@ const createScene = async () => {
     Object.keys(counts.black).forEach((k) => (counts.black[k] = 0));
     randomizeAI();
 
-    updateUI();
   };
 
   const checkFinalWinner = () => {
@@ -1026,13 +1026,13 @@ const createScene = async () => {
   const requestEngineMove = () => {
     if (!gameInProgress) return;
 
-    moveStartTime = Date.now(); 
+    moveStartTime = Date.now();
     const historyStr =
       moveHistory.length > 0 ? " moves " + moveHistory.join(" ") : "";
     const positionCmd = `position fen ${initialFen}${historyStr}`;
     console.log("Sending position:", positionCmd);
 
-    engineClient.requestMove(positionCmd, "go movetime 3900"); 
+    engineClient.requestMove(positionCmd, "go movetime 3900");
   };
 
   const initEngine = () => {
@@ -1054,20 +1054,20 @@ const createScene = async () => {
     };
     engineClient.onBestMove = (move) => {
       console.log("Best move received:", move);
-      
+
       const elapsed = Date.now() - moveStartTime;
-      const delay = Math.max(0, 4000 - elapsed); 
+      const delay = Math.max(0, 4000 - elapsed);
 
       if (move && move !== "(none)" && move !== "null") {
         setTimeout(() => executeEngineMove(move), delay);
         return;
       }
-      
+
       console.log("Battle concluded (no moves left).");
       if (!gameInProgress) {
         return;
       }
-      
+
       setTimeout(() => resolveAnnihilation(), delay);
     };
     engineClient.startBattle(() => {
@@ -1112,8 +1112,8 @@ const createScene = async () => {
 
     initialFen = generateFEN(placedPieces, "white");
     moveHistory = [];
-    
-    // Set up and display Timer UI 
+
+    // Set up and display Timer UI
     timeWhite = 180;
     timeBlack = 180;
     whiteTimerEl.innerText = "03:00";
@@ -1132,7 +1132,9 @@ const createScene = async () => {
       }
 
       const formatTime = (t) => {
-        const m = Math.floor(t / 60).toString().padStart(2, "0");
+        const m = Math.floor(t / 60)
+          .toString()
+          .padStart(2, "0");
         const s = (t % 60).toString().padStart(2, "0");
         return `${m}:${s}`;
       };
@@ -1158,7 +1160,6 @@ const createScene = async () => {
       return;
     }
     clearColor(playerColor);
-    updateUI();
   };
   uiManager.onPieceSelected = (pieceId) => {
     selectedPiece = pieceId;
@@ -1321,7 +1322,6 @@ const createScene = async () => {
 
   await loadPieces();
   initPreview();
-  updateUI();
   generateShopItems();
   return scene;
 };
