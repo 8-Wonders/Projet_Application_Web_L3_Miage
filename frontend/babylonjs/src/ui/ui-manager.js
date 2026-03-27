@@ -37,6 +37,7 @@ export class UIManager {
 
     this.selectedPiece = null;
     this.selectedShopIndex = null;
+    this.playerColor = "white";
 
     this.onPieceSelected = null;
     this.onPickSide = null;
@@ -46,9 +47,36 @@ export class UIManager {
     this.onReroll = null;
 
     this.attachEvents();
+
+    // Create the Sell Zone UI
+    this.sellZoneEl = document.createElement("div");
+    this.sellZoneEl.id = "sell-zone";
+    Object.assign(this.sellZoneEl.style, {
+      position: "absolute",
+      bottom: "20px",
+      left: "50%",
+      transform: "translateX(-50%)",
+      width: "300px",
+      height: "80px",
+      backgroundColor: "rgba(200, 0, 0, 0.7)",
+      color: "white",
+      display: "none",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "24px",
+      fontWeight: "bold",
+      borderRadius: "12px",
+      border: "4px dashed rgba(255, 255, 255, 0.6)",
+      zIndex: "1000",
+      pointerEvents: "auto",
+      userSelect: "none",
+      transition: "all 0.2s ease",
+    });
+    document.body.appendChild(this.sellZoneEl);
   }
 
   renderShop(shopArray, playerState) {
+    const color = this.playerColor || "white";
     this.selectButtons.forEach((button, index) => {
       if (!button) return;
       const type = shopArray[index];
@@ -72,7 +100,7 @@ export class UIManager {
 
       button.onclick = () => {
         this.selectedShopIndex = index;
-        this.selectedPiece = `white-${type}`;
+        this.selectedPiece = `${color}-${type}`;
 
         // Highlight selection
         this.selectButtons.forEach((btn) => btn?.classList.remove("active"));
@@ -80,7 +108,7 @@ export class UIManager {
 
         // Show preview
         if (this.onPieceSelected) {
-          this.onPieceSelected(`white-${type}`);
+          this.onPieceSelected(`${color}-${type}`);
         }
 
         // Show buy button
@@ -220,6 +248,40 @@ export class UIManager {
     this.sidePicker.classList.toggle("hidden", !visible);
   }
 
+  showSellZone(sellValue) {
+    this.sellZoneEl.textContent = `SELL -> ${sellValue} 🪙`;
+    this.sellZoneEl.style.display = "flex";
+  }
+
+  hideSellZone() {
+    this.sellZoneEl.style.display = "none";
+    this.sellZoneEl.style.backgroundColor = "rgba(200, 0, 0, 0.7)";
+    this.sellZoneEl.style.transform = "translateX(-50%) scale(1)";
+    this.sellZoneEl.style.border = "4px dashed rgba(255, 255, 255, 0.6)";
+  }
+
+  isPointerOverSellZone(px, py) {
+    if (this.sellZoneEl.style.display === "none") return false;
+    const rect = this.sellZoneEl.getBoundingClientRect();
+    return px >= rect.left && px <= rect.right && py >= rect.top && py <= rect.bottom;
+  }
+
+  highlightSellZone(isHovered) {
+    if (isHovered) {
+      this.sellZoneEl.style.backgroundColor = "rgba(255, 50, 50, 0.95)";
+      this.sellZoneEl.style.transform = "translateX(-50%) scale(1.05)";
+      this.sellZoneEl.style.border = "4px solid white";
+    } else {
+      this.sellZoneEl.style.backgroundColor = "rgba(200, 0, 0, 0.7)";
+      this.sellZoneEl.style.transform = "translateX(-50%) scale(1)";
+      this.sellZoneEl.style.border = "4px dashed rgba(255, 255, 255, 0.6)";
+    }
+  }
+
+  setPlayerColor(color) {
+    this.playerColor = color;
+  }
+
   setStartBattleState({ inProgress }) {
     if (!this.startBattleBtn) {
       return;
@@ -251,4 +313,3 @@ export class UIManager {
     return this.selectedPiece;
   }
 }
-

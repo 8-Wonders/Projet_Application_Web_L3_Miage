@@ -208,6 +208,8 @@ const createScene = async () => {
   const benchMaterial = new StandardMaterial("benchMaterial", scene);
   benchMaterial.diffuseColor = new Color3(0.5, 0.5, 0.6);
 
+  const getBenchZPosForColor = (color) => (color === "black" ? -1.5 : 8.5);
+
   const benchTiles = [];
   for (let col = 0; col < 8; col += 1) {
     const tile = MeshBuilder.CreateBox(
@@ -216,8 +218,11 @@ const createScene = async () => {
       scene,
     );
 
+    // Align with the columns of the board
     tile.position.x = col * tileSize - offset;
-    tile.position.z = -1.5 * tileSize - offset;
+
+    // Default bench position (White's side) until a side is picked
+    tile.position.z = getBenchZPosForColor("white") * tileSize - offset;
     tile.position.y = -0.1;
 
     tile.material = benchMaterial;
@@ -414,6 +419,7 @@ const createScene = async () => {
   const buyFromShop = (shopIndex) => {
     const type = currentShop[shopIndex];
     if (!type) return;
+    if (!playerColor) return;
 
     const cost = pieceDefs[type].value;
 
@@ -430,7 +436,7 @@ const createScene = async () => {
         playerState.gold -= cost;
         currentShop[shopIndex] = null;
 
-        selectedPiece = `white-${type}`;
+        selectedPiece = `${playerColor}-${type}`;
         placePiece(`bench-${emptyBenchIndex}`);
         selectedPiece = null;
 
@@ -452,6 +458,13 @@ const createScene = async () => {
     } else {
       console.warn("Not enough gold to reroll!");
     }
+  };
+
+  const positionBenchTiles = (color) => {
+    const benchZ = getBenchZPosForColor(color);
+    benchTiles.forEach((tile) => {
+      tile.position.z = benchZ * tileSize - offset;
+    });
   };
 
   let selectedPiece = null;
@@ -484,7 +497,12 @@ const createScene = async () => {
   const getTileCoordinates = (squareId) => {
     if (squareId.startsWith("bench-")) {
       const col = parseInt(squareId.split("-")[1], 10);
-      return { isBench: true, row: -1, col, zPos: -1.5 };
+      return {
+        isBench: true,
+        row: -1,
+        col,
+        zPos: getBenchZPosForColor(playerColor || "white"),
+      };
     }
     const [row, col] = squareId.split("-").map(Number);
     return { isBench: false, row, col, zPos: row };
@@ -493,7 +511,7 @@ const createScene = async () => {
   const isAllowedPlacement = (color, squareId) => {
     const coords = getTileCoordinates(squareId);
     if (coords.isBench) {
-      return color === "white";
+      return color === playerColor;
     }
     return color === "white" ? coords.row >= 4 : coords.row <= 3;
   };
@@ -691,9 +709,11 @@ const createScene = async () => {
   const setSide = (color) => {
     playerColor = color;
     aiColor = color === "white" ? "black" : "white";
+    uiManager.setPlayerColor(playerColor);
     uiManager.setSidePickerVisible(false);
     selectedPiece = null;
     uiManager.clearSelection();
+    positionBenchTiles(playerColor);
     placedPieces.forEach((entry) => entry.root.dispose());
     placedPieces.clear();
     
@@ -704,6 +724,7 @@ const createScene = async () => {
       counts.white[key] = 0;
       counts.black[key] = 0;
     });
+    uiManager.renderShop(currentShop, playerState);
     updateUI();
     randomizeAI();
   };
@@ -925,9 +946,9 @@ const createScene = async () => {
     // Clean the board: remove all pieces from the main board (keep bench pieces safe)
     const toRemove = [];
     placedPieces.forEach((entry, sq) => {
-      if (!sq.startsWith("bench") || entry.color === "black") {
-        toRemove.push(sq);
-      }
+      const isPlayerBench =
+        sq.startsWith("bench") && entry.color === playerColor;
+      if (!isPlayerBench) toRemove.push(sq);
     });
     
     toRemove.forEach((sq) => {
@@ -1169,9 +1190,11 @@ const createScene = async () => {
         if (pick?.hit && pick.pickedMesh?.metadata?.squareId) {
           const squareId = pick.pickedMesh.metadata.squareId;
           const entry = placedPieces.get(squareId);
-          if (entry && entry.color === playerColor) {
-            removePiece(squareId);
-            updateUI();
+          if (entry) {
+            const label = pieceLabels[entry.type] || entry.type;
+            const info =
+              pieceMoves[entry.type] || "No movement info available.";
+            uiManager.showMoveModal(`${label} (Cost: 💎 ${entry.value})`, info);
           }
         }
         return;
@@ -1187,6 +1210,7 @@ const createScene = async () => {
         fromSq: null,
         entry: null,
         ghost: null,
+        sellValue: 0,
       };
     }
     const dragState = scene.metadata.dragState;
@@ -1217,6 +1241,8 @@ const createScene = async () => {
           dragState.fromSq = squareId;
           dragState.entry = entry;
           dragState.ghost = ghost;
+          dragState.sellValue = Math.max(1, Math.floor(entry.value * 0.7));
+          uiManager.showSellZone(dragState.sellValue);
           camera.detachControl();
           return;
         }
@@ -1224,6 +1250,14 @@ const createScene = async () => {
     }
 
     if (isPointerMove && dragState.active) {
+      const pointerX = pointerInfo.event?.clientX ?? 0;
+      const pointerY = pointerInfo.event?.clientY ?? 0;
+      const isHoveringSell = uiManager.isPointerOverSellZone(
+        pointerX,
+        pointerY,
+      );
+      uiManager.highlightSellZone(isHoveringSell);
+
       const pick = scene.pick(
         scene.pointerX,
         scene.pointerY,
@@ -1247,23 +1281,36 @@ const createScene = async () => {
     }
 
     if (isPointerUp && dragState.active) {
-      const targetSq = dragState.toSq || dragState.fromSq;
-      if (
-        targetSq &&
-        targetSq !== dragState.fromSq &&
-        !placedPieces.has(targetSq)
-      ) {
-        movePiece(dragState.fromSq, targetSq);
+      const pointerX = pointerInfo.event?.clientX ?? 0;
+      const pointerY = pointerInfo.event?.clientY ?? 0;
+      const isSelling = uiManager.isPointerOverSellZone(pointerX, pointerY);
+
+      if (isSelling) {
+        playerState.gold += dragState.sellValue;
+        removePiece(dragState.fromSq);
+        uiManager.renderShop(currentShop, playerState);
+        playSound(sounds.capture);
+      } else {
+        const targetSq = dragState.toSq || dragState.fromSq;
+        if (
+          targetSq &&
+          targetSq !== dragState.fromSq &&
+          !placedPieces.has(targetSq)
+        ) {
+          movePiece(dragState.fromSq, targetSq);
+        }
       }
       if (dragState.ghost) {
         dragState.ghost.dispose();
       }
+      uiManager.hideSellZone();
       camera.attachControl(canvas, true);
       dragState.active = false;
       dragState.fromSq = null;
       dragState.toSq = null;
       dragState.entry = null;
       dragState.ghost = null;
+      dragState.sellValue = 0;
       return;
     }
 
