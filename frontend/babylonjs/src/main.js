@@ -880,8 +880,8 @@ const createScene = async () => {
     // Check if the battle has stagnated for 20 plies (10 full turns)
     if (noMoveCount >= 20) {
       console.log("Battle stagnated! Resolving by material...");
-      alert(
-        "Battle stagnated with no captures! Resolving based on surviving material...",
+      uiManager.showToast(
+        "Battle stagnated! Resolving based on surviving material...",
       );
       resolveAnnihilation();
       return;
@@ -904,37 +904,44 @@ const createScene = async () => {
     uiManager.setStartBattleState({ inProgress: false });
     setAnalysisVisible(false);
 
+    let dialogTitle = "";
+    let dialogText = "";
+    let onCloseCallback = null;
+
     if (timeout) {
       if (!playerWon) {
         playerState.hp -= damageTaken;
         if (playerState.hp <= 0) {
-          alert(
-            `Time's up! You lost on time. Game Over! You survived to Round ${playerState.level}.`,
-          );
-          location.reload();
-          return;
+          dialogTitle = "Game Over";
+          dialogText = `Time's up! You lost on time. You survived to Round ${playerState.level}.`;
+          onCloseCallback = () => location.reload();
         } else {
-          alert(
-            `Time's up! You lost the round on time! Took ${damageTaken} damage.`,
-          );
+          dialogTitle = "Round Lost";
+          dialogText = `Time's up! You lost the round on time! Took ${damageTaken} damage.`;
         }
       } else {
-        alert("Time's up! Black lost on time. You won the round!");
+        dialogTitle = "Round Won";
+        dialogText = "Time's up! Black lost on time. You won the round!";
       }
     } else if (!playerWon && damageTaken > 0) {
       playerState.hp -= damageTaken;
       if (playerState.hp <= 0) {
-        alert(`Game Over! You survived to Round ${playerState.level}.`);
-        location.reload();
-        return;
+        dialogTitle = "Game Over";
+        dialogText = `Your HP dropped to 0! You survived to Round ${playerState.level}.`;
+        onCloseCallback = () => location.reload();
       } else {
-        alert(`You lost the round! Took ${damageTaken} damage.`);
+        dialogTitle = "Round Lost";
+        dialogText = `You lost the round! Took ${damageTaken} damage.`;
       }
     } else if (playerWon) {
-      alert("You won the round!");
+      dialogTitle = "Victory";
+      dialogText = "You won the round!";
     } else {
-      alert("Round ended in a draw!");
+      dialogTitle = "Draw";
+      dialogText = "Round ended in a draw!";
     }
+
+    uiManager.showDialog(dialogTitle, dialogText, onCloseCallback);
 
     playerState.level += 1;
     playerState.gold += 5; // +5 Gold per round
@@ -1086,7 +1093,7 @@ const createScene = async () => {
     });
 
     if (!hasBoardPieces) {
-      alert("Place at least one piece on the board to fight!");
+      uiManager.showToast("Place at least one piece on the board to fight!");
       return;
     }
 

@@ -34,6 +34,12 @@ export class UIManager {
     this.closeMoveButton = document.getElementById("closeMove");
     this.aboutMoveButton = document.getElementById("aboutMove");
     this.buyPieceBtn = document.getElementById("buyPieceBtn");
+    this.dialogModal = document.getElementById("dialogModal");
+    this.dialogTitleEl = document.getElementById("dialogTitle");
+    this.dialogTextEl = document.getElementById("dialogText");
+    this.closeDialogBtn = document.getElementById("closeDialogBtn");
+    this.toastContainer = document.getElementById("toastContainer");
+    this.onDialogCloseCallback = null;
 
     this.selectedPiece = null;
     this.selectedShopIndex = null;
@@ -217,6 +223,15 @@ export class UIManager {
         this.hideMoveModal(),
       );
     }
+    if (this.closeDialogBtn) {
+      this.closeDialogBtn.addEventListener("click", () => {
+        this.hideDialog();
+        if (this.onDialogCloseCallback) {
+          this.onDialogCloseCallback();
+          this.onDialogCloseCallback = null;
+        }
+      });
+    }
     if (this.moveModal) {
       this.moveModal.addEventListener("click", (event) => {
         if (event.target === this.moveModal) {
@@ -239,6 +254,38 @@ export class UIManager {
     if (this.moveModal) {
       this.moveModal.classList.add("hidden");
     }
+  }
+
+  showDialog(title, text, onClose = null) {
+    if (!this.dialogModal || !this.dialogTitleEl || !this.dialogTextEl) {
+      return;
+    }
+    this.dialogTitleEl.textContent = title;
+    this.dialogTextEl.textContent = text;
+    this.onDialogCloseCallback = onClose;
+    this.dialogModal.classList.remove("hidden");
+  }
+
+  hideDialog() {
+    if (this.dialogModal) {
+      this.dialogModal.classList.add("hidden");
+    }
+  }
+
+  showToast(message) {
+    if (!this.toastContainer) {
+      return;
+    }
+    const toast = document.createElement("div");
+    toast.className = "toast";
+    toast.textContent = message;
+    this.toastContainer.appendChild(toast);
+
+    setTimeout(() => {
+      if (toast.parentElement) {
+        toast.remove();
+      }
+    }, 3000);
   }
 
   setSidePickerVisible(visible) {
