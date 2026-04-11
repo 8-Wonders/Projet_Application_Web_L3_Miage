@@ -185,7 +185,7 @@ export class Game {
     }
 
     this.ui.updateStatusMessage("Sending...", "#ccc");
-    const result = await ScoreService.submit(username, this.accumulatedTime);
+    const result = await ScoreService.submit(username, this.accumulatedTime, 'canvas');
 
     if (result.success) {
         console.log("Score saved!");

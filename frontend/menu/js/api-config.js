@@ -1,6 +1,7 @@
 // Set APP_CONFIG.API_BASE_URL to your deployed backend URL when frontend is hosted separately (e.g. GitHub Pages).
 window.APP_CONFIG = window.APP_CONFIG || {};
 window.APP_CONFIG.API_BASE_URL = window.APP_CONFIG.API_BASE_URL || 'https://projet-application-web-l3-miage.onrender.com';
+window.APP_CONFIG.GOOGLE_CLIENT_ID = window.APP_CONFIG.GOOGLE_CLIENT_ID || '';
 
 function normalizeApiBaseUrl(url) {
   if (!url || typeof url !== 'string') return '';
@@ -21,7 +22,7 @@ if (queryApiBaseUrl) {
 const storageApiBaseUrl = normalizeApiBaseUrl(localStorage.getItem('apiBaseUrl'));
 const configuredBaseUrl = normalizeApiBaseUrl(window.APP_CONFIG.API_BASE_URL);
 
-const resolvedApiBaseUrl = queryApiBaseUrl || configuredBaseUrl || storageApiBaseUrl;
+const resolvedApiBaseUrl = queryApiBaseUrl || storageApiBaseUrl || (isLocalHost ? '' : configuredBaseUrl);
 
 // Local dev: keep same-origin relative routes. Remote frontend: use configured absolute backend URL.
 window.API_BASE_URL = resolvedApiBaseUrl || (isLocalHost ? '' : '');

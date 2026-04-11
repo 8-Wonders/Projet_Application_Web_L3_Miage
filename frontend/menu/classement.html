@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RetroArcade - Classement</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <canvas id="random-checkerboard"></canvas>
+    <header>
+        <div class="logo-container">
+            <h1 class="logo">RETROARCADE</h1>
+        </div>
+        <nav>
+            <ul class="nav-menu">
+                <li><a href="home.html">PROFIL</a></li>
+                <li><a href="games.html">JEUX</a></li>
+                <li><a href="classement.html">CLASSEMENT</a></li>
+                <li><a href="about.html">À PROPOS</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="slogan-banner">
+        <p>CLASSEMENT</p>
+    </div>
+
+    <div class="games-description">
+        <p>GENERAL ET PAR JEU</p>
+    </div>
+
+    <section id="classement" class="ranking-section">
+        <div class="ranking-box">
+            <div class="ranking-header">
+                <h2>CLASSEMENT</h2>
+                <p>GENERAL ET PAR JEU</p>
+            </div>
+
+            <div class="ranking-block">
+                <div class="ranking-block-header">
+                    <h3>CLASSEMENT GENERAL</h3>
+                    <span>TOP 10 TOUS JEUX CONFONDUS</span>
+                </div>
+                <div class="ranking-table-wrapper">
+                    <table class="ranking-table">
+                        <thead>
+                            <tr>
+                                <th>RANG</th>
+                                <th>JOUEUR</th>
+                                <th>JEU</th>
+                                <th>SCORE</th>
+                                <th>DATE</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ranking-general-list">
+                            <tr>
+                                <td colspan="5" class="ranking-empty">CHARGEMENT DU CLASSEMENT...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="ranking-block">
+                <div class="ranking-block-header ranking-block-header-row">
+                    <div>
+                        <h3>CLASSEMENT PAR JEU</h3>
+                        <span>CHOISISSEZ UN JEU POUR VOIR LE TOP 10</span>
+                    </div>
+                    <div class="ranking-filter-buttons" id="ranking-filter-buttons">
+                        <button type="button" class="ranking-filter-btn" data-game="dom">DOM</button>
+                        <button type="button" class="ranking-filter-btn active" data-game="canvas">CANVAS</button>
+                        <button type="button" class="ranking-filter-btn" data-game="babylone">BABYLONE</button>
+                    </div>
+                </div>
+                <div class="ranking-table-wrapper">
+                    <table class="ranking-table">
+                        <thead>
+                            <tr>
+                                <th>RANG</th>
+                                <th>JOUEUR</th>
+                                <th>SCORE</th>
+                                <th>DATE</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ranking-game-list">
+                            <tr>
+                                <td colspan="4" class="ranking-empty">CHARGEMENT DU CLASSEMENT...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="footer-info">
+        <div class="footer-avatar">🧑‍💻</div>
+        <p class="footer-text">2023 RETROARCADE.</p>
+    </div>
+
+    <script src="js/api-config.js"></script>
+    <script src="js/classement.js"></script>
+    <script src="js/script.js"></script>
+</body>
+</html>

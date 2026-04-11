@@ -5,15 +5,25 @@ export class ScoreService {
      * @param {number} score 
      * @returns {Promise<{success: boolean, error?: any, data?: any}>}
      */
-    static async submit(username, score) {
+    static async submit(username, score, game = 'canvas') {
         try {
-            const response = await fetch("http://localhost:3000/api/score", {
+            const token = localStorage.getItem("token");
+            const apiBaseUrl = typeof window.API_BASE_URL === "string" ? window.API_BASE_URL : "";
+
+            if (!token) {
+                return { success: false, error: { message: "Vous devez être connecté pour enregistrer un score." } };
+            }
+
+            const response = await fetch(`${apiBaseUrl}/api/scores`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
                 body: JSON.stringify({
                     username,
-                    score, // Matches the backend expectation
-                    timestamp: new Date().toISOString()
+                    score,
+                    game
                 })
             });
 
