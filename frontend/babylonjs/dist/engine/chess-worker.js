@@ -12,15 +12,16 @@ async function initializeEngine() {
 parent = chess
 noking = true
 stalemateValue = loss
-customPiece1 = c:C
-customPiece2 = w:FC
-customPiece3 = a:BN
-customPiece4 = h:RN
-customPiece5 = z:QN
-customPiece6 = i:mQ
-customPiece7 = f:0
-customPiece8 = m:KAD
-pieceValue = p:100, r:500, n:300, b:300, q:900, k:1000, c:300, w:500, a:700, h:800, z:1200, i:500, f:0, m:500
+customPiece1 = C:C
+customPiece2 = W:FC
+customPiece3 = A:BN
+customPiece4 = H:RN
+customPiece5 = Z:QN
+customPiece6 = I:mQ
+customPiece7 = F:0
+customPiece8 = M:KAD
+pieceValue = P:100, R:500, N:300, B:300, Q:900, K:1000, C:300, W:300, A:700, H:800, Z:1200, I:500, F:0, M:500
+promotionPieceTypes = q r b n a h c w z i f m
 `);
           console.log("variants.ini successfully written during preRun.");
         } catch (err) {

@@ -7,8 +7,8 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <title>Jeu auto chess</title>
-    <script type="module" crossorigin src="/assets/index-D9NUZVHg.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-LUD0ikpN.css">
+    <script type="module" crossorigin src="/assets/index-BvklAjLo.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-B2k4wSU4.css">
   </head>
   <body>
     <div class="overlay" id="sidePicker">
@@ -68,7 +68,22 @@
         <div class="analysis-bar hidden" id="analysisBar">
           <div class="analysis-fill" id="analysisFill"></div>
         </div>
+        <div class="playback-controls hidden" id="playbackControls">
+          <button class="playback-btn" id="btnPrevTurn" title="Previous Move (Left Arrow)">◀</button>
+          <span class="turn-counter" id="turnCounterText">Turn 0 / 0</span>
+          <button class="playback-btn" id="btnNextTurn" title="Next Move (Right Arrow)">▶</button>
+        </div>
       </main>
+    </div>
+    <div id="toastContainer" class="toast-container"></div>
+    <div class="overlay hidden" id="dialogModal">
+      <div class="overlay-card move-card">
+        <div class="panel-title" id="dialogTitle">Notice</div>
+        <p class="overlay-text" id="dialogText"></p>
+        <div class="overlay-actions">
+          <button class="piece-btn" id="closeDialogBtn">OK</button>
+        </div>
+      </div>
     </div>
   </body>
 </html>

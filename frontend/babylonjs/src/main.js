@@ -40,6 +40,11 @@ let previewScene = null;
 let previewRoot = null;
 let previewCamera = null;
 
+let detailedHistory = []; // Stores objects with full move details
+let lastBattleSurvivors = []; // Pieces that were on board when battle ended
+let currentPlyIndex = 0; // Where we currently are in the timeline
+let isReviewing = false; // True if the user has scrubbed backwards
+
 // --- 3+0 Timer UI Setup ---
 const timerContainer = document.createElement("div");
 timerContainer.id = "chess-timers";
@@ -131,6 +136,11 @@ const createScene = async () => {
   camera.lowerBetaLimit = 0.3;
   camera.upperBetaLimit = 1.2;
   camera.wheelDeltaPercentage = 0.01;
+
+  // Disable keyboard controls for the camera so arrow keys are reserved for turn navigation
+  if (camera.inputs.attached.keyboard) {
+    camera.inputs.remove(camera.inputs.attached.keyboard);
+  }
 
   const light = new HemisphericLight("light", new Vector3(0, 1, 0), scene);
   light.intensity = 0.9;
@@ -475,12 +485,16 @@ const createScene = async () => {
   let aiColor = null;
 
 
-  const removePiece = (squareId, isCombatDeath = false) => {
+  const removePiece = (squareId, isCombatDeath = false, softDelete = false) => {
     const existing = placedPieces.get(squareId);
     if (!existing) {
-      return;
+      return null;
     }
-    existing.root.dispose();
+    if (softDelete) {
+      existing.root.setEnabled(false); // Hide it instead of destroying
+    } else {
+      existing.root.dispose();
+    }
     placedPieces.delete(squareId);
 
     if (!isCombatDeath) {
@@ -490,6 +504,7 @@ const createScene = async () => {
         counts[existing.color][existing.type] - 1,
       );
     }
+    return existing; // Return it so we can save it in the history record
   };
 
   const getTileCoordinates = (squareId) => {
@@ -776,6 +791,16 @@ const createScene = async () => {
       return;
     }
 
+    const historyRecord = {
+      move,
+      fromSq,
+      toSq,
+      pieceMoved: piece,
+      capturedPiece: null,
+      enPassantSq: null,
+      promotionInfo: null,
+    };
+
     const isCapture = placedPieces.has(toSq);
     let capturedPiece = false;
 
@@ -783,13 +808,14 @@ const createScene = async () => {
       const epSq = `${fromCoord.row}-${toCoord.col}`;
       if (placedPieces.has(epSq)) {
         console.log("En Passant capture! Removing piece at", epSq);
-        removePiece(epSq, true);
+        historyRecord.enPassantSq = epSq;
+        historyRecord.capturedPiece = removePiece(epSq, true, true); // Soft delete
         capturedPiece = true;
       }
     }
     if (isCapture) {
       console.log("Capture! Removing piece at", toSq);
-      removePiece(toSq, true);
+      historyRecord.capturedPiece = removePiece(toSq, true, true); // Soft delete
       capturedPiece = true;
     }
 
@@ -829,6 +855,13 @@ const createScene = async () => {
       };
       const newType = promoMap[promoChar] || "queen";
 
+      historyRecord.promotionInfo = {
+        oldType: piece.type,
+        oldValue: piece.value,
+        oldRoot: piece.root, // Save the pawn mesh
+        newRoot: null, // Will fill in a second
+      };
+
       piece.type = newType;
       piece.value = pieceDefs[newType].value;
 
@@ -857,8 +890,9 @@ const createScene = async () => {
           );
           mesh.metadata = { squareId: toSq, isPiece: true };
         });
+        oldRoot.setEnabled(false); // Soft delete the pawn
         piece.root = newRoot;
-        oldRoot.dispose();
+        historyRecord.promotionInfo.newRoot = newRoot;
       }
     }
 
@@ -872,6 +906,10 @@ const createScene = async () => {
     updateAnalysisBar();
 
     moveHistory.push(move);
+    detailedHistory.push(historyRecord);
+    currentPlyIndex = detailedHistory.length;
+    uiManager.updatePlaybackUI(currentPlyIndex, detailedHistory.length);
+
     desyncRetries = 0;
 
     currentTurn = currentTurn === "white" ? "black" : "white";
@@ -890,6 +928,146 @@ const createScene = async () => {
     checkFinalWinner();
     if (gameInProgress) {
       requestEngineMove();
+    }
+  };
+
+  const undoMove = () => {
+    if (gameInProgress) {
+      uiManager.showToast("Wait for the round to end to review moves!");
+      return;
+    }
+    if (currentPlyIndex <= 0) return;
+
+    // If starting a review, hide the pieces currently on the board (next round setup)
+    if (!isReviewing) {
+      placedPieces.forEach((entry, sq) => {
+        if (!sq.startsWith("bench")) {
+          entry.root.setEnabled(false);
+        }
+      });
+      // Show all pieces that were on the board when the match ended
+      lastBattleSurvivors.forEach((p) => p.root.setEnabled(true));
+    }
+
+    const record = detailedHistory[currentPlyIndex - 1];
+    const {
+      fromSq,
+      toSq,
+      pieceMoved,
+      capturedPiece,
+      enPassantSq,
+      promotionInfo,
+    } = record;
+
+    const fromCoord = fromAlgebraic(record.move.substring(0, 2));
+
+    // 1. Move the main piece back
+    pieceMoved.root.setEnabled(true);
+    pieceMoved.root.position.x = fromCoord.col * tileSize - offset;
+    pieceMoved.root.position.z = fromCoord.row * tileSize - offset;
+    pieceMoved.root.getChildMeshes().forEach((mesh) => {
+      if (mesh.metadata) mesh.metadata.squareId = fromSq;
+    });
+
+    placedPieces.delete(toSq);
+    placedPieces.set(fromSq, pieceMoved);
+
+    // 2. Undo Promotion (if any)
+    if (promotionInfo) {
+      promotionInfo.newRoot.setEnabled(false);
+      promotionInfo.oldRoot.setEnabled(true);
+      pieceMoved.root = promotionInfo.oldRoot;
+      pieceMoved.type = promotionInfo.oldType;
+      pieceMoved.value = promotionInfo.oldValue;
+    }
+
+    // 3. Restore Captured Piece (if any)
+    if (capturedPiece) {
+      const restoreSq = enPassantSq || toSq;
+      capturedPiece.root.setEnabled(true);
+      placedPieces.set(restoreSq, capturedPiece);
+    }
+
+    currentPlyIndex--;
+    isReviewing = true;
+    uiManager.updatePlaybackUI(currentPlyIndex, detailedHistory.length);
+    playSound(sounds.move);
+  };
+
+  const redoMove = () => {
+    if (gameInProgress) {
+      uiManager.showToast("Wait for the round to end to review moves!");
+      return;
+    }
+    if (currentPlyIndex >= detailedHistory.length) return;
+
+    // If starting a review, hide the pieces currently on the board (next round setup)
+    if (!isReviewing) {
+      placedPieces.forEach((entry, sq) => {
+        if (!sq.startsWith("bench")) {
+          entry.root.setEnabled(false);
+        }
+      });
+      // Show all pieces that were on the board when the match ended
+      lastBattleSurvivors.forEach((p) => p.root.setEnabled(true));
+    }
+
+    const record = detailedHistory[currentPlyIndex];
+    const {
+      fromSq,
+      toSq,
+      pieceMoved,
+      capturedPiece,
+      enPassantSq,
+      promotionInfo,
+    } = record;
+    const toCoord = fromAlgebraic(record.move.substring(2, 4));
+
+    // 1. Remove captured piece
+    if (capturedPiece) {
+      const removeSq = enPassantSq || toSq;
+      placedPieces.delete(removeSq);
+      capturedPiece.root.setEnabled(false);
+    }
+
+    // 2. Apply Promotion
+    if (promotionInfo) {
+      promotionInfo.oldRoot.setEnabled(false);
+      promotionInfo.newRoot.setEnabled(true);
+      pieceMoved.root = promotionInfo.newRoot;
+      const promoType = promotionInfo.newRoot.name.split("-")[1];
+      pieceMoved.type = promoType;
+      pieceMoved.value = pieceDefs[promoType]?.value || 9;
+    }
+
+    // 3. Move the main piece forward
+    pieceMoved.root.setEnabled(true);
+    pieceMoved.root.position.x = toCoord.col * tileSize - offset;
+    pieceMoved.root.position.z = toCoord.row * tileSize - offset;
+    pieceMoved.root.getChildMeshes().forEach((mesh) => {
+      if (mesh.metadata) mesh.metadata.squareId = toSq;
+    });
+
+    placedPieces.delete(fromSq);
+    placedPieces.set(toSq, pieceMoved);
+
+    currentPlyIndex++;
+    isReviewing = true;
+    uiManager.updatePlaybackUI(currentPlyIndex, detailedHistory.length);
+    playSound(sounds.move);
+  };
+
+  const goToFirstMove = () => {
+    if (gameInProgress || detailedHistory.length === 0) return;
+    while (currentPlyIndex > 0) {
+      undoMove();
+    }
+  };
+
+  const goToLastMove = () => {
+    if (gameInProgress || detailedHistory.length === 0) return;
+    while (currentPlyIndex < detailedHistory.length) {
+      redoMove();
     }
   };
 
@@ -953,16 +1131,20 @@ const createScene = async () => {
 
     // Clean the board: remove all pieces from the main board (keep bench pieces safe)
     const toRemove = [];
+    lastBattleSurvivors = []; // Reset survivors
     placedPieces.forEach((entry, sq) => {
       const isPlayerBench =
         sq.startsWith("bench") && entry.color === playerColor;
-      if (!isPlayerBench) toRemove.push(sq);
+      if (!isPlayerBench) {
+        toRemove.push(sq);
+        lastBattleSurvivors.push(entry);
+      }
     });
 
     toRemove.forEach((sq) => {
       const piece = placedPieces.get(sq);
       if (piece && piece.root) {
-        piece.root.dispose();
+        piece.root.setEnabled(false); // Hide instead of dispose to allow review
       }
       placedPieces.delete(sq);
     });
@@ -1102,6 +1284,13 @@ const createScene = async () => {
     desyncRetries = 0;
     noMoveCount = 0; // Fix: Reset the stagnation counter for each new round!
     lastEvalScore = null;
+
+    detailedHistory = [];
+    currentPlyIndex = 0;
+    isReviewing = false;
+    uiManager.setPlaybackVisible(true);
+    uiManager.updatePlaybackUI(0, 0);
+
     setAnalysisVisible(true);
     updateAnalysisBar();
     uiManager.setStartBattleState({ inProgress: true });
@@ -1161,6 +1350,27 @@ const createScene = async () => {
     initEngine();
   };
 
+  uiManager.onPrevTurn = undoMove;
+  uiManager.onNextTurn = redoMove;
+
+  document.addEventListener("keydown", (e) => {
+    if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
+      e.preventDefault();
+    }
+
+    if (!gameInProgress && detailedHistory.length === 0) return;
+
+    if (e.key === "ArrowLeft") {
+      undoMove();
+    } else if (e.key === "ArrowRight") {
+      redoMove();
+    } else if (e.key === "ArrowUp") {
+      goToFirstMove();
+    } else if (e.key === "ArrowDown") {
+      goToLastMove();
+    }
+  });
+
   uiManager.onPickSide = (color) => setSide(color);
   uiManager.onClearBoard = () => {
     if (!playerColor) {
@@ -1185,6 +1395,26 @@ const createScene = async () => {
     const isPointerMove = pointerInfo.type === PointerEventTypes.POINTERMOVE;
     if (!isPointerDown && !isPointerUp && !isPointerMove) {
       return;
+    }
+
+    if (isPointerDown && isReviewing) {
+      // Exit review mode and restore current board pieces
+      isReviewing = false;
+      // Hide all pieces first (to clear history pieces)
+      detailedHistory.forEach((record) => {
+        record.pieceMoved.root.setEnabled(false);
+        if (record.capturedPiece) record.capturedPiece.root.setEnabled(false);
+        if (record.promotionInfo) {
+          record.promotionInfo.oldRoot.setEnabled(false);
+          record.promotionInfo.newRoot.setEnabled(false);
+        }
+      });
+      lastBattleSurvivors.forEach((p) => p.root.setEnabled(false));
+      // Restore current pieces (Setup for next round)
+      placedPieces.forEach((entry) => {
+        entry.root.setEnabled(true);
+      });
+      uiManager.updatePlaybackUI(currentPlyIndex, detailedHistory.length);
     }
 
     if (isPointerDown) {

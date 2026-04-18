@@ -41,6 +41,14 @@ export class UIManager {
     this.toastContainer = document.getElementById("toastContainer");
     this.onDialogCloseCallback = null;
 
+    this.playbackControls = document.getElementById("playbackControls");
+    this.btnPrevTurn = document.getElementById("btnPrevTurn");
+    this.btnNextTurn = document.getElementById("btnNextTurn");
+    this.turnCounterText = document.getElementById("turnCounterText");
+
+    this.onPrevTurn = null;
+    this.onNextTurn = null;
+
     this.selectedPiece = null;
     this.selectedShopIndex = null;
     this.playerColor = "white";
@@ -203,6 +211,13 @@ export class UIManager {
       });
     }
 
+    if (this.btnPrevTurn) {
+      this.btnPrevTurn.addEventListener("click", () => this.onPrevTurn?.());
+    }
+    if (this.btnNextTurn) {
+      this.btnNextTurn.addEventListener("click", () => this.onNextTurn?.());
+    }
+
     if (this.aboutMoveButton) {
       this.aboutMoveButton.addEventListener("click", () => {
         if (!this.selectedPiece) {
@@ -293,6 +308,25 @@ export class UIManager {
       return;
     }
     this.sidePicker.classList.toggle("hidden", !visible);
+  }
+
+  setPlaybackVisible(visible) {
+    if (this.playbackControls) {
+      this.playbackControls.classList.toggle("hidden", !visible);
+    }
+  }
+
+  updatePlaybackUI(currentIndex, totalMoves) {
+    if (this.turnCounterText) {
+      // Format as "Ply X / Y"
+      this.turnCounterText.textContent = `Ply ${currentIndex} / ${totalMoves}`;
+    }
+    if (this.btnPrevTurn) {
+      this.btnPrevTurn.disabled = currentIndex === 0;
+    }
+    if (this.btnNextTurn) {
+      this.btnNextTurn.disabled = currentIndex === totalMoves;
+    }
   }
 
   showSellZone(sellValue) {

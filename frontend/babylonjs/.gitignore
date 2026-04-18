@@ -1,4 +1,8 @@
 node_modules/
 public/assets/sounds/
-dist/assets/
+dist/
+.env
+.env.*
+*.log
+.DS_Store
 AGENTS.md
