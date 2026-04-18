@@ -13,27 +13,30 @@ import { updateDisplay, updateUpgradeUI } from './ui.js';
 export function setupEventListeners() {
     const mainBtn = document.getElementById('main-clicker');
     
-    // Core manual generation event
     mainBtn.addEventListener('click', () => {
         gameState.linesOfCode += gameState.linesPerClick;
-        // Fast-path DOM update: skips complex LPS/Synergy recalculations
+        gameState.totalLinesOfCode += gameState.linesPerClick;
         updateDisplay(null, null); 
     });
 
-    // Transaction event listeners for the upgrade registry
     upgrades.forEach((upgrade, index) => {
         const btn = document.getElementById(`upgrade-${index}`);
         
         btn.addEventListener('click', () => {
-            // Guard clause to ensure transaction validity
             if (gameState.linesOfCode >= upgrade.currentCost) {
                 gameState.linesOfCode -= upgrade.currentCost;
                 
+                // Route effect application based on upgrade taxonomy
                 if (upgrade.type === 'click') {
                     gameState.linesPerClick += upgrade.boost;
                 } else if (upgrade.type === 'passive') {
-                    // Propagate 10% of passive yield scale into manual click yield
                     gameState.linesPerClick += (upgrade.boost * 0.1);
+                } 
+                // Note: 'synergy' type requires no static mutation here. 
+                // It is dynamically evaluated in main.js based on upgrade.count.
+                
+                if (upgrade.isCloud) {
+                    gameState.hasCloudModel = true;
                 }
                 
                 gameState.companies[upgrade.company]++;

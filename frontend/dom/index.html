@@ -9,10 +9,25 @@
 <body>
     <div class="game-container">
         <main class="clicker-section">
+            
+            <div class="ide-container">
+                <div class="ide-sidebar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
+                </div>
+                <div class="ide-editor" id="ide-editor">
+                    <div class="ide-line-numbers" id="ide-line-numbers">1</div>
+                    <div class="ide-code" id="ide-code"></div>
+                </div>
+            </div>
+
             <div class="stats">
                 <h1>Lines of Code: <span id="loc-count">0</span></h1>
                 <p><span id="lps-count">0</span> LOC/second</p>
                 <p class="small-stat"><span id="lpc-count">1</span> LOC/click</p>
+                <p id="status-text" style="font-size: 0.8rem; margin-top: 10px;"></p>
+                <p id="synergy-text" style="font-size: 0.8rem; color: #bd93f9;"></p>
             </div>
             
             <button id="main-clicker" class="keyboard-btn">

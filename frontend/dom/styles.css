@@ -6,6 +6,12 @@
     --accent: #bd93f9;
     --accent-hover: #ff79c6;
     --disabled: #44475a;
+    
+    /* IDE Specific Variables */
+    --ide-bg: #1e1e1e;
+    --ide-sidebar: #333333;
+    --ide-text: #d4d4d4;
+    --ide-lines: #858585;
 }
 
 body {
@@ -22,19 +28,79 @@ body {
     height: 100%;
 }
 
-/* --- Left Side: Clicker --- */
+/* --- Left Side: Input & Display --- */
 .clicker-section {
     flex: 2;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between; /* Spaces out IDE (top), Stats (center), Keyboard (bottom) */
+    padding: 40px 20px;
     border-right: 2px solid var(--panel-bg);
 }
 
+/* --- NEW: IDE Component Styling --- */
+.ide-container {
+    width: 100%;
+    max-width: 600px;
+    height: 250px;
+    background-color: var(--ide-bg);
+    border-radius: 8px;
+    display: flex;
+    border: 1px solid #000;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    overflow: hidden;
+}
+
+.ide-sidebar {
+    width: 45px;
+    background-color: var(--ide-sidebar);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 15px;
+    gap: 20px;
+}
+
+.ide-sidebar svg {
+    width: 24px;
+    height: 24px;
+    color: var(--ide-lines);
+    cursor: pointer;
+}
+
+.ide-editor {
+    flex-grow: 1;
+    display: flex;
+    padding: 15px 0;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-y: hidden; /* We will handle scrolling via JS */
+}
+
+.ide-line-numbers {
+    width: 40px;
+    text-align: right;
+    padding-right: 15px;
+    color: var(--ide-lines);
+    user-select: none;
+    border-right: 1px solid var(--disabled);
+}
+
+.ide-code {
+    padding-left: 15px;
+    color: var(--ide-text);
+    white-space: pre-wrap; /* Preserves line breaks in our code string */
+}
+
+/* --- Stats & Input Controls --- */
 .stats {
     text-align: center;
-    margin-bottom: 40px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .stats h1 {
@@ -52,9 +118,10 @@ body {
     background: transparent;
     border: none;
     color: var(--text-main);
-    width: 250px;
+    width: 200px;
     cursor: pointer;
     transition: transform 0.05s ease;
+    margin-bottom: 20px;
 }
 
 .keyboard-btn:active {
@@ -68,7 +135,7 @@ body {
     background-color: var(--panel-bg);
     padding: 20px;
     overflow-y: auto;
-    min-width: 300px;
+    min-width: 320px;
 }
 
 .upgrades-section h2 {
@@ -103,27 +170,8 @@ body {
     cursor: not-allowed;
 }
 
-.upgrade-icon {
-    width: 40px;
-    height: 40px;
-    margin-right: 15px;
-}
-
-.upgrade-info {
-    flex-grow: 1;
-}
-
-.upgrade-name {
-    font-weight: bold;
-    display: block;
-}
-
-.upgrade-effect {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-}
-
-.upgrade-cost {
-    font-weight: bold;
-    color: var(--accent);
-}
+.upgrade-icon { width: 40px; height: 40px; margin-right: 15px; }
+.upgrade-info { flex-grow: 1; }
+.upgrade-name { font-weight: bold; display: block; }
+.upgrade-effect { font-size: 0.8rem; color: var(--text-muted); }
+.upgrade-cost { font-weight: bold; color: var(--accent); }

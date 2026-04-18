@@ -7,10 +7,15 @@
 export const gameState = {
     // Primary economic metrics
     linesOfCode: 0,
+    
+    // Used to prevent visual regressions (like the IDE text shrinking) during currency expenditure.
+    totalLinesOfCode: 0, 
+    
     linesPerClick: 1,
     unlockedUpgrades: [],
     
     // Global throttling mechanics (simulates cloud token availability)
+    hasCloudModel: false, // NEW: Flags whether the cycle UI should be rendered to the DOM
     aiCycleActive: true,
     aiCycleTimer: 10,
     

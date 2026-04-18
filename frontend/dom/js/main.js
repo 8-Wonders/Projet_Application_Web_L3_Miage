@@ -20,7 +20,7 @@ function gameLoop() {
         gameState.aiCycleTimer = 10;
     }
 
-    // Compute vendor synergy multiplier (Linear 1% per unit owned)
+    // 1. Compute Base Vendor Synergy Multiplier (Linear 1% per unit owned)
     let synergyMultiplier = 1.0;
     for (const [company, count] of Object.entries(gameState.companies)) {
         if (company !== 'None' && count > 0) {
@@ -28,22 +28,36 @@ function gameLoop() {
         }
     }
 
-    // Aggregate baseline passive yield based on active state constraints
+    // 2. Aggregate baseline passive yield AND Global Synergy modifiers
     let currentBaseLps = 0;
+    let globalSynergyBonus = 0;
+
     upgrades.forEach(upg => {
-        if (upg.type === 'passive' && upg.count > 0) {
-            if (upg.isCloud) {
-                if (gameState.aiCycleActive) {
+        if (upg.count > 0) {
+            if (upg.type === 'synergy') {
+                // Senior Devs explicitly increase the overall synergy multiplier
+                globalSynergyBonus += (upg.boost * upg.count);
+            } else if (upg.type === 'passive') {
+                if (upg.isCloud) {
+                    if (gameState.aiCycleActive) {
+                        currentBaseLps += (upg.boost * upg.count);
+                    }
+                } else {
                     currentBaseLps += (upg.boost * upg.count);
                 }
-            } else {
-                currentBaseLps += (upg.boost * upg.count);
             }
         }
     });
 
+    // Apply the compound global synergy modifiers
+    synergyMultiplier += globalSynergyBonus;
+    
+    // Resolve final yield metric
     const finalLps = currentBaseLps * synergyMultiplier;
+    
+    // Mutate primary state and lifetime accumulation tracker
     gameState.linesOfCode += finalLps;
+    gameState.totalLinesOfCode += finalLps;
     
     updateDisplay(finalLps, synergyMultiplier);
 }
@@ -56,7 +70,6 @@ function initGame() {
     setupEventListeners();
     updateDisplay(0, 1);
     
-    // Primary execution thread: ~1 tick per second
     setInterval(gameLoop, 1000);
 }
 
