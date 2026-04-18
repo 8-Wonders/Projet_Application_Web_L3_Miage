@@ -40,46 +40,50 @@ let previewScene = null;
 let previewRoot = null;
 let previewCamera = null;
 
-let detailedHistory = []; // Stores objects with full move details
-let lastBattleSurvivors = []; // Pieces that were on board when battle ended
-let currentPlyIndex = 0; // Where we currently are in the timeline
-let isReviewing = false; // True if the user has scrubbed backwards
+let detailedHistory = []; 
+let battleEndPlacedPieces = new Map(); // Snapshot of placedPieces exactly at combat end
+let savedNextRoundPieces = new Map();  // Safely stores your next round setup during review
+let currentPlyIndex = 0;
+let isReviewing = false; 
 
 // --- 3+0 Timer UI Setup ---
 const timerContainer = document.createElement("div");
 timerContainer.id = "chess-timers";
 timerContainer.style.position = "absolute";
-timerContainer.style.top = "15px";
-timerContainer.style.right = "15px";
+timerContainer.style.top = "20px";
+timerContainer.style.left = "50%";
+timerContainer.style.transform = "translateX(-50%)";
 timerContainer.style.display = "none";
-timerContainer.style.flexDirection = "column";
-timerContainer.style.gap = "8px";
+timerContainer.style.flexDirection = "row";
+timerContainer.style.gap = "12px";
 timerContainer.style.zIndex = "1000";
-timerContainer.style.fontFamily = "monospace";
-timerContainer.style.fontSize = "24px";
-timerContainer.style.fontWeight = "bold";
+timerContainer.style.fontFamily = "'Space Grotesk', monospace";
+timerContainer.style.fontSize = "20px";
+timerContainer.style.fontWeight = "600";
 timerContainer.style.pointerEvents = "none";
 
 const blackTimerEl = document.createElement("div");
-blackTimerEl.style.backgroundColor = "rgba(30, 30, 30, 0.85)";
-blackTimerEl.style.color = "white";
-blackTimerEl.style.padding = "8px 16px";
-blackTimerEl.style.borderRadius = "6px";
-blackTimerEl.style.border = "3px solid transparent";
-blackTimerEl.style.boxShadow = "0 4px 6px rgba(0,0,0,0.3)";
-blackTimerEl.innerText = "03:00";
+blackTimerEl.style.backgroundColor = "rgba(17, 24, 42, 0.85)";
+blackTimerEl.style.color = "#8ea1c8";
+blackTimerEl.style.padding = "6px 14px";
+blackTimerEl.style.borderRadius = "12px";
+blackTimerEl.style.border = "1px solid #2a3555";
+blackTimerEl.style.backdropFilter = "blur(8px)";
+blackTimerEl.style.boxShadow = "0 4px 15px rgba(0,0,0,0.4)";
+blackTimerEl.innerText = "[03:00]";
 
 const whiteTimerEl = document.createElement("div");
-whiteTimerEl.style.backgroundColor = "rgba(240, 240, 240, 0.85)";
-whiteTimerEl.style.color = "black";
-whiteTimerEl.style.padding = "8px 16px";
-whiteTimerEl.style.borderRadius = "6px";
-whiteTimerEl.style.border = "3px solid transparent";
-whiteTimerEl.style.boxShadow = "0 4px 6px rgba(0,0,0,0.3)";
-whiteTimerEl.innerText = "03:00";
+whiteTimerEl.style.backgroundColor = "rgba(17, 24, 42, 0.85)";
+whiteTimerEl.style.color = "#e5e7ef";
+whiteTimerEl.style.padding = "6px 14px";
+whiteTimerEl.style.borderRadius = "12px";
+whiteTimerEl.style.border = "1px solid #2a3555";
+whiteTimerEl.style.backdropFilter = "blur(8px)";
+whiteTimerEl.style.boxShadow = "0 4px 15px rgba(0,0,0,0.4)";
+whiteTimerEl.innerText = "[03:00]";
 
-timerContainer.appendChild(blackTimerEl);
-timerContainer.appendChild(whiteTimerEl);
+timerContainer.appendChild(whiteTimerEl); 
+timerContainer.appendChild(blackTimerEl); 
 document.body.appendChild(timerContainer);
 
 let timeWhite = 180;
@@ -87,12 +91,17 @@ let timeBlack = 180;
 let timerInterval = null;
 
 const updateTimerVisuals = (turn) => {
+  whiteTimerEl.style.borderColor = "#2a3555";
+  whiteTimerEl.style.color = "#e5e7ef";
+  blackTimerEl.style.borderColor = "#2a3555";
+  blackTimerEl.style.color = "#8ea1c8";
+
   if (turn === "white") {
-    whiteTimerEl.style.borderColor = "#4ade80";
-    blackTimerEl.style.borderColor = "transparent";
+    whiteTimerEl.style.borderColor = "#4c6fff";
+    whiteTimerEl.style.color = "#fff";
   } else {
-    blackTimerEl.style.borderColor = "#4ade80";
-    whiteTimerEl.style.borderColor = "transparent";
+    blackTimerEl.style.borderColor = "#4c6fff";
+    blackTimerEl.style.color = "#fff";
   }
 };
 // --------------------------
@@ -101,7 +110,6 @@ canvas.addEventListener("contextmenu", (event) => {
   event.preventDefault();
 });
 
-// Prevent browser zoom gestures while interacting with the scene.
 window.addEventListener(
   "wheel",
   (event) => {
@@ -137,7 +145,6 @@ const createScene = async () => {
   camera.upperBetaLimit = 1.2;
   camera.wheelDeltaPercentage = 0.01;
 
-  // Disable keyboard controls for the camera so arrow keys are reserved for turn navigation
   if (camera.inputs.attached.keyboard) {
     camera.inputs.remove(camera.inputs.attached.keyboard);
   }
@@ -181,7 +188,6 @@ const createScene = async () => {
   document.addEventListener("pointerdown", unlockAudio, { once: true });
   document.addEventListener("keydown", unlockAudio, { once: true });
 
-  // Dynamic budget scaling
   const getPlayerTotalGold = (level) => 10 + (level - 1) * 5;
   const getAIBudget = (playerGold) => playerGold + 2;
 
@@ -228,13 +234,9 @@ const createScene = async () => {
       scene,
     );
 
-    // Align with the columns of the board
     tile.position.x = col * tileSize - offset;
-
-    // Default bench position (White's side) until a side is picked
     tile.position.z = getBenchZPosForColor("white") * tileSize - offset;
     tile.position.y = -0.1;
-
     tile.material = benchMaterial;
     tile.metadata = { squareId: `bench-${col}`, isBench: true };
     tile.isPickable = true;
@@ -429,7 +431,34 @@ const createScene = async () => {
     uiManager.renderShop(currentShop, playerState);
   };
 
+  // Safe Exit function for returning to real-time after scrubbing the timeline
+  const exitReviewMode = () => {
+    if (!isReviewing) return;
+    isReviewing = false;
+
+    // Hide all historical pieces
+    placedPieces.forEach((entry, sq) => {
+      if (!sq.startsWith("bench")) {
+        entry.root.setEnabled(false);
+      }
+    });
+
+    // Safely restore the next round state
+    placedPieces.clear();
+    savedNextRoundPieces.forEach((entry, sq) => {
+      placedPieces.set(sq, entry);
+      if (!sq.startsWith("bench")) {
+        entry.root.setEnabled(true);
+      }
+    });
+
+    currentPlyIndex = detailedHistory.length;
+    uiManager.updatePlaybackUI(currentPlyIndex, detailedHistory.length, isReviewing);
+  };
+
   const buyFromShop = (shopIndex) => {
+    if (isReviewing) exitReviewMode();
+
     const type = currentShop[shopIndex];
     if (!type) return;
     if (!playerColor) return;
@@ -465,6 +494,7 @@ const createScene = async () => {
   uiManager.onBuyPiece = buyFromShop;
 
   uiManager.onReroll = () => {
+    if (isReviewing) exitReviewMode();
     if (playerState.gold >= 2) {
       playerState.gold -= 2;
       generateShopItems();
@@ -483,7 +513,6 @@ const createScene = async () => {
   let selectedPiece = null;
   let playerColor = null;
   let aiColor = null;
-
 
   const removePiece = (squareId, isCombatDeath = false, softDelete = false) => {
     const existing = placedPieces.get(squareId);
@@ -739,7 +768,6 @@ const createScene = async () => {
     randomizeAI();
   };
 
-  // Chess Engine & Battle Logic
   let gameInProgress = false;
   let currentTurn = "white";
   let initialFen = "";
@@ -819,7 +847,6 @@ const createScene = async () => {
       capturedPiece = true;
     }
 
-    // Stagnation Logic: Reset count if a pawn moves or a piece is captured
     if (piece.type === "pawn" || capturedPiece) {
       noMoveCount = 0;
     } else {
@@ -908,14 +935,13 @@ const createScene = async () => {
     moveHistory.push(move);
     detailedHistory.push(historyRecord);
     currentPlyIndex = detailedHistory.length;
-    uiManager.updatePlaybackUI(currentPlyIndex, detailedHistory.length);
+    uiManager.updatePlaybackUI(currentPlyIndex, detailedHistory.length, isReviewing);
 
     desyncRetries = 0;
 
     currentTurn = currentTurn === "white" ? "black" : "white";
     updateTimerVisuals(currentTurn);
 
-    // Check if the battle has stagnated for 20 plies (10 full turns)
     if (noMoveCount >= 20) {
       console.log("Battle stagnated! Resolving by material...");
       uiManager.showToast(
@@ -938,15 +964,25 @@ const createScene = async () => {
     }
     if (currentPlyIndex <= 0) return;
 
-    // If starting a review, hide the pieces currently on the board (next round setup)
     if (!isReviewing) {
+      // Safely freeze the next round setup layout to savedNextRoundPieces
+      savedNextRoundPieces = new Map(placedPieces);
+      
+      // Hide all the pieces from the current upcoming round
       placedPieces.forEach((entry, sq) => {
         if (!sq.startsWith("bench")) {
           entry.root.setEnabled(false);
         }
       });
-      // Show all pieces that were on the board when the match ended
-      lastBattleSurvivors.forEach((p) => p.root.setEnabled(true));
+      
+      // Inject the exact state from the end of the combat into the Map
+      placedPieces.clear();
+      battleEndPlacedPieces.forEach((entry, sq) => {
+        placedPieces.set(sq, entry);
+        if (!sq.startsWith("bench")) {
+          entry.root.setEnabled(true);
+        }
+      });
     }
 
     const record = detailedHistory[currentPlyIndex - 1];
@@ -990,7 +1026,7 @@ const createScene = async () => {
 
     currentPlyIndex--;
     isReviewing = true;
-    uiManager.updatePlaybackUI(currentPlyIndex, detailedHistory.length);
+    uiManager.updatePlaybackUI(currentPlyIndex, detailedHistory.length, isReviewing);
     playSound(sounds.move);
   };
 
@@ -1001,15 +1037,21 @@ const createScene = async () => {
     }
     if (currentPlyIndex >= detailedHistory.length) return;
 
-    // If starting a review, hide the pieces currently on the board (next round setup)
     if (!isReviewing) {
+      // Freezing logic to ensure absolute safety
+      savedNextRoundPieces = new Map(placedPieces);
       placedPieces.forEach((entry, sq) => {
         if (!sq.startsWith("bench")) {
           entry.root.setEnabled(false);
         }
       });
-      // Show all pieces that were on the board when the match ended
-      lastBattleSurvivors.forEach((p) => p.root.setEnabled(true));
+      placedPieces.clear();
+      battleEndPlacedPieces.forEach((entry, sq) => {
+        placedPieces.set(sq, entry);
+        if (!sq.startsWith("bench")) {
+          entry.root.setEnabled(true);
+        }
+      });
     }
 
     const record = detailedHistory[currentPlyIndex];
@@ -1053,7 +1095,7 @@ const createScene = async () => {
 
     currentPlyIndex++;
     isReviewing = true;
-    uiManager.updatePlaybackUI(currentPlyIndex, detailedHistory.length);
+    uiManager.updatePlaybackUI(currentPlyIndex, detailedHistory.length, isReviewing);
     playSound(sounds.move);
   };
 
@@ -1124,20 +1166,16 @@ const createScene = async () => {
     playerState.level += 1;
     playerState.gold += 5; // +5 Gold per round
 
-    // Refund the player's pre-combat board pieces so they don't lose their gold
-    preCombatPlayerState.forEach((saved) => {
-      playerState.gold += pieceDefs[saved.type].value;
-    });
+    // Capture the exact end-of-battle board state for the historical review map
+    battleEndPlacedPieces = new Map(placedPieces);
 
-    // Clean the board: remove all pieces from the main board (keep bench pieces safe)
+    // Clean the board: hide all combat pieces from the main board
     const toRemove = [];
-    lastBattleSurvivors = []; // Reset survivors
     placedPieces.forEach((entry, sq) => {
       const isPlayerBench =
         sq.startsWith("bench") && entry.color === playerColor;
       if (!isPlayerBench) {
         toRemove.push(sq);
-        lastBattleSurvivors.push(entry);
       }
     });
 
@@ -1149,16 +1187,19 @@ const createScene = async () => {
       placedPieces.delete(sq);
     });
 
+    // Restore the player's pre-combat board formation perfectly
+    preCombatPlayerState.forEach((saved) => {
+      selectedPiece = `${playerColor}-${saved.type}`;
+      placePiece(saved.squareId);
+    });
+    
     selectedPiece = null;
 
-    // Generate new shop
     generateShopItems();
 
-    // Generate new AI based on new scaling parameters
     budgets.black = getAIBudget(playerState.gold);
     Object.keys(counts.black).forEach((k) => (counts.black[k] = 0));
     randomizeAI();
-
   };
 
   const checkFinalWinner = () => {
@@ -1267,6 +1308,7 @@ const createScene = async () => {
   };
 
   uiManager.onStartBattle = () => {
+    if (isReviewing) exitReviewMode(); // Absolutely ensures we leave history before calculating a state FEN
     if (gameInProgress) return;
 
     let hasBoardPieces = false;
@@ -1282,14 +1324,14 @@ const createScene = async () => {
     unlockAudio();
     gameInProgress = true;
     desyncRetries = 0;
-    noMoveCount = 0; // Fix: Reset the stagnation counter for each new round!
+    noMoveCount = 0; 
     lastEvalScore = null;
 
     detailedHistory = [];
     currentPlyIndex = 0;
     isReviewing = false;
     uiManager.setPlaybackVisible(true);
-    uiManager.updatePlaybackUI(0, 0);
+    uiManager.updatePlaybackUI(0, 0, isReviewing);
 
     setAnalysisVisible(true);
     updateAnalysisBar();
@@ -1298,7 +1340,7 @@ const createScene = async () => {
 
     preCombatPlayerState = [];
     placedPieces.forEach((entry, squareId) => {
-      if (entry.color === "white") {
+      if (entry.color === playerColor && !squareId.startsWith("bench")) {
         preCombatPlayerState.push({
           squareId: squareId,
           type: entry.type,
@@ -1309,7 +1351,6 @@ const createScene = async () => {
     initialFen = generateFEN(placedPieces, "white");
     moveHistory = [];
 
-    // Set up and display Timer UI
     timeWhite = 180;
     timeBlack = 180;
     whiteTimerEl.innerText = "03:00";
@@ -1340,10 +1381,10 @@ const createScene = async () => {
 
       if (timeWhite <= 0) {
         clearInterval(timerInterval);
-        endCombat(false, 15, true); // White lost on time (15 damage penalty)
+        endCombat(false, 15, true); 
       } else if (timeBlack <= 0) {
         clearInterval(timerInterval);
-        endCombat(true, 0, true); // Black lost on time
+        endCombat(true, 0, true); 
       }
     }, 1000);
 
@@ -1352,6 +1393,7 @@ const createScene = async () => {
 
   uiManager.onPrevTurn = undoMove;
   uiManager.onNextTurn = redoMove;
+  uiManager.onExitReview = exitReviewMode;
 
   document.addEventListener("keydown", (e) => {
     if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
@@ -1373,6 +1415,7 @@ const createScene = async () => {
 
   uiManager.onPickSide = (color) => setSide(color);
   uiManager.onClearBoard = () => {
+    if (isReviewing) exitReviewMode();
     if (!playerColor) {
       return;
     }
@@ -1398,23 +1441,7 @@ const createScene = async () => {
     }
 
     if (isPointerDown && isReviewing) {
-      // Exit review mode and restore current board pieces
-      isReviewing = false;
-      // Hide all pieces first (to clear history pieces)
-      detailedHistory.forEach((record) => {
-        record.pieceMoved.root.setEnabled(false);
-        if (record.capturedPiece) record.capturedPiece.root.setEnabled(false);
-        if (record.promotionInfo) {
-          record.promotionInfo.oldRoot.setEnabled(false);
-          record.promotionInfo.newRoot.setEnabled(false);
-        }
-      });
-      lastBattleSurvivors.forEach((p) => p.root.setEnabled(false));
-      // Restore current pieces (Setup for next round)
-      placedPieces.forEach((entry) => {
-        entry.root.setEnabled(true);
-      });
-      uiManager.updatePlaybackUI(currentPlyIndex, detailedHistory.length);
+      exitReviewMode();
     }
 
     if (isPointerDown) {

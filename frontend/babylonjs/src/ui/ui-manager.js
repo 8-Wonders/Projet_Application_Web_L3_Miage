@@ -44,10 +44,12 @@ export class UIManager {
     this.playbackControls = document.getElementById("playbackControls");
     this.btnPrevTurn = document.getElementById("btnPrevTurn");
     this.btnNextTurn = document.getElementById("btnNextTurn");
+    this.btnExitReview = document.getElementById("btnExitReview");
     this.turnCounterText = document.getElementById("turnCounterText");
 
     this.onPrevTurn = null;
     this.onNextTurn = null;
+    this.onExitReview = null;
 
     this.selectedPiece = null;
     this.selectedShopIndex = null;
@@ -217,6 +219,9 @@ export class UIManager {
     if (this.btnNextTurn) {
       this.btnNextTurn.addEventListener("click", () => this.onNextTurn?.());
     }
+    if (this.btnExitReview) {
+      this.btnExitReview.addEventListener("click", () => this.onExitReview?.());
+    }
 
     if (this.aboutMoveButton) {
       this.aboutMoveButton.addEventListener("click", () => {
@@ -316,7 +321,7 @@ export class UIManager {
     }
   }
 
-  updatePlaybackUI(currentIndex, totalMoves) {
+  updatePlaybackUI(currentIndex, totalMoves, isReviewing = false) {
     if (this.turnCounterText) {
       // Format as "Ply X / Y"
       this.turnCounterText.textContent = `Ply ${currentIndex} / ${totalMoves}`;
@@ -326,6 +331,9 @@ export class UIManager {
     }
     if (this.btnNextTurn) {
       this.btnNextTurn.disabled = currentIndex === totalMoves;
+    }
+    if (this.btnExitReview) {
+      this.btnExitReview.style.display = isReviewing ? "block" : "none";
     }
   }
 
