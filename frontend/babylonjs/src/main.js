@@ -656,6 +656,28 @@ const createScene = async () => {
     updateAnalysisBar();
   };
 
+  const moveColorToBench = (color) => {
+    placedPieces.forEach((entry, squareId) => {
+      if (entry.color === color && !squareId.startsWith("bench")) {
+        // Find first empty bench square
+        let emptyBenchIndex = -1;
+        for (let i = 0; i < 8; i += 1) {
+          if (!placedPieces.has(`bench-${i}`)) {
+            emptyBenchIndex = i;
+            break;
+          }
+        }
+
+        if (emptyBenchIndex !== -1) {
+          movePiece(squareId, `bench-${emptyBenchIndex}`);
+        } else {
+          // Bench is full, remove it (void)
+          removePiece(squareId);
+        }
+      }
+    });
+  };
+
   const clearColor = (color) => {
     placedPieces.forEach((entry, squareId) => {
       if (entry.color === color) {
@@ -1420,7 +1442,7 @@ const createScene = async () => {
     if (!playerColor) {
       return;
     }
-    clearColor(playerColor);
+    moveColorToBench(playerColor);
   };
   uiManager.onPieceSelected = (pieceId) => {
     selectedPiece = pieceId;
