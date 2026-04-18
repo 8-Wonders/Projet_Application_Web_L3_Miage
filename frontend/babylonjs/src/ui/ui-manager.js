@@ -1,11 +1,23 @@
+import { hpIcon, levelIcon, goldIcon, gemIcon } from "./icons.js";
+
 export class UIManager {
   constructor({ pieceDefs, pieceLabels, pieceMoves }) {
     this.pieceDefs = pieceDefs;
     this.pieceLabels = pieceLabels;
     this.pieceMoves = pieceMoves;
 
-    this.budgetWhiteEl = document.getElementById("budgetWhite");
-    this.budgetBlackEl = document.getElementById("budgetBlack");
+    this.hpValEl = document.getElementById("val-hp");
+    this.levelValEl = document.getElementById("val-level");
+    this.goldValEl = document.getElementById("val-gold");
+
+    // Inject icons into stat pills
+    const hpStat = document.getElementById("stat-hp");
+    const levelStat = document.getElementById("stat-level");
+    const goldStat = document.getElementById("stat-gold");
+    if (hpStat) hpStat.insertAdjacentHTML("afterbegin", hpIcon);
+    if (levelStat) levelStat.insertAdjacentHTML("afterbegin", levelIcon);
+    if (goldStat) goldStat.insertAdjacentHTML("afterbegin", goldIcon);
+
     this.sidePicker = document.getElementById("sidePicker");
     this.pickWhite = document.getElementById("pickWhite");
     this.pickBlack = document.getElementById("pickBlack");
@@ -19,6 +31,9 @@ export class UIManager {
       document.getElementById("shop-4"),
     ];
     this.rerollBtn = document.getElementById("rerollShop");
+    if (this.rerollBtn) {
+      this.rerollBtn.innerHTML = `Reroll <span class="cost-inline">${goldIcon} 2</span>`;
+    }
 
     this.groupWhite = document.querySelector(
       '.piece-group[data-color="white"]',
@@ -67,27 +82,6 @@ export class UIManager {
     // Create the Sell Zone UI
     this.sellZoneEl = document.createElement("div");
     this.sellZoneEl.id = "sell-zone";
-    Object.assign(this.sellZoneEl.style, {
-      position: "absolute",
-      bottom: "20px",
-      left: "50%",
-      transform: "translateX(-50%)",
-      width: "300px",
-      height: "80px",
-      backgroundColor: "rgba(200, 0, 0, 0.7)",
-      color: "white",
-      display: "none",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: "24px",
-      fontWeight: "bold",
-      borderRadius: "12px",
-      border: "4px dashed rgba(255, 255, 255, 0.6)",
-      zIndex: "1000",
-      pointerEvents: "auto",
-      userSelect: "none",
-      transition: "all 0.2s ease",
-    });
     document.body.appendChild(this.sellZoneEl);
   }
 
@@ -110,7 +104,7 @@ export class UIManager {
       const canAfford = playerState.gold >= def.value;
 
       button.classList.remove("unaffordable");
-      button.innerHTML = `<span class="piece-price">💎 ${def.value}</span><span class="piece-name">${label}</span>`;
+      button.innerHTML = `<span class="piece-price">${goldIcon} ${def.value}</span><span class="piece-name">${label}</span>`;
       button.disabled = false; // Always allow clicking to preview
       button.classList.toggle("unaffordable", !canAfford);
 
@@ -130,7 +124,7 @@ export class UIManager {
         // Show buy button
         if (this.buyPieceBtn) {
           this.buyPieceBtn.style.display = "block";
-          this.buyPieceBtn.textContent = `Buy ${label} (💎 ${def.value})`;
+          this.buyPieceBtn.innerHTML = `Buy ${label} <span class="cost-inline">${goldIcon} ${def.value}</span>`;
           this.buyPieceBtn.disabled = !canAfford;
         }
       };
@@ -151,9 +145,9 @@ export class UIManager {
       }
     }
 
-    if (this.budgetWhiteEl) {
-      this.budgetWhiteEl.textContent = `❤️ ${playerState.hp} | ⭐ Lvl: ${playerState.level} | 🪙 Gold: ${playerState.gold}`;
-    }
+    if (this.hpValEl) this.hpValEl.textContent = playerState.hp;
+    if (this.levelValEl) this.levelValEl.textContent = playerState.level;
+    if (this.goldValEl) this.goldValEl.textContent = playerState.gold;
   }
 
   clearShopSelection() {
@@ -265,7 +259,7 @@ export class UIManager {
     if (!this.moveModal || !this.moveTitleEl || !this.moveTextEl) {
       return;
     }
-    this.moveTitleEl.textContent = title;
+    this.moveTitleEl.innerHTML = title;
     this.moveTextEl.textContent = text;
     this.moveModal.classList.remove("hidden");
   }
@@ -338,15 +332,18 @@ export class UIManager {
   }
 
   showSellZone(sellValue) {
-    this.sellZoneEl.textContent = `SELL -> ${sellValue} 🪙`;
+    this.sellZoneEl.innerHTML = `
+      <div class="sell-content">
+        <span class="sell-label">SELL</span>
+        <span class="sell-value">${sellValue} <span class="icon-inline">${goldIcon}</span></span>
+      </div>
+    `;
     this.sellZoneEl.style.display = "flex";
   }
 
   hideSellZone() {
     this.sellZoneEl.style.display = "none";
-    this.sellZoneEl.style.backgroundColor = "rgba(200, 0, 0, 0.7)";
-    this.sellZoneEl.style.transform = "translateX(-50%) scale(1)";
-    this.sellZoneEl.style.border = "4px dashed rgba(255, 255, 255, 0.6)";
+    this.sellZoneEl.classList.remove("hovered");
   }
 
   isPointerOverSellZone(px, py) {
@@ -358,15 +355,7 @@ export class UIManager {
   }
 
   highlightSellZone(isHovered) {
-    if (isHovered) {
-      this.sellZoneEl.style.backgroundColor = "rgba(255, 50, 50, 0.95)";
-      this.sellZoneEl.style.transform = "translateX(-50%) scale(1.05)";
-      this.sellZoneEl.style.border = "4px solid white";
-    } else {
-      this.sellZoneEl.style.backgroundColor = "rgba(200, 0, 0, 0.7)";
-      this.sellZoneEl.style.transform = "translateX(-50%) scale(1)";
-      this.sellZoneEl.style.border = "4px dashed rgba(255, 255, 255, 0.6)";
-    }
+    this.sellZoneEl.classList.toggle("hovered", isHovered);
   }
 
   setPlayerColor(color) {

@@ -34,8 +34,19 @@
     <div class="layout">
       <aside class="sidebar">
         <div class="panel-title">Piece Picker</div>
-        <div class="budget-row">
-          <div class="budget" id="budgetWhite">❤️ 100 | ⭐ Lvl: 1 | 🪙 Gold: 10</div>
+        <div class="budget-container">
+          <div class="stat-pill hp" id="stat-hp">
+            <!-- Icon injected via JS -->
+            <span class="stat-value" id="val-hp">100</span>
+          </div>
+          <div class="stat-pill level" id="stat-level">
+            <!-- Icon injected via JS -->
+            <span class="stat-value" id="val-level">1</span>
+          </div>
+          <div class="stat-pill gold" id="stat-gold">
+            <!-- Icon injected via JS -->
+            <span class="stat-value" id="val-gold">10</span>
+          </div>
         </div>
         <div class="picker">
           <div class="picker-grid">
@@ -46,7 +57,7 @@
               <button class="piece-btn" id="shop-2"></button>
               <button class="piece-btn" id="shop-3"></button>
               <button class="piece-btn" id="shop-4"></button>
-              <button class="piece-btn" id="rerollShop" style="grid-column: 1 / -1; background: #2a1b35;">Reroll (💎 2)</button>
+              <button class="piece-btn" id="rerollShop" style="grid-column: 1 / -1; background: #2a1b35;">Reroll (2)</button>
             </div>
           </div>
           <div class="preview-panel">
