@@ -657,6 +657,7 @@ const createScene = async () => {
   };
 
   const moveColorToBench = (color) => {
+    let benchFull = false;
     placedPieces.forEach((entry, squareId) => {
       if (entry.color === color && !squareId.startsWith("bench")) {
         // Find first empty bench square
@@ -671,11 +672,15 @@ const createScene = async () => {
         if (emptyBenchIndex !== -1) {
           movePiece(squareId, `bench-${emptyBenchIndex}`);
         } else {
-          // Bench is full, remove it (void)
-          removePiece(squareId);
+          // Bench is full, keep it on board
+          benchFull = true;
         }
       }
     });
+
+    if (benchFull) {
+      uiManager.showToast("Bench is full! Some pieces remained on board.");
+    }
   };
 
   const clearColor = (color) => {
