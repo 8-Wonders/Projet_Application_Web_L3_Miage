@@ -16,7 +16,7 @@ export class UIManager {
     const goldStat = document.getElementById("stat-gold");
     if (hpStat) hpStat.insertAdjacentHTML("afterbegin", hpIcon);
     if (levelStat) levelStat.insertAdjacentHTML("afterbegin", levelIcon);
-    if (goldStat) goldStat.insertAdjacentHTML("afterbegin", goldIcon);
+    if (goldStat) goldStat.insertAdjacentHTML("afterbegin", gemIcon);
 
     this.sidePicker = document.getElementById("sidePicker");
     this.pickWhite = document.getElementById("pickWhite");
@@ -32,7 +32,7 @@ export class UIManager {
     ];
     this.rerollBtn = document.getElementById("rerollShop");
     if (this.rerollBtn) {
-      this.rerollBtn.innerHTML = `Reroll <span class="cost-inline">${goldIcon} 2</span>`;
+      this.rerollBtn.innerHTML = `Reroll <span class="cost-inline">${gemIcon} 2</span>`;
     }
 
     this.groupWhite = document.querySelector(
@@ -104,7 +104,7 @@ export class UIManager {
       const canAfford = playerState.gold >= def.value;
 
       button.classList.remove("unaffordable");
-      button.innerHTML = `<span class="piece-price">${goldIcon} ${def.value}</span><span class="piece-name">${label}</span>`;
+      button.innerHTML = `<span class="piece-price">${gemIcon} ${def.value}</span><span class="piece-name">${label}</span>`;
       button.disabled = false; // Always allow clicking to preview
       button.classList.toggle("unaffordable", !canAfford);
 
@@ -124,7 +124,7 @@ export class UIManager {
         // Show buy button
         if (this.buyPieceBtn) {
           this.buyPieceBtn.style.display = "block";
-          this.buyPieceBtn.innerHTML = `Buy ${label} <span class="cost-inline">${goldIcon} ${def.value}</span>`;
+          this.buyPieceBtn.innerHTML = `Buy ${label} <span class="cost-inline">${gemIcon} ${def.value}</span>`;
           this.buyPieceBtn.disabled = !canAfford;
         }
       };
@@ -335,7 +335,7 @@ export class UIManager {
     this.sellZoneEl.innerHTML = `
       <div class="sell-content">
         <span class="sell-label">SELL</span>
-        <span class="sell-value">${sellValue} <span class="icon-inline">${goldIcon}</span></span>
+        <span class="sell-value">${sellValue} <span class="icon-inline">${gemIcon}</span></span>
       </div>
     `;
     this.sellZoneEl.style.display = "flex";

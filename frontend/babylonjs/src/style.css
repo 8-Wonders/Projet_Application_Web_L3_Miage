@@ -79,7 +79,7 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #ffd700;
+  color: #40e0d0;
   font-weight: 700;
   font-size: 16px;
 }
@@ -108,7 +108,7 @@ body {
   flex: 0 0 35%; /* Increased width to accommodate icon */
   min-width: 50px;
   background: #1d2b4f;
-  color: #ffd700; /* Gold color */
+  color: #40e0d0; /* Gold color */
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -156,6 +156,7 @@ body {
 .stat-pill {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 4px 10px;
   border-radius: 12px;
@@ -164,12 +165,12 @@ body {
   font-weight: 600;
   font-size: 13px;
   color: #e5e7ef;
-  min-width: 60px;
+  min-width: 64px;
 }
 
 .stat-pill.hp { color: #ff4c4c; border-color: rgba(255, 76, 76, 0.3); }
 .stat-pill.level { color: #ffca28; border-color: rgba(255, 202, 40, 0.3); }
-.stat-pill.gold { color: #ffd700; border-color: rgba(255, 215, 0, 0.3); }
+.stat-pill.gold { color: #40e0d0; border-color: rgba(64, 224, 208, 0.3); }
 
 .icon {
   width: 16px;
@@ -227,7 +228,7 @@ body {
   gap: 6px;
   font-size: 32px;
   font-weight: 800;
-  color: #ffd700;
+  color: #40e0d0;
 }
 
 .icon-inline {
@@ -245,7 +246,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #ffd700; /* Gold color */
+  color: #40e0d0; /* Gold color */
   font-weight: bold;
 }
 

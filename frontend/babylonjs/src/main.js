@@ -26,7 +26,7 @@ import {
 import { buildPieceLibrary, getBounds, normalizeMeshes } from "./pieces.js";
 import { generateFEN } from "./game/fen.js";
 import { EngineClient } from "./game/engine-client.js";
-import { goldIcon } from "./ui/icons.js";
+import { gemIcon } from "./ui/icons.js";
 import { UIManager } from "./ui/ui-manager.js";
 
 const canvas = document.getElementById("renderCanvas");
@@ -1460,7 +1460,7 @@ const createScene = async () => {
             const label = pieceLabels[entry.type] || entry.type;
             const info =
               pieceMoves[entry.type] || "No movement info available.";
-            uiManager.showMoveModal(`${label} (Cost: ${goldIcon} ${entry.value})`, info);
+            uiManager.showMoveModal(`${label} (Cost: ${gemIcon} ${entry.value})`, info);
           }
         }
         return;
