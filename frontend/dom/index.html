@@ -1,35 +1,39 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RetroArcade - DOM</title>
-  <link rel="stylesheet" href="css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dev Clicker</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <canvas id="random-checkerboard"></canvas>
+    <div class="game-container">
+        <main class="clicker-section">
+            <div class="stats">
+                <h1>Lines of Code: <span id="loc-count">0</span></h1>
+                <p><span id="lps-count">0</span> LOC/second</p>
+                <p class="small-stat"><span id="lpc-count">1</span> LOC/click</p>
+            </div>
+            
+            <button id="main-clicker" class="keyboard-btn">
+                <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="10" y="30" width="80" height="40" rx="5" />
+                    <line x1="25" y1="45" x2="25" y2="45" stroke-width="8" />
+                    <line x1="40" y1="45" x2="40" y2="45" stroke-width="8" />
+                    <line x1="55" y1="45" x2="55" y2="45" stroke-width="8" />
+                    <line x1="75" y1="45" x2="75" y2="45" stroke-width="8" />
+                    <line x1="30" y1="55" x2="70" y2="55" stroke-width="8" />
+                </svg>
+            </button>
+        </main>
 
-  <header>
-    <div class="logo-container">
-      <h1 class="logo">RETROARCADE</h1>
+        <aside class="upgrades-section">
+            <h2>Upgrades</h2>
+            <div id="upgrades-container">
+                </div>
+        </aside>
     </div>
-    <nav>
-      <ul class="nav-menu">
-        <li><a href="/home.html">PROFIL</a></li>
-        <li><a href="/games.html">JEUX</a></li>
-        <li><a href="/about.html">A PROPOS</a></li>
-      </ul>
-    </nav>
-  </header>
 
-  <main class="dev-wrapper">
-    <section class="dev-box">
-      <h2>JEU DOM</h2>
-      <p>JEU EN COURS DE DEVELOPPEMENT</p>
-      <a class="back-link" href="/games.html">RETOUR AUX JEUX</a>
-    </section>
-  </main>
-
-  <script src="js/script.js"></script>
+    <script type="module" src="js/main.js"></script>
 </body>
 </html>
