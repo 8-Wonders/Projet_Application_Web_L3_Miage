@@ -229,5 +229,31 @@ export const buildPieceLibrary = (scene, templateStore) => {
     cylinder("amazon", 2.2, 0.8, 1.1),
   ]);
 
+    // ── Custom Fairy Pieces ──
+  library.addPiece("centaur", pieceAssets.centaur.height, [
+    new AssetPieceSource("centaur", pieceAssets.centaur.file),
+    cylinder("centaur", 1.7, 0.6, 1.1),
+  ]);
+  library.addPiece("cheetah", pieceAssets.cheetah.height, [
+    new AssetPieceSource("cheetah", pieceAssets.cheetah.file),
+    box("cheetah", 1.6, 0.8, 0.8),
+  ]);
+  library.addPiece("dabbaba", pieceAssets.dabbaba.height, [
+    new AssetPieceSource("dabbaba", pieceAssets.dabbaba.file),
+    cylinder("dabbaba", 1.4, 0.8, 0.8),
+  ]);
+  library.addPiece("missionary", pieceAssets.missionary.height, [
+    new AssetPieceSource("missionary", pieceAssets.missionary.file),
+    sphere("missionary", 1.4),
+  ]);
+  library.addPiece("snake", pieceAssets.snake.height, [
+    new AssetPieceSource("snake", pieceAssets.snake.file),
+    cylinder("snake", 1.3, 0.4, 0.6),
+  ]);
+  library.addPiece("spy", pieceAssets.spy.height, [
+    new AssetPieceSource("spy", pieceAssets.spy.file),
+    cylinder("spy", 1.4, 0.5, 0.5),
+  ]);
+
   return library;
 };

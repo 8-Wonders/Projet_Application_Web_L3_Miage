@@ -22,6 +22,12 @@ export const pieceDefs = {
 
   // Tier 5 – legendary
   amazon: { value: 12, max: 1, tier: 5 },
+  centaur: { value: 6, max: 2, tier: 3 },
+  cheetah: { value: 5, max: 2, tier: 3 },
+  missionary: { value: 4, max: 2, tier: 2 },
+  snake: { value: 3, max: 2, tier: 2 },
+  dabbaba: { value: 2, max: 2, tier: 2 },
+  spy: { value: 2, max: 2, tier: 1 },
 };
 
 export const pieceAssets = {
@@ -39,6 +45,12 @@ export const pieceAssets = {
   immobilizer: { file: "Immobilizer.stl", height: 1.8 },
   fool: { file: "fool.stl", height: 1.2 },
   mammoth: { file: "Mammoth.stl", height: 2.0 },
+  centaur: { file: "Centaur.stl", height: 1.7 },
+  cheetah: { file: "Cheetah.stl", height: 1.6 },
+  dabbaba: { file: "Dabbaba.stl", height: 1.4 },
+  missionary: { file: "Missionary.stl", height: 1.6 },
+  snake: { file: "Snake.stl", height: 1.3 },
+  spy: { file: "spy.stl", height: 1.4 },
 };
 
 export const pieceMoves = {
@@ -57,8 +69,13 @@ export const pieceMoves = {
   amazon: "Queen or knight (combined).",
   immobilizer: "Moves like a queen but cannot capture. Freezes nearby enemies.",
   fool: "Cannot move or capture. A decoy.",
-  mammoth:
-    "King + Alfil + Dabbaba: 1 step any direction, or a 2-square diagonal/orthogonal leap. Jumps.",
+  mammoth: "King + Alfil + Dabbaba: 1 step any direction, or a 2-square diagonal/orthogonal leap. Jumps.",
+  centaur: "Combines the powers of a Knight and a Mann (non-royal King).",
+  cheetah: "Super-leaper combining Camel, Zebra, Threeleaper, and Tripper.",
+  dabbaba: "Jumps exactly two squares orthogonally, leaping over any intermediate piece.",
+  missionary: "Combines the powers of a Bishop and a Wazir (Crowned Bishop).",
+  snake: "Moves vertically one step and continues outwards as a Bishop.",
+  spy: "Moves 1 square in any direction (functions as a non-royal King / Mann).",
 };
 
 export const pieceLabels = {
@@ -76,6 +93,12 @@ export const pieceLabels = {
   immobilizer: "Immobilizer",
   fool: "Fool",
   mammoth: "Mammoth",
+  centaur: "Centaur",
+  cheetah: "Cheetah",
+  dabbaba: "Dabbaba",
+  missionary: "Missionary",
+  snake: "Snake",
+  spy: "Spy",
 };
 
 // Tier names shown in the UI

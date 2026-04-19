@@ -12,7 +12,13 @@ const pieceCharMap = {
   amazon: "z",
   immobilizer: "i",
   fool: "f",
-  mammoth: "m",
+    mammoth: "m",
+  centaur: "t",
+  cheetah: "e",
+  dabbaba: "d",
+  missionary: "y",
+  snake: "s",
+  spy: "x",
 };
 
 const toPieceChar = (type, color) => {

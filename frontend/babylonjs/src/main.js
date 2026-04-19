@@ -820,7 +820,13 @@ const createScene = async () => {
         i: "immobilizer",
         f: "fool",
         m: "mammoth",
-        v: "vizier", // ← NEW
+                v: "vizier",
+        t: "centaur",
+        e: "cheetah",
+        d: "dabbaba",
+        y: "missionary",
+        s: "snake",
+        x: "spy",
       };
       const newType = promoMap[move[4].toLowerCase()] || "queen";
 
@@ -1200,10 +1206,31 @@ const createScene = async () => {
     if (gameInProgress) return;
 
     let hasBoardPieces = false;
+    let hasBenchPieces = false;
+    
+    // Check for pieces on the board and on the bench
     placedPieces.forEach((p, sq) => {
-      if (p.color === "white" && !sq.startsWith("bench")) hasBoardPieces = true;
+      if (p.color === "white") {
+        if (!sq.startsWith("bench")) hasBoardPieces = true;
+        else hasBenchPieces = true;
+      }
     });
+
     if (!hasBoardPieces) {
+      // Find the cheapest piece currently available in the shop
+      const cheapestShopPrice = currentShop.reduce((min, type) => {
+        if (!type) return min;
+        return Math.min(min, pieceDefs[type].value);
+      }, Infinity);
+
+      // SOFTLOCK CHECK: If they have no pieces anywhere and can't buy anything
+      if (!hasBenchPieces && playerState.gold < cheapestShopPrice) {
+        uiManager.showToast("No pieces and out of gold! Forfeiting the round...");
+        resolveAnnihilation(); // Instantly totals AI board value and deals damage
+        return;
+      }
+
+      // Normal warning if they just forgot to move a piece from the bench
       uiManager.showToast("Place at least one piece on the board to fight!");
       return;
     }
