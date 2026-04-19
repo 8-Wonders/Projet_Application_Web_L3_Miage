@@ -7,8 +7,8 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <title>Jeu auto chess</title>
-    <script type="module" crossorigin src="/assets/index-BvklAjLo.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-B2k4wSU4.css">
+    <script type="module" crossorigin src="/assets/index-DwveZpVA.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-D_R1YMBl.css">
   </head>
   <body>
     <div class="overlay" id="sidePicker">
@@ -36,32 +36,100 @@
     <div class="layout">
       <aside class="sidebar">
         <div class="panel-title">Piece Picker</div>
-        <div class="budget-row">
-          <div class="budget" id="budgetWhite">❤️ 100 | ⭐ Lvl: 1 | 🪙 Gold: 10</div>
+        <div class="budget-container">
+          <div class="stat-pill hp" id="stat-hp">
+            <!-- Icon injected via JS -->
+            <span class="stat-value" id="val-hp">100</span>
+          </div>
+          <!-- Round indicator (replaces level/star) -->
+          <div class="stat-pill round" id="stat-round">
+            <span style="font-size: 11px; letter-spacing: 0.5px; opacity: 0.75"
+              >ROUND</span
+            >
+            <span class="stat-value" id="val-round">1</span>
+          </div>
+          <div class="stat-pill gold" id="stat-gold">
+            <!-- Icon injected via JS -->
+            <span class="stat-value" id="val-gold">10</span>
+          </div>
         </div>
         <div class="picker">
           <div class="picker-grid">
             <div class="piece-group" id="shopGroup">
-              <div class="group-title">Shop</div>
+              <!-- Shop header: tier label + upgrade button -->
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  grid-column: 1/-1;
+                  gap: 6px;
+                "
+              >
+                <span class="group-title" style="margin: 0" id="shopTierLabel"
+                  >Tier 1 · Bronze Shop</span
+                >
+                <button
+                  class="piece-btn"
+                  id="upgradeShopBtn"
+                  style="
+                    min-height: 28px;
+                    padding: 4px 10px;
+                    font-size: 12px;
+                    background: #1a2d1a;
+                    border-color: #3a7a3a;
+                    color: #7dda7d;
+                    white-space: nowrap;
+                  "
+                >
+                  Upgrade
+                </button>
+              </div>
+
               <button class="piece-btn" id="shop-0"></button>
               <button class="piece-btn" id="shop-1"></button>
               <button class="piece-btn" id="shop-2"></button>
               <button class="piece-btn" id="shop-3"></button>
               <button class="piece-btn" id="shop-4"></button>
-              <button class="piece-btn" id="rerollShop" style="grid-column: 1 / -1; background: #2a1b35;">Reroll (💎 2)</button>
+              <button
+                class="piece-btn"
+                id="rerollShop"
+                style="grid-column: 1 / -1; background: #2a1b35"
+              >
+                Reroll (2)
+              </button>
             </div>
           </div>
           <div class="preview-panel">
             <div class="preview-title">Preview</div>
             <div class="preview-name" id="previewName">Select a piece</div>
             <canvas id="previewCanvas"></canvas>
-            <button class="piece-btn" id="buyPieceBtn" style="display: none; background-color: #2843a6; margin-bottom: 5px;">Buy Piece</button>
+            <button
+              class="piece-btn"
+              id="buyPieceBtn"
+              style="
+                display: none;
+                background-color: #2843a6;
+                margin-bottom: 5px;
+              "
+            >
+              Buy Piece
+            </button>
             <button class="piece-btn" id="aboutMove">About move</button>
           </div>
         </div>
         <button class="clear-btn" id="clearBoard">Clear Board</button>
-        <button class="clear-btn" id="startBattle" style="background-color: #d32f2f; margin-top: 10px;">Fight!</button>
-        <div class="hint">Click a piece, then click a square to place it.</div>
+        <button
+          class="clear-btn"
+          id="startBattle"
+          style="background-color: #d32f2f; margin-top: 10px"
+        >
+          Fight!
+        </button>
+        <div class="hint">
+          Click a piece, then drag it to a square to place it. Upgrade your shop
+          to unlock stronger pieces!
+        </div>
       </aside>
       <main class="stage">
         <canvas id="renderCanvas"></canvas>
@@ -69,9 +137,34 @@
           <div class="analysis-fill" id="analysisFill"></div>
         </div>
         <div class="playback-controls hidden" id="playbackControls">
-          <button class="playback-btn" id="btnPrevTurn" title="Previous Move (Left Arrow)">◀</button>
+          <button
+            class="playback-btn"
+            id="btnPrevTurn"
+            title="Previous Move (Left Arrow)"
+          >
+            ◀
+          </button>
           <span class="turn-counter" id="turnCounterText">Turn 0 / 0</span>
-          <button class="playback-btn" id="btnNextTurn" title="Next Move (Right Arrow)">▶</button>
+          <button
+            class="playback-btn"
+            id="btnNextTurn"
+            title="Next Move (Right Arrow)"
+          >
+            ▶
+          </button>
+          <button
+            class="playback-btn"
+            id="btnExitReview"
+            title="Back to Setup"
+            style="
+              margin-left: 10px;
+              font-size: 14px;
+              width: auto;
+              padding: 0 12px;
+            "
+          >
+            Back to Setup
+          </button>
         </div>
       </main>
     </div>
