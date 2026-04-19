@@ -9,10 +9,10 @@ export class ScoreService {
      * Sends the final game score to the backend.
      * @param {string} username - The player's identifier.
      * @param {number} score - The calculated score (characters currently shown in the IDE).
-     * @param {string} game - The game identifier (defaults to 'clicker').
+    * @param {string} game - The game identifier (defaults to 'dom').
      * @returns {Promise<{success: boolean, error?: any, data?: any}>}
      */
-    static async submit(username, score, game = 'clicker') {
+    static async submit(username, score, game = 'dom') {
         try {
             // Retrieves the JWT if the user is authenticated via localStorage
             const token = localStorage.getItem("token");
@@ -179,7 +179,7 @@ export function initScoreUI() {
         submitBtn.style.opacity = '0.5';
 
         // Dispatch to API
-        const result = await ScoreService.submit(username, score, 'clicker');
+        const result = await ScoreService.submit(username, score, 'dom');
 
         if (result.success) {
             statusText.innerText = "Payload accepted. Score saved successfully!";
