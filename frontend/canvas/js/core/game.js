@@ -60,10 +60,21 @@ export class Game {
 
   _queueAssets() {
     const assets = [
-      "assets/grass.png", "assets/brick.png", 
-      "assets/water.png", "assets/stone.png"
+	  "assets/grass.png", // ID 0
+      "assets/brick.png", // ID 1
+      "assets/water.png", // ID 2
+      "assets/stone.png"  // ID 3
     ];
     assets.forEach((path, idx) => this.loader.addImage(idx, path));
+
+	this.loader.addImage("archer_0", "assets/archer_0.png");
+    this.loader.addImage("archer_1", "assets/archer_1.png");
+    this.loader.addImage("mage_0", "assets/mage_0.png");
+    this.loader.addImage("mage_1", "assets/mage_1.png");
+    this.loader.addImage("goblin_0", "assets/goblin_0.png");
+    this.loader.addImage("goblin_1", "assets/goblin_1.png");
+    this.loader.addImage("dragon_0", "assets/dragon_0.png");
+    this.loader.addImage("dragon_1", "assets/dragon_1.png");
   }
 
   setupResizeHandlers() {
@@ -246,7 +257,10 @@ export class Game {
     switch (this.currentState) {
       case GAME_STATE.PLAYING:
         if (this.map) this.map.draw(this.ctx);
-        this.players.forEach(p => { if (p.health > 0) p.draw(this.ctx); });
+
+		this.players.forEach(p => { 
+            if (p.health > 0) p.draw(this.ctx, this.loader); 
+        });
         
         this.ui.drawHUD(this.currentLevelIdx, totalTime);
         

@@ -13,11 +13,13 @@ export class LevelManager {
   constructor(loader, tileSize) {
     this.loader = loader;
     this.tileSize = tileSize;
-    
-    // Entity Factory Registry
-    // Maps string keys from levels.js to actual Class constructors
-    this.enemyTypes = {
-      bot: Bot,
+
+    // Unified Entity Factory Registry
+    // Maps string keys from levels.js and UI to actual Class constructors
+    this.entityTypes = {
+      archer: Archer,
+      mage: Mage,
+      bot: Goblin,
       goblin: Goblin,
       dragon: Dragon
     };
@@ -50,18 +52,18 @@ export class LevelManager {
 
     // 1. Spawn Human Player
     const p1 = this._createPlayer(playerClass);
-    entities.push(p1);
+    if (p1) entities.push(p1);
 
     // 2. Spawn Enemies from Config
     config.enemies.forEach(enemyData => {
-      const EnemyClass = this.enemyTypes[enemyData.type];
-      
+      const EnemyClass = this.entityTypes[enemyData.type];
+
       if (EnemyClass) {
         // Standard entity constructor: x, y, tileSize, height
         const enemy = new EnemyClass(
-            enemyData.x, 
-            enemyData.y, 
-            this.tileSize, 
+            enemyData.x,
+            enemyData.y,
+            this.tileSize,
             this.tileSize * 2
         );
         entities.push(enemy);
@@ -81,10 +83,16 @@ export class LevelManager {
     const startX = 40;
     const startY = 100;
     const height = this.tileSize * 2;
+
+    // Dynamically look up the player class instead of hardcoding an if/else
+    const PlayerClass = this.entityTypes[className];
     
-    if (className === "archer") {
-      return new Archer(startX, startY, this.tileSize, height);
-    } 
+    if (PlayerClass) {
+      return new PlayerClass(startX, startY, this.tileSize, height);
+    }
+    
+    // Graceful fallback
+    console.warn(`Unknown player class: ${className}. Defaulting to Mage.`);
     return new Mage(startX, startY, this.tileSize, height);
   }
 }

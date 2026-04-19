@@ -9,7 +9,7 @@ import { Teleport } from "../projectiles/teleport.js";
 export class Mage extends Player {
   constructor(x, y, width, height) {
     // Red color, Lower HP (80), Low movement (200)
-    super(x, y, width, height, "red", 80, 200); 
+    super(x, y, width, height, "mage", 80, 200); 
 
     // Define Loadout
     this.abilities = [Fireball, Heal, Teleport];

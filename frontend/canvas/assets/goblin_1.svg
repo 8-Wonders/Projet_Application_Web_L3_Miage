@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 16 16">
+  <!-- Goblin looking RIGHT (body leaning right) -->
+  <!-- Skin: goblin green, clothes: ragged brown/tunic -->
+  <!-- Legs - short and stocky -->
+  <!-- Left leg (slightly behind) -->
+  <rect x="4.8" y="10.5" width="2" height="4.8" rx="0.5" fill="#2C3E50" stroke="#263238" stroke-width="0.35"/>
+  <!-- Right leg (slightly forward) -->
+  <rect x="7.5" y="10.5" width="2" height="4.8" rx="0.5" fill="#2C3E50" stroke="#263238" stroke-width="0.35"/>
+
+  <!-- Upper body group: leaning RIGHT (clockwise) -->
+  <g transform="translate(8,7.8) rotate(9) translate(-8,-7.8)">
+    <!-- Ragged tunic torso -->
+    <rect x="4.8" y="4.5" width="4.4" height="6.8" rx="0.7" fill="#8B5A2B" stroke="#263238" stroke-width="0.4"/>
+    <!-- Tunic tear detail -->
+    <path d="M 5.5,6 L 6.5,9" fill="transparent" stroke="#263238" stroke-width="0.25"/>
+
+    <!-- Head (goblin green, big) -->
+    <ellipse cx="7.6" cy="3.4" rx="2.65" ry="2.9" fill="#7CC14A" stroke="#263238" stroke-width="0.4"/>
+
+    <!-- Pointy ear (visible ear sticks out - on left side of head) -->
+    <path d="M 3.8,2.1 L 2.1,0.8 L 2.1,3.1 Z" fill="#7CC14A" stroke="#263238" stroke-width="0.3"/>
+
+    <!-- Big goblin nose (protruding) -->
+    <polygon points="6.1,3.1 5.4,4.1 6.3,4.3" fill="#5E9E3A" stroke="none"/>
+
+    <!-- Eye (on right side of head - looking right) - beady and mean -->
+    <ellipse cx="9.3" cy="3.1" rx="0.55" ry="0.65" fill="#1C2C38"/>
+    <!-- Eyebrow (angry) -->
+    <path d="M 8.4,2.4 L 9.9,2.1" fill="transparent" stroke="#263238" stroke-width="0.25"/>
+
+    <!-- Sharp teeth grin -->
+    <rect x="6.1" y="4.4" width="0.7" height="0.9" fill="#FFF" stroke="none"/>
+    <rect x="7" y="4.4" width="0.7" height="0.9" fill="#FFF" stroke="none"/>
+
+    <!-- Arm holding club (on right side) -->
+    <path d="M 8.1,6 L 10.5,7.8" fill="transparent" stroke="#7CC14A" stroke-width="1.55" stroke-linecap="round"/>
+
+    <!-- Club (wooden, spiked end) - pointing RIGHT -->
+    <!-- Handle -->
+    <line x1="10.6" y1="7.6" x2="13.8" y2="7.9" stroke="#5C4033" stroke-width="0.75" stroke-linecap="round"/>
+    <!-- Club head (bulbous) -->
+    <ellipse cx="13.9" cy="7.8" rx="1.05" ry="0.85" fill="#5C4033" stroke="#263238" stroke-width="0.3"/>
+    <!-- Spikes on club -->
+    <line x1="13.1" y1="6.9" x2="12.5" y2="6.1" stroke="#263238" stroke-width="0.25"/>
+    <line x1="14.6" y1="7.1" x2="15.1" y2="6.4" stroke="#263238" stroke-width="0.25"/>
+  </g>
+</svg>

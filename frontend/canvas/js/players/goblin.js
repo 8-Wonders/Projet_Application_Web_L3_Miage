@@ -4,8 +4,8 @@ import { DumbAI } from "../ai/dumb.js";
 
 export class Goblin extends Bot {
   constructor(x, y, width, height) {
-    super(x, y, width, height);
-    this.color = "#27AE60"; // Goblin Green
+    // CORRECTED: Explicitly pass "goblin" up the chain
+    super(x, y, width, height, "goblin");
     this.name = "Goblin";
 
     this.abilities = [Spear];

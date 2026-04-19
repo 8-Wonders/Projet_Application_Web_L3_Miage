@@ -4,45 +4,35 @@ import { tilesTypes } from "../map.js";
 import { GraphicalObject } from "../graphical_object.js";
 import { Teleport } from "../projectiles/teleport.js";
 
-/**
- * Core entity class. Handles physics, turn management, and rendering.
- * Inherited by specific classes like Archer, Mage, and Bot.
- */
 export class Player extends GraphicalObject {
   constructor(x, y, width, height, color, health = 100, maxMovement = 300) {
     super(x, y, width, height, color);
 
-    // --- Stats ---
     this.health = health;
     this.maxHealth = health;
     this.damage = 30; 
 
-    // --- Physics ---
     this.speed = 5;
-    this.vx = 0; // Horizontal inertia
-    this.dy = 0; // Vertical velocity
+    this.vx = 0; 
+    this.dy = 0; 
     this.jumpStrength = 17;
     this.gravity = 0.8;
     this.grounded = false; 
 
-    // --- Turn Constraints ---
     this.maxMovement = maxMovement; 
     this.distTraveled = 0;
     this.canMove = true;
     this.turnActive = false; 
     this.hasFired = false;   
 
-    // --- Aiming ---
-    this.facing = 1; // 1 = Right, -1 = Left
+    this.facing = 1; 
     this.isAiming = false;
     this.aimAngle = 0;
     this.aimRotationSpeed = 0.05;
 
-    // --- Sub-Systems ---
     this.projectiles = []; 
     this.statuses = [];    
     
-    // --- Loadout / Abilities ---
     this.abilities = [Projectile]; 
     this.abilityIndex = 0;
   }
@@ -52,7 +42,6 @@ export class Player extends GraphicalObject {
   // ==========================================
 
   move(keys, map, players) {
-    // 1. Apply Global Inertia 
     if (Math.abs(this.vx) > 0.1) {
       this.x += this.vx;
       this.vx *= 0.9; 
@@ -61,17 +50,13 @@ export class Player extends GraphicalObject {
       this.vx = 0;
     }
 
-    // 2. Turn Logic (Only if Active)
     if (this.turnActive) {
       if (this.isAiming) {
-        // STATIONARY: Aiming
-        // Only rotate angle if NOT teleporting (Teleport uses Mouse)
         if (this.abilities[this.abilityIndex] !== Teleport) {
             handleAiming(this, keys);
         }
-        handleMovement(this, {}, map); // Apply gravity only
+        handleMovement(this, {}, map); 
       } else {
-        // MOVING
         if (this.canMove) {
           const moved = handleMovement(this, keys, map);
           this.distTraveled += moved;
@@ -88,7 +73,6 @@ export class Player extends GraphicalObject {
       handleMovement(this, {}, map);
     }
 
-    // 3. Update Projectiles
     this.updateProjectiles(map, players);
   }
 
@@ -96,53 +80,75 @@ export class Player extends GraphicalObject {
   //               RENDERING
   // ==========================================
 
-  draw(ctx) {
+  draw(ctx, loader) {
     ctx.save();
     ctx.translate(this.x, this.y);
     
-    ctx.fillStyle = this.turnActive 
-      ? (this.isAiming ? "darkblue" : this.color) 
-      : "gray";
-    
+    // 1. Draw Visible Hitbox Background (Semi-transparent black)
+    // You can delete this fillRect line if you ever want the boxes gone completely
+    ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; 
     ctx.fillRect(0, 0, this.width, this.height);
+
+    // 2. Draw Selection/Aiming Outline
+    if (this.turnActive) {
+      ctx.strokeStyle = this.isAiming ? "rgba(0, 0, 139, 0.9)" : "rgba(255, 255, 0, 0.9)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(-2, -2, this.width + 4, this.height + 4);
+    }
+
+    const facingSuffix = this.facing === -1 ? "0" : "1";
+    const spriteKey = `${this.color}_${facingSuffix}`; 
+    const img = loader ? loader.get(spriteKey) : null;
+
+    if (img) {
+	  // 1. Calculate how much we need to scale the image to match the hitbox height
+      // We use the height as the anchor so they "stand" on the ground correctly.
+      const scale = this.height / img.height;
+
+      // 2. Calculate the new width based on that scale to keep proportions
+      const drawWidth = img.width * scale;
+      const drawHeight = this.height; // Exactly the hitbox height
+
+      // 3. Center the image horizontally relative to the hitbox
+      const offsetX = (this.width - drawWidth) / 2;
+      
+      // 4. Set offsetY to 0 so the bottom of the image matches the bottom of the hitbox
+      const offsetY = 0;
+
+      ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+      
+      ctx.fillRect(0, 0, this.width, this.height);
+    }
 
     this._drawHealthBar(ctx);
     this._drawMovementBar(ctx);
     this._drawStatusEffects(ctx);
 
-    // --- Aiming Visuals ---
     if (this.isAiming && this.turnActive) {
       const currentAbility = this.abilities[this.abilityIndex];
-
-      if (currentAbility === Teleport) {
-        // Draw Teleport Square at Mouse Position
+      if (currentAbility.name === "Teleport") { 
         this._drawTeleportTarget(ctx);
       } else {
-        // Draw Standard Aim Line
         this._drawAimLine(ctx);
       }
     }
     
     ctx.restore();
 
-    this.projectiles.forEach((p) => p.draw(ctx));
+    this.projectiles.forEach((p) => p.draw(ctx, loader));
   }
 
   _drawTeleportTarget(ctx) {
-    // We need global coordinates, but we are inside ctx.translate(this.x, this.y)
-    // So we must subtract this.x/y from mouse coordinates to draw correctly relative to player
     const relX = mouse.x - this.x;
     const relY = mouse.y - this.y;
 
     ctx.save();
     ctx.strokeStyle = "cyan";
     ctx.lineWidth = 2;
-    ctx.setLineDash([5, 5]); // Dashed line
+    ctx.setLineDash([5, 5]); 
     
-    // Draw box centered on mouse
     ctx.strokeRect(relX - this.width/2, relY - this.height/2, this.width, this.height);
     
-    // Draw line connecting player to target
     ctx.beginPath();
     ctx.moveTo(this.width/2, this.height/2);
     ctx.lineTo(relX, relY);
@@ -268,7 +274,6 @@ export class Player extends GraphicalObject {
     if (!this.turnActive || this.hasFired) return;
 
     this.isAiming = !this.isAiming;
-    // Reset angle based on facing direction when entering aim mode
     if (this.isAiming) {
       this.aimAngle = this.facing === 1 ? 0 : Math.PI;
     }
@@ -280,9 +285,6 @@ export class Player extends GraphicalObject {
     }
   }
 
-  /**
-   * Spawns the currently selected projectile.
-   */
   shoot() {
     if (!this.turnActive || this.hasFired) return false;
 
@@ -299,7 +301,6 @@ export class Player extends GraphicalObject {
 
     const AbilityClass = this.abilities[this.abilityIndex];
     if (AbilityClass) {
-        // Special Logic: Teleport needs Mouse Coordinates
         if (AbilityClass === Teleport) {
              this.projectiles.push(new AbilityClass(startX, startY, angle, this, mouse.x, mouse.y));
         } else {

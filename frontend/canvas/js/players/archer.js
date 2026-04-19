@@ -9,7 +9,7 @@ import { Teleport } from "../projectiles/teleport.js";
 export class Archer extends Player {
   constructor(x, y, width, height) {
     // Green color, 100 HP, High movement range (400)
-    super(x, y, width, height, "green", 100, 400); 
+    super(x, y, width, height, "archer", 100, 400); 
 
     // Define Loadout
     this.abilities = [Arrow, SilverArrow, Teleport];

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 16 16">
+  <!-- Mage looking RIGHT (body leaning right) -->
+  <!-- Robe color: deep purple fantasy style -->
+  <!-- Legs under robe -->
+  <rect x="5.2" y="10.8" width="1.6" height="4.8" rx="0.4" fill="#26334A" stroke="#263238" stroke-width="0.3"/>
+  <rect x="7.8" y="10.8" width="1.6" height="4.8" rx="0.4" fill="#26334A" stroke="#263238" stroke-width="0.3"/>
+
+  <!-- Upper body group: leaning RIGHT -->
+  <g transform="translate(8,7.5) rotate(8) translate(-8,-7.5)">
+    <!-- Robe (long flowing) - wider at bottom -->
+    <path d="M 4.8,4.8 L 4.2,11.5 L 6,13 L 10.5,13 L 10.8,5" fill="#4B2E7A" stroke="#263238" stroke-width="0.4"/>
+
+    <!-- Torso upper (robe) -->
+    <rect x="5" y="4.5" width="4" height="6" rx="0.8" fill="#4B2E7A" stroke="#263238" stroke-width="0.4"/>
+
+    <!-- Head -->
+    <ellipse cx="7.5" cy="3.2" rx="2.4" ry="2.6" fill="#FFDBB4" stroke="#263238" stroke-width="0.4"/>
+
+    <!-- Pointy mage hat (tall cone + brim) -->
+    <!-- Brim -->
+    <rect x="4.5" y="1.4" width="5.5" height="1" rx="0.2" fill="#3C1F66" stroke="#263238" stroke-width="0.3"/>
+    <!-- Cone (tall) -->
+    <path d="M 5.1,1.5 L 7.5,-0.8 L 10.1,1.5" fill="#3C1F66" stroke="#263238" stroke-width="0.3"/>
+
+    <!-- Eye (on right side of head - looking right) -->
+    <circle r="0.45" cx="9.1" cy="3" fill="#1C2C38"/>
+
+    <!-- Sleeve / arm holding staff -->
+    <path d="M 8.9,5.5 L 11.4,7.2" fill="transparent" stroke="#FFDBB4" stroke-width="1.6" stroke-linecap="round"/>
+
+    <!-- Staff (wooden, on right side) - tall vertical -->
+    <line x1="12" y1="12.5" x2="12" y2="1.2" stroke="#8B5A2B" stroke-width="0.85" stroke-linecap="round"/>
+
+    <!-- Magic crystal orb at top of staff -->
+    <circle cx="12" cy="1.1" r="1" fill="#00E5FF" stroke="#263238" stroke-width="0.3"/>
+    <!-- Subtle orb highlight -->
+    <circle cx="11.7" cy="0.8" r="0.35" fill="#FFFFFF" opacity="0.6"/>
+  </g>
+</svg>

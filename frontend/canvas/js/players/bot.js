@@ -1,14 +1,15 @@
 import { Player } from "./player.js";
 import { Arrow } from "../projectiles/arrow.js";
-import { DumbAI } from "../ai/dumb.js"; // Default fallback
+import { DumbAI } from "../ai/dumb.js";
 
 /**
  * AI-controlled Entity.
  * Delegates logic to an AIStrategy.
  */
 export class Bot extends Player {
-  constructor(x, y, width, height) {
-    super(x, y, width, height, "red", 60, 200); 
+  // CORRECTED: Constructor now accepts 'color' and passes it to super()
+  constructor(x, y, width, height, color = "red") {
+    super(x, y, width, height, color, 60, 200); 
     this.damage = 15;
     this.timer = 0;
 

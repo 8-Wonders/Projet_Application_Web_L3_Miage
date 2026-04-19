@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 16 16">
+  <!-- Archer looking LEFT (body leaning left) - mirrored + mirrored lean -->
+  <g transform="scale(-1,1) translate(-16,0)">
+    <!-- Legs (mirrored) -->
+    <!-- Original left leg becomes right after mirror -->
+    <rect x="5.2" y="10.8" width="1.6" height="4.8" rx="0.4" fill="#26334A" stroke="#263238" stroke-width="0.3"/>
+    <!-- Original right leg becomes left after mirror -->
+    <rect x="7.8" y="10.8" width="1.6" height="4.8" rx="0.4" fill="#26334A" stroke="#263238" stroke-width="0.3"/>
+
+    <!-- Upper body group: leaning LEFT (counter-clockwise after mirror) -->
+    <g transform="translate(8,7.5) rotate(-8) translate(-8,-7.5)">
+      <!-- Quiver on back (now appears on right side after mirror) -->
+      <rect x="3.5" y="4" width="1.8" height="6.5" rx="0.2" fill="#5C4033" stroke="#263238" stroke-width="0.4"/>
+      <!-- Quiver arrows -->
+      <line x1="4" y1="4.5" x2="4.9" y2="8" stroke="#E0B07A" stroke-width="0.25"/>
+      <line x1="4.3" y1="5.5" x2="5.2" y2="9" stroke="#E0B07A" stroke-width="0.25"/>
+
+      <!-- Torso (leather armor) -->
+      <rect x="5" y="4.5" width="4" height="6.5" rx="0.8" fill="#A0522D" stroke="#263238" stroke-width="0.4"/>
+
+      <!-- Head -->
+      <ellipse cx="7.5" cy="3.2" rx="2.4" ry="2.6" fill="#FFDBB4" stroke="#263238" stroke-width="0.4"/>
+
+      <!-- Hood / cap -->
+      <path d="M4.8,1.5 L5,2.8 L10.2,2.8 L10.1,1.8 L8.5,0.8 Z" fill="#2C3E50" stroke="#263238" stroke-width="0.3"/>
+
+      <!-- Eye (now on left side of head after mirror - looking left) -->
+      <circle r="0.45" cx="9.1" cy="3" fill="#1C2C38"/>
+
+      <!-- Bow arm (holding bow) -->
+      <path d="M 8.8,5.5 L 10.5,7" fill="transparent" stroke="#FFDBB4" stroke-width="1.6" stroke-linecap="round"/>
+
+      <!-- Bow stave (curved, now on left side after mirror) -->
+      <path d="M 10.2,2.5 Q 13.5,2.8 13.8,5.5 Q 14,9 13.5,11.5 Q 12.8,13 10.5,12.5" fill="transparent" stroke="#4A2C1F" stroke-width="1.05" stroke-linejoin="round"/>
+
+      <!-- Bow string -->
+      <line x1="10.5" y1="2.8" x2="10.9" y2="12" stroke="#1F2A38" stroke-width="0.35"/>
+
+      <!-- Arrow (now pointing LEFT after mirror) -->
+      <!-- Shaft -->
+      <line x1="11" y1="7.6" x2="15.2" y2="7.6" stroke="#E5C18E" stroke-width="0.35"/>
+      <!-- Fletching -->
+      <path d="M 11.1,7.6 L 9.9,6.4 L 11.1,7.6 L 9.9,8.8 Z" fill="#E03E3E" stroke="none"/>
+      <!-- Arrowhead (pointing left) -->
+      <polygon points="15.2,7.1 16,7.6 15.2,8.1" fill="#263238"/>
+    </g>
+  </g>
+</svg>
