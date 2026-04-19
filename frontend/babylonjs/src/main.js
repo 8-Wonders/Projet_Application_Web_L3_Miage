@@ -28,6 +28,12 @@ import { generateFEN } from "./game/fen.js";
 import { EngineClient } from "./game/engine-client.js";
 import { gemIcon } from "./ui/icons.js";
 import { UIManager } from "./ui/ui-manager.js";
+import { Board } from "./domain/Board.js";
+import { GameState } from "./domain/GameState.js";
+import { Shop } from "./domain/Shop.js";
+import { CombatRecord } from "./domain/CombatRecord.js";
+import { AIService } from "./services/AIService.js";
+import { ReviewService } from "./services/ReviewService.js";
 
 const canvas = document.getElementById("renderCanvas");
 const engine = new Engine(canvas, true, { audioEngine: true });
@@ -42,11 +48,7 @@ let previewScene = null;
 let previewRoot = null;
 let previewCamera = null;
 
-let detailedHistory = [];
-let battleEndPlacedPieces = new Map();
-let savedNextRoundPieces = new Map();
-let currentPlyIndex = 0;
-let isReviewing = false;
+const combatRecord = new CombatRecord();
 
 // ── Timer UI ──────────────────────────────────────────────────────────────────
 const timerContainer = document.createElement("div");
@@ -338,116 +340,96 @@ const createScene = async () => {
   };
 
   // ── Player state ──────────────────────────────────────────────────────────
-  const playerState = { gold: 10, hp: 100, level: 1 };
+  const playerState = new GameState({ gold: 10, hp: 100, level: 1 });
 
   // ── Shop tier system ──────────────────────────────────────────────────────
-  const MAX_SHOP_TIER = 5;
-  let shopTier = 1;
+  const shop = new Shop({ pieceDefs, tier: 1, maxTier: 5 });
 
   /**
    * Upgrade cost starts at 5 gold on round 1 and decreases by 1 each round,
    * bottoming out at 2 gold (same formula as Hearthstone Battlegrounds).
    */
-  const getUpgradeCost = () => Math.max(2, 6 - playerState.level);
+  const getUpgradeCost = () => shop.getUpgradeCost(playerState.level);
   // ─────────────────────────────────────────────────────────────────────────
 
-  const placedPieces = new Map();
-  const budgets = {
-    white: getPlayerTotalGold(playerState.level),
-    black: getAIBudget(playerState.gold),
-  };
-  const counts = {
-    white: Object.fromEntries(Object.keys(pieceDefs).map((k) => [k, 0])),
-    black: Object.fromEntries(Object.keys(pieceDefs).map((k) => [k, 0])),
-  };
-
-  let currentShop = [null, null, null, null, null];
-
+  const board = new Board({ pieceDefs });
+  const aiService = new AIService({ pieceDefs });
+  const reviewService = new ReviewService({ combatRecord });
+  board.setBudget("white", getPlayerTotalGold(playerState.level));
+  board.setBudget("black", getAIBudget(playerState.gold));
+  const placedPieces = board.placedPieces;
+  const budgets = board.budgets;
+  const counts = board.counts;
   // Generate a fresh shop from pieces available at the current tier
   const generateShopItems = () => {
-    currentShop = [];
-    const available = Object.keys(pieceDefs).filter(
-      (p) => pieceDefs[p].tier <= shopTier,
-    );
-    for (let i = 0; i < 5; i++) {
-      currentShop.push(available[Math.floor(Math.random() * available.length)]);
-    }
+    shop.generate();
     uiManager.clearShopSelection();
-    uiManager.renderShop(currentShop, playerState, shopTier, getUpgradeCost());
+    uiManager.renderShop(shop.currentShop, playerState, shop.tier, getUpgradeCost());
   };
 
   // ── Upgrade shop ──────────────────────────────────────────────────────────
   const upgradeShop = () => {
-    if (shopTier >= MAX_SHOP_TIER) return;
-    const cost = getUpgradeCost();
-    if (playerState.gold < cost) {
+    if (shop.tier >= shop.maxTier) return;
+    if (!shop.upgrade(playerState)) {
       uiManager.showToast("Not enough gold to upgrade the shop!");
       return;
     }
-    playerState.gold -= cost;
-    shopTier++;
-    generateShopItems(); // regenerate with new tier; updates gold display too
     uiManager.showToast(
-      `Shop upgraded to Tier ${shopTier}! Stronger pieces unlocked.`,
+      `Shop upgraded to Tier ${shop.tier}! Stronger pieces unlocked.`,
     );
+    uiManager.clearShopSelection();
+    uiManager.renderShop(shop.currentShop, playerState, shop.tier, getUpgradeCost());
   };
   uiManager.onUpgradeShop = upgradeShop;
 
   // ── Review playback ───────────────────────────────────────────────────────
   const exitReviewMode = () => {
-    if (!isReviewing) return;
-    isReviewing = false;
+    const nextRoundSnapshot = reviewService.exitReview(placedPieces);
+    if (!nextRoundSnapshot) return;
 
     placedPieces.forEach((entry, sq) => {
       if (!sq.startsWith("bench")) entry.root.setEnabled(false);
     });
 
     placedPieces.clear();
-    savedNextRoundPieces.forEach((entry, sq) => {
+    nextRoundSnapshot.forEach((entry, sq) => {
       placedPieces.set(sq, entry);
       if (!sq.startsWith("bench")) entry.root.setEnabled(true);
     });
 
-    currentPlyIndex = detailedHistory.length;
     uiManager.updatePlaybackUI(
-      currentPlyIndex,
-      detailedHistory.length,
-      isReviewing,
+      combatRecord.currentPlyIndex,
+      combatRecord.length,
+      combatRecord.isReviewing,
     );
   };
 
   // ── Buy from shop ─────────────────────────────────────────────────────────
   const buyFromShop = (shopIndex) => {
-    if (isReviewing) exitReviewMode();
-    const type = currentShop[shopIndex];
+    if (combatRecord.isReviewing) exitReviewMode();
+    const type = shop.get(shopIndex);
     if (!type || !playerColor) return;
 
     const cost = pieceDefs[type].value;
-    if (playerState.gold < cost) {
+    if (!playerState.canAfford(cost)) {
       console.warn("Not enough gold!");
       return;
     }
 
-    let emptyBenchIndex = -1;
-    for (let i = 0; i < 8; i++) {
-      if (!placedPieces.has(`bench-${i}`)) {
-        emptyBenchIndex = i;
-        break;
-      }
-    }
+    const emptyBenchSquare = board.findFirstEmptyBenchSquare();
 
-    if (emptyBenchIndex !== -1) {
-      playerState.gold -= cost;
-      currentShop[shopIndex] = null;
+    if (emptyBenchSquare) {
+      playerState.deductGold(cost);
+      shop.markSold(shopIndex);
 
       selectedPiece = `${playerColor}-${type}`;
-      placePiece(`bench-${emptyBenchIndex}`);
+      placePiece(emptyBenchSquare);
       selectedPiece = null;
 
       uiManager.renderShop(
-        currentShop,
+        shop.currentShop,
         playerState,
-        shopTier,
+        shop.tier,
         getUpgradeCost(),
       );
     } else {
@@ -459,13 +441,13 @@ const createScene = async () => {
   uiManager.onBuyPiece = buyFromShop;
 
   uiManager.onReroll = () => {
-    if (isReviewing) exitReviewMode();
-    if (playerState.gold >= 2) {
-      playerState.gold -= 2;
-      generateShopItems();
-    } else {
+    if (combatRecord.isReviewing) exitReviewMode();
+    if (!shop.reroll(playerState)) {
       uiManager.showToast("Not enough gold to reroll!");
+      return;
     }
+    uiManager.clearShopSelection();
+    uiManager.renderShop(shop.currentShop, playerState, shop.tier, getUpgradeCost());
   };
 
   const positionBenchTiles = (color) => {
@@ -499,24 +481,18 @@ const createScene = async () => {
   };
 
   const getTileCoordinates = (squareId) => {
-    if (squareId.startsWith("bench-")) {
-      const col = parseInt(squareId.split("-")[1], 10);
+    const coords = board.getTileCoordinates(squareId);
+    if (coords.isBench) {
       return {
-        isBench: true,
-        row: -1,
-        col,
+        ...coords,
         zPos: getBenchZPosForColor(playerColor || "white"),
       };
     }
-    const [row, col] = squareId.split("-").map(Number);
-    return { isBench: false, row, col, zPos: row };
+    return coords;
   };
 
-  const isAllowedPlacement = (color, squareId) => {
-    const coords = getTileCoordinates(squareId);
-    if (coords.isBench) return color === playerColor;
-    return color === "white" ? coords.row >= 4 : coords.row <= 3;
-  };
+  const isAllowedPlacement = (color, squareId) =>
+    board.isAllowedPlacement(color, squareId);
 
   const placePiece = (squareId) => {
     if (!selectedPiece) return;
@@ -572,7 +548,7 @@ const createScene = async () => {
     });
 
     if (color === aiColor) {
-      budgets[color] -= def.value;
+      board.adjustBudget(color, -def.value);
       counts[color][type] += 1;
     }
 
@@ -660,36 +636,20 @@ const createScene = async () => {
     analysisFillEl.style.height = `${Math.round(Math.min(0.98, Math.max(0.02, ratio)) * 100)}%`;
   };
 
-  // ── AI placement – respects current shopTier ──────────────────────────────
+  // ── AI placement – respects current shop tier ─────────────────────────────
   const randomizeAI = () => {
     if (!aiColor) return;
     clearColor(aiColor);
+    board.setBudget("black", getAIBudget(playerState.gold));
+    board.resetCounts(aiColor);
 
-    const squares = tiles
-      .map((t) => t.metadata.squareId)
-      .filter((sq) => isAllowedPlacement(aiColor, sq));
+    const placements = aiService.planPlacement({
+      color: aiColor,
+      board,
+      shopTier: shop.tier,
+    });
 
-    // Shuffle
-    for (let i = squares.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [squares[i], squares[j]] = [squares[j], squares[i]];
-    }
-
-    squares.forEach((squareId) => {
-      const affordable = Object.entries(pieceDefs).filter(([type, def]) => {
-        if (def.tier > shopTier) return false; // ← tier gate
-        const coords = getTileCoordinates(squareId);
-        if (
-          type === "pawn" &&
-          !coords.isBench &&
-          (coords.row === 0 || coords.row === 7)
-        )
-          return false;
-        return counts[aiColor][type] < def.max && budgets[aiColor] >= def.value;
-      });
-      if (!affordable.length) return;
-
-      const [type] = affordable[Math.floor(Math.random() * affordable.length)];
+    placements.forEach(({ squareId, type }) => {
       selectedPiece = `${aiColor}-${type}`;
       placePiece(squareId);
     });
@@ -701,6 +661,7 @@ const createScene = async () => {
   const setSide = (color) => {
     playerColor = color;
     aiColor = color === "white" ? "black" : "white";
+    board.setPlayerColor(playerColor);
     uiManager.setPlayerColor(playerColor);
     uiManager.setSidePickerVisible(false);
     selectedPiece = null;
@@ -710,14 +671,12 @@ const createScene = async () => {
     placedPieces.forEach((e) => e.root.dispose());
     placedPieces.clear();
 
-    budgets.white = getPlayerTotalGold(playerState.level);
-    budgets.black = getAIBudget(playerState.gold);
-    Object.keys(counts.white).forEach((k) => {
-      counts.white[k] = 0;
-      counts.black[k] = 0;
-    });
+    board.setBudget("white", getPlayerTotalGold(playerState.level));
+    board.setBudget("black", getAIBudget(playerState.gold));
+    board.resetCounts("white");
+    board.resetCounts("black");
 
-    uiManager.renderShop(currentShop, playerState, shopTier, getUpgradeCost());
+    uiManager.renderShop(shop.currentShop, playerState, shop.tier, getUpgradeCost());
     randomizeAI();
   };
 
@@ -881,12 +840,11 @@ const createScene = async () => {
     updateAnalysisBar();
 
     moveHistory.push(move);
-    detailedHistory.push(historyRecord);
-    currentPlyIndex = detailedHistory.length;
+    combatRecord.push(historyRecord);
     uiManager.updatePlaybackUI(
-      currentPlyIndex,
-      detailedHistory.length,
-      isReviewing,
+      combatRecord.currentPlyIndex,
+      combatRecord.length,
+      combatRecord.isReviewing,
     );
     desyncRetries = 0;
 
@@ -911,15 +869,14 @@ const createScene = async () => {
       uiManager.showToast("Wait for the round to end to review moves!");
       return;
     }
-    if (currentPlyIndex <= 0) return;
+    if (!reviewService.canUndo({ gameInProgress })) return;
 
-    if (!isReviewing) {
-      savedNextRoundPieces = new Map(placedPieces);
+    if (reviewService.ensureReviewSnapshot(placedPieces)) {
       placedPieces.forEach((e, sq) => {
         if (!sq.startsWith("bench")) e.root.setEnabled(false);
       });
       placedPieces.clear();
-      battleEndPlacedPieces.forEach((e, sq) => {
+      combatRecord.battleEndPlacedPieces.forEach((e, sq) => {
         placedPieces.set(sq, e);
         if (!sq.startsWith("bench")) e.root.setEnabled(true);
       });
@@ -932,9 +889,9 @@ const createScene = async () => {
       capturedPiece,
       enPassantSq,
       promotionInfo,
-    } = detailedHistory[currentPlyIndex - 1];
+    } = reviewService.getPreviousMove();
     const fromCoord = fromAlgebraic(
-      detailedHistory[currentPlyIndex - 1].move.substring(0, 2),
+      reviewService.getPreviousMove().move.substring(0, 2),
     );
 
     pieceMoved.root.setEnabled(true);
@@ -959,12 +916,12 @@ const createScene = async () => {
       placedPieces.set(restoreSq, capturedPiece);
     }
 
-    currentPlyIndex--;
-    isReviewing = true;
+    reviewService.stepBackward();
+    combatRecord.enterReview();
     uiManager.updatePlaybackUI(
-      currentPlyIndex,
-      detailedHistory.length,
-      isReviewing,
+      combatRecord.currentPlyIndex,
+      combatRecord.length,
+      combatRecord.isReviewing,
     );
     playSound(sounds.move);
   };
@@ -974,15 +931,14 @@ const createScene = async () => {
       uiManager.showToast("Wait for the round to end to review moves!");
       return;
     }
-    if (currentPlyIndex >= detailedHistory.length) return;
+    if (!reviewService.canRedo({ gameInProgress })) return;
 
-    if (!isReviewing) {
-      savedNextRoundPieces = new Map(placedPieces);
+    if (reviewService.ensureReviewSnapshot(placedPieces)) {
       placedPieces.forEach((e, sq) => {
         if (!sq.startsWith("bench")) e.root.setEnabled(false);
       });
       placedPieces.clear();
-      battleEndPlacedPieces.forEach((e, sq) => {
+      combatRecord.battleEndPlacedPieces.forEach((e, sq) => {
         placedPieces.set(sq, e);
         if (!sq.startsWith("bench")) e.root.setEnabled(true);
       });
@@ -995,9 +951,9 @@ const createScene = async () => {
       capturedPiece,
       enPassantSq,
       promotionInfo,
-    } = detailedHistory[currentPlyIndex];
+    } = reviewService.getNextMove();
     const toCoord = fromAlgebraic(
-      detailedHistory[currentPlyIndex].move.substring(2, 4),
+      reviewService.getNextMove().move.substring(2, 4),
     );
 
     if (capturedPiece) {
@@ -1022,23 +978,23 @@ const createScene = async () => {
     placedPieces.delete(fromSq);
     placedPieces.set(toSq, pieceMoved);
 
-    currentPlyIndex++;
-    isReviewing = true;
+    reviewService.stepForward();
+    combatRecord.enterReview();
     uiManager.updatePlaybackUI(
-      currentPlyIndex,
-      detailedHistory.length,
-      isReviewing,
+      combatRecord.currentPlyIndex,
+      combatRecord.length,
+      combatRecord.isReviewing,
     );
     playSound(sounds.move);
   };
 
   const goToFirstMove = () => {
-    if (!gameInProgress && detailedHistory.length > 0)
-      while (currentPlyIndex > 0) undoMove();
+    if (!gameInProgress && combatRecord.length > 0)
+      while (combatRecord.currentPlyIndex > 0) undoMove();
   };
   const goToLastMove = () => {
-    if (!gameInProgress && detailedHistory.length > 0)
-      while (currentPlyIndex < detailedHistory.length) redoMove();
+    if (!gameInProgress && combatRecord.length > 0)
+      while (combatRecord.currentPlyIndex < combatRecord.length) redoMove();
   };
 
   // ── Combat end ────────────────────────────────────────────────────────────
@@ -1057,8 +1013,8 @@ const createScene = async () => {
 
     if (timeout) {
       if (!playerWon) {
-        playerState.hp -= damageTaken;
-        if (playerState.hp <= 0) {
+        playerState.takeDamage(damageTaken);
+        if (playerState.isDefeated()) {
           dialogTitle = "Game Over";
           dialogText = `Time's up! You survived to Round ${playerState.level}.`;
           onCloseCallback = () => location.reload();
@@ -1071,8 +1027,8 @@ const createScene = async () => {
         dialogText = "Time's up! Black lost on time. You won the round!";
       }
     } else if (!playerWon && damageTaken > 0) {
-      playerState.hp -= damageTaken;
-      if (playerState.hp <= 0) {
+      playerState.takeDamage(damageTaken);
+      if (playerState.isDefeated()) {
         dialogTitle = "Game Over";
         dialogText = `Your HP dropped to 0! You survived to Round ${playerState.level}.`;
         onCloseCallback = () => location.reload();
@@ -1091,11 +1047,10 @@ const createScene = async () => {
     uiManager.showDialog(dialogTitle, dialogText, onCloseCallback);
 
     // Advance round
-    playerState.level += 1;
-    playerState.gold += 5;
+    playerState.advanceRound();
 
     // Snapshot board for playback
-    battleEndPlacedPieces = new Map(placedPieces);
+    combatRecord.snapshotBattleEnd(placedPieces);
 
     // Clear combat pieces (keep player bench)
     const toRemove = [];
@@ -1121,8 +1076,8 @@ const createScene = async () => {
     generateShopItems();
 
     // Refresh AI
-    budgets.black = getAIBudget(playerState.gold);
-    Object.keys(counts.black).forEach((k) => (counts.black[k] = 0));
+    board.setBudget("black", getAIBudget(playerState.gold));
+    board.resetCounts("black");
     randomizeAI();
   };
 
@@ -1202,7 +1157,7 @@ const createScene = async () => {
 
   // ── Start battle ──────────────────────────────────────────────────────────
   uiManager.onStartBattle = () => {
-    if (isReviewing) exitReviewMode();
+    if (combatRecord.isReviewing) exitReviewMode();
     if (gameInProgress) return;
 
     let hasBoardPieces = false;
@@ -1218,13 +1173,13 @@ const createScene = async () => {
 
     if (!hasBoardPieces) {
       // Find the cheapest piece currently available in the shop
-      const cheapestShopPrice = currentShop.reduce((min, type) => {
+      const cheapestShopPrice = shop.currentShop.reduce((min, type) => {
         if (!type) return min;
         return Math.min(min, pieceDefs[type].value);
       }, Infinity);
 
       // SOFTLOCK CHECK: If they have no pieces anywhere and can't buy anything
-      if (!hasBenchPieces && playerState.gold < cheapestShopPrice) {
+      if (!hasBenchPieces && !playerState.canAfford(cheapestShopPrice)) {
         uiManager.showToast("No pieces and out of gold! Forfeiting the round...");
         resolveAnnihilation(); // Instantly totals AI board value and deals damage
         return;
@@ -1241,9 +1196,7 @@ const createScene = async () => {
     noMoveCount = 0;
     lastEvalScore = null;
 
-    detailedHistory = [];
-    currentPlyIndex = 0;
-    isReviewing = false;
+    combatRecord.reset();
     uiManager.setPlaybackVisible(true);
     uiManager.updatePlaybackUI(0, 0, false);
     setAnalysisVisible(true);
@@ -1306,7 +1259,7 @@ const createScene = async () => {
   document.addEventListener("keydown", (e) => {
     if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key))
       e.preventDefault();
-    if (!gameInProgress && detailedHistory.length === 0) return;
+    if (!gameInProgress && combatRecord.length === 0) return;
     if (e.key === "ArrowLeft") undoMove();
     if (e.key === "ArrowRight") redoMove();
     if (e.key === "ArrowUp") goToFirstMove();
@@ -1316,7 +1269,7 @@ const createScene = async () => {
   // ── Other UI callbacks ────────────────────────────────────────────────────
   uiManager.onPickSide = (color) => setSide(color);
   uiManager.onClearBoard = () => {
-    if (isReviewing) exitReviewMode();
+    if (combatRecord.isReviewing) exitReviewMode();
     if (playerColor) moveColorToBench(playerColor);
   };
   uiManager.onPieceSelected = (pieceId) => {
@@ -1336,7 +1289,7 @@ const createScene = async () => {
     const isMove = pointerInfo.type === PointerEventTypes.POINTERMOVE;
     if (!isDown && !isUp && !isMove) return;
 
-    if (isDown && isReviewing) exitReviewMode();
+    if (isDown && combatRecord.isReviewing) exitReviewMode();
 
     if (!scene.metadata) scene.metadata = {};
     if (!scene.metadata.dragState) {
@@ -1435,12 +1388,12 @@ const createScene = async () => {
       const py = pointerInfo.event?.clientY ?? 0;
 
       if (uiManager.isPointerOverSellZone(px, py)) {
-        playerState.gold += dragState.sellValue;
+        playerState.addGold(dragState.sellValue);
         removePiece(dragState.fromSq);
         uiManager.renderShop(
-          currentShop,
+          shop.currentShop,
           playerState,
-          shopTier,
+          shop.tier,
           getUpgradeCost(),
         );
         playSound(sounds.capture);
