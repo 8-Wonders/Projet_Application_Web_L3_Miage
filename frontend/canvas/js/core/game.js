@@ -1,3 +1,10 @@
+/**
+ * @module game
+ * @description The core engine orchestrator. Manages the global state machine, asset initialization, 
+ * timing accumulation, and the primary RequestAnimationFrame loop. Bridges DOM UI interactions 
+ * with the underlying Canvas rendering and physics pipelines.
+ */
+
 import { AssetLoader } from "../../../common/assetLoader.js";
 import { keys, handleInput } from "../input.js";
 import { UIManager } from "./ui_manager.js";
@@ -7,6 +14,10 @@ import { Bot } from "../players/bot.js";
 import { LEVEL_CONFIG } from "./levels.js"; 
 import { ScoreService } from "../services/score.js"; 
 
+/**
+ * @enum {number}
+ * @description Strict enumeration of global engine states to control update/render pathing.
+ */
 export const GAME_STATE = {
   MENU: 0,
   PLAYING: 1,
@@ -15,31 +26,45 @@ export const GAME_STATE = {
   VICTORY: 4,
 };
 
+/**
+ * Primary Game Controller.
+ * Binds all subsystems (UI, Map, Entities, Turn Management) and executes the main game loop.
+ */
 export class Game {
   constructor() {
     this.canvas = document.querySelector("canvas");
     this.ctx = this.canvas.getContext("2d");
     this.tileSize = 50;
     
+    // Subsystem Instantiation
     this.loader = new AssetLoader();
     this.ui = new UIManager(this.canvas, this.ctx);
     this.levelManager = new LevelManager(this.loader, this.tileSize);
     this.turnManager = new TurnManager();
 
+    // Engine State
     this.currentState = GAME_STATE.MENU;
     this.currentLevelIdx = 1; 
     this.players = [];
     this.map = null;
     this.selectedClass = null; 
     
+    // Telemetry & Scoring
     this.startTime = 0;
     this.accumulatedTime = 0; 
 
+    // Context binding for callbacks and asynchronous handlers
     this.loop = this.loop.bind(this);
     this.submitScore = this.submitScore.bind(this);
     this.startGame = this.startGame.bind(this);
   }
 
+  /**
+   * Bootstraps the engine. Queues assets, awaits network resolution, 
+   * binds event listeners, and kickstarts the render loop.
+   * * @async
+   * @returns {Promise<void>}
+   */
   async init() {
     this._queueAssets();
     await this.loader.loadAll();
@@ -58,31 +83,42 @@ export class Game {
     this.loop();
   }
 
+  /**
+   * Registers required graphical assets into the loader's queue before resolution.
+   * @private
+   */
   _queueAssets() {
     const assets = [
-	  "assets/grass.png", // ID 0
-      "assets/brick.png", // ID 1
-      "assets/water.png", // ID 2
-      "assets/stone.png"  // ID 3
+	  "assets/png/grass.png", // ID 0
+      "assets/png/brick.png", // ID 1
+      "assets/png/water.png", // ID 2
+      "assets/png/stone.png"  // ID 3
     ];
     assets.forEach((path, idx) => this.loader.addImage(idx, path));
 
-	this.loader.addImage("archer_0", "assets/archer_0.png");
-    this.loader.addImage("archer_1", "assets/archer_1.png");
-    this.loader.addImage("mage_0", "assets/mage_0.png");
-    this.loader.addImage("mage_1", "assets/mage_1.png");
-    this.loader.addImage("goblin_0", "assets/goblin_0.png");
-    this.loader.addImage("goblin_1", "assets/goblin_1.png");
-    this.loader.addImage("dragon_0", "assets/dragon_0.png");
-    this.loader.addImage("dragon_1", "assets/dragon_1.png");
+	this.loader.addImage("archer_0", "assets/png/archer_0.png");
+    this.loader.addImage("archer_1", "assets/png/archer_1.png");
+    this.loader.addImage("mage_0", "assets/png/mage_0.png");
+    this.loader.addImage("mage_1", "assets/png/mage_1.png");
+    this.loader.addImage("goblin_0", "assets/png/goblin_0.png");
+    this.loader.addImage("goblin_1", "assets/png/goblin_1.png");
+    this.loader.addImage("dragon_0", "assets/png/dragon_0.png");
+    this.loader.addImage("dragon_1", "assets/png/dragon_1.png");
   }
 
+  /**
+   * Subscribes to window dimension changes to maintain canvas aspect ratios and bounding boxes.
+   */
   setupResizeHandlers() {
     window.addEventListener("resize", () => {
       this.resize(this.currentState !== GAME_STATE.PLAYING);
     });
   }
 
+  /**
+   * Dynamically adjusts the canvas resolution and viewport CSS scaling.
+   * @param {boolean} [fullscreen=true] - If true, spans the entire viewport. If false, scales to map bounds.
+   */
   resize(fullscreen = true) {
     if (fullscreen) {
       this.canvas.width = window.innerWidth;
@@ -105,6 +141,10 @@ export class Game {
     this.ui.resize(this.canvas.width, this.canvas.height);
   }
 
+  /**
+   * Binds global I/O interceptors for mouse and keyboard.
+   * Delegates specific input processing to the currently active entity during the PLAYING state.
+   */
   setupInputs() {
     this.canvas.addEventListener("click", (e) => this.handleMouseClick(e));
     
@@ -123,6 +163,10 @@ export class Game {
     });
   }
 
+  /**
+   * Translates viewport mouse coordinates to internal canvas space and delegates interaction logic.
+   * @param {MouseEvent} e - The native browser click event.
+   */
   handleMouseClick(e) {
     const rect = this.canvas.getBoundingClientRect();
     const mx = (e.clientX - rect.left) * (this.canvas.width / rect.width);
@@ -137,6 +181,10 @@ export class Game {
     }
   }
 
+  /**
+   * Initializes a new session sequence, resetting global timers and caching the chosen class.
+   * @param {string} playerClass - The logical identifier for the user's chosen avatar (e.g., "mage").
+   */
   async startGame(playerClass) {
     console.log("Starting Game with class:", playerClass);
     
@@ -149,6 +197,9 @@ export class Game {
     await this.startLevel(this.currentLevelIdx);
   }
 
+  /**
+   * Reverts the engine to a baseline idle state, exposing the main HTML DOM menu.
+   */
   returnToMenu() {
     this.currentState = GAME_STATE.MENU;
     this.ui.toggleVictoryScreen(false); 
@@ -156,6 +207,11 @@ export class Game {
     this.resize(true);
   }
 
+  /**
+   * Tears down previous level state and asynchronously builds the requested topology and entity registry.
+   * Initiates a forced transition delay for UX pacing.
+   * * @param {number} levelNum - The integer identifier from LEVEL_CONFIG.
+   */
   async startLevel(levelNum) {
     this.currentState = GAME_STATE.LEVEL_TRANSITION;
     this.resize(true); 
@@ -175,6 +231,10 @@ export class Game {
     }, 2000);
   }
 
+  /**
+   * Evaluates progression. Either transitions to the next map or finalizes the session 
+   * into a victory state, halting gameplay telemetry.
+   */
   advanceLevel() {
     const currentLevelTime = Math.floor((Date.now() - this.startTime) / 1000);
     this.accumulatedTime += currentLevelTime;
@@ -189,6 +249,10 @@ export class Game {
     }
   }
 
+  /**
+   * Dispatches the finalized accumulated run time to the external backend service.
+   * @param {string} username - The user-provided string identifier for the leaderboard.
+   */
   async submitScore(username) {
     if (!username) {
         this.ui.updateStatusMessage("Please enter a username!", "red");
@@ -208,36 +272,47 @@ export class Game {
     }
   }
 
+  /**
+   * Primary logic pump. Processes physics steps, AI ticks, and turn evaluations 
+   * exclusively during the PLAYING state.
+   */
   update() {
     if (this.currentState !== GAME_STATE.PLAYING) return;
 
     const currentPlayer = this.turnManager.getCurrentPlayer(this.players);
     if (!currentPlayer) return;
 
+    // Active Entity Processing
     if (currentPlayer.health > 0) {
       if (currentPlayer instanceof Bot) {
+        // AI delegates directly to its strategy pattern
         const turnEnded = currentPlayer.updateBotLogic(this.map, this.players);
         currentPlayer.move({}, this.map, this.players); 
         if (turnEnded) this.turnManager.nextTurn(this.players);
       } else {
+        // Human player evaluates keyboard inputs
         currentPlayer.move(keys, this.map, this.players);
         if (currentPlayer.hasFired) {
           this.turnManager.nextTurn(this.players);
         }
       }
     } else {
+      // Pass turn immediately if the current entity died out-of-band (e.g. DoT effects)
       this.turnManager.nextTurn(this.players);
     }
 
+    // Passive Entity Processing (Physics updates for objects/players not currently acting)
     this.players.forEach(p => {
       if (p !== currentPlayer) {
         p.updateProjectiles(this.map, this.players);
+        // Force physics resolution if suspended mid-air or sliding
         if (!p.grounded || Math.abs(p.vx) > 0.1) {
           p.move({}, this.map, this.players);
         }
       }
     });
 
+    // Check Win/Loss Matrix
     const status = this.turnManager.checkGameState(this.players);
     
     if (status === WIN_STATE.PLAYER_DIED) {
@@ -248,6 +323,9 @@ export class Game {
     }
   }
 
+  /**
+   * Primary rendering pump. Dispatches draw calls to subsystems based on the current machine state.
+   */
   draw() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
@@ -259,6 +337,7 @@ export class Game {
         if (this.map) this.map.draw(this.ctx);
 
 		this.players.forEach(p => { 
+            // Cull dead entities from the render pipeline
             if (p.health > 0) p.draw(this.ctx, this.loader); 
         });
         
@@ -288,6 +367,9 @@ export class Game {
     }
   }
 
+  /**
+   * Standard browser animation loop wrapper. Maintains engine tick relative to screen refresh rate.
+   */
   loop() {
     this.update();
     this.draw();

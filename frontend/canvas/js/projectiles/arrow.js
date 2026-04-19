@@ -1,6 +1,21 @@
+/**
+ * @module arrow
+ * @description Standard ballistic projectile utilizing gravitational pull and dynamic vector rotation.
+ */
+
 import { Projectile } from "./projectile.js";
 
+/**
+ * Implements an arcing kinetic projectile.
+ * * @extends Projectile
+ */
 export class Arrow extends Projectile {
+  /**
+   * * @param {number} x 
+   * @param {number} y 
+   * @param {number} angle 
+   * @param {Player} owner 
+   */
   constructor(x, y, angle, owner) {
     super(x, y, angle, owner, 25);
     
@@ -8,21 +23,30 @@ export class Arrow extends Projectile {
     this.height = 4;
     this.color = "brown";
     
+    // Ballistic properties
     this.gravity = 0.25; 
     this.speed = 15; 
     
-    // Recalculate with new speed
+    // Recalculate with subclass-specific speed profile
     this.vx = Math.cos(angle) * this.speed;
     this.vy = Math.sin(angle) * this.speed;
   }
 
+  /**
+   * Intercepts the standard linear physics step to inject gravitational acceleration 
+   * and dynamically adjusts the sprite's rotation to align with the velocity vector.
+   * * @override
+   */
   updatePhysics() {
     this.vy += this.gravity;
     super.updatePhysics();
-    // Rotate to face trajectory
+    // Rotate to face trajectory using arc tangent of current velocity
     this.angle = Math.atan2(this.vy, this.vx);
   }
 
+  /**
+   * * @override
+   */
   draw(ctx) {
     if (!this.active) return;
     
@@ -53,6 +77,9 @@ export class Arrow extends Projectile {
     ctx.restore();
   }
 
+  /**
+   * * @override
+   */
   static drawIcon(ctx, x, y, size) {
     ctx.fillStyle = "#2a2a2a";
     ctx.fillRect(x, y, size, size);

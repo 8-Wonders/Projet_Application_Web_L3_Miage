@@ -1,3 +1,9 @@
+/**
+ * @module level_manager
+ * @description Utilizes the Factory Pattern to construct maps and populate the entity registry 
+ * based on deterministic JSON-like configuration files.
+ */
+
 import { Map } from "../map.js";
 import { Archer } from "../players/archer.js";
 import { Mage } from "../players/mage.js";
@@ -7,15 +13,22 @@ import { Dragon } from "../players/dragon.js";
 import { getLevelConfig } from "./levels.js";
 
 /**
- * Handles loading map files and creating entity instances (Players/Enemies).
+ * Handles the instantiation of topological data and discrete actors for a given stage.
  */
 export class LevelManager {
+  /**
+   * @param {AssetLoader} loader - Global caching utility for image resolution.
+   * @param {number} tileSize - The base scalar metric for grid initialization.
+   */
   constructor(loader, tileSize) {
     this.loader = loader;
     this.tileSize = tileSize;
 
-    // Unified Entity Factory Registry
-    // Maps string keys from levels.js and UI to actual Class constructors
+    /**
+     * @property {Object} entityTypes
+     * @description Unified Entity Factory Registry. Maps raw string identifiers from levels.js 
+     * and UI selections to their respective concrete Class constructors.
+     */
     this.entityTypes = {
       archer: Archer,
       mage: Mage,
@@ -26,7 +39,9 @@ export class LevelManager {
   }
 
   /**
-   * Loads the map data for a specific level ID.
+   * Asynchronously fetches and compiles the CSV topological data.
+   * * @param {number} levelNum - The integer level ID.
+   * @returns {Promise<Map|null>} An instantiated Map object, or null if the config is missing.
    */
   async loadLevelMap(levelNum) {
     const config = getLevelConfig(levelNum);
@@ -42,7 +57,11 @@ export class LevelManager {
   }
 
   /**
-   * Spawns the Main Player and all Enemies defined in the level config.
+   * Iterates through the level configuration to instantiate the player and all hostile actors,
+   * returning the master array consumed by the TurnManager.
+   * * @param {number} levelNum - The integer level ID.
+   * @param {string} playerClass - The user's selected string identifier (e.g., "mage").
+   * @returns {Array<Player>} The fully populated global entity registry.
    */
   createEntities(levelNum, playerClass) {
     const config = getLevelConfig(levelNum);
@@ -50,7 +69,7 @@ export class LevelManager {
 
     const entities = [];
 
-    // 1. Spawn Human Player
+    // 1. Spawn Human Player (Always index 0)
     const p1 = this._createPlayer(playerClass);
     if (p1) entities.push(p1);
 
@@ -59,7 +78,7 @@ export class LevelManager {
       const EnemyClass = this.entityTypes[enemyData.type];
 
       if (EnemyClass) {
-        // Standard entity constructor: x, y, tileSize, height
+        // Standard entity constructor: x, y, width, height
         const enemy = new EnemyClass(
             enemyData.x,
             enemyData.y,
@@ -76,7 +95,11 @@ export class LevelManager {
   }
 
   /**
-   * Factory method for the Human Player.
+   * Factory method isolating the instantiation logic of the primary user-controlled character.
+   * Includes a graceful fallback if an invalid class string is provided.
+   * * @private
+   * @param {string} className - Target class alias.
+   * @returns {Player} The constructed playable character.
    */
   _createPlayer(className) {
     // Default start position for the human player

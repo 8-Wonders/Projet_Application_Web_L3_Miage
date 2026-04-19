@@ -1,12 +1,24 @@
+/**
+ * @module ai_strategy
+ * @description Defines the abstract base class and core heuristics for Artificial Intelligence controllers.
+ */
+
 import { tilesTypes } from "../map.js";
 
 /**
- * Base Interface for AI logic.
- * All specific AI brains should extend this class.
+ * Base abstract class defining the contract for AI behaviors.
+ * Provides shared sensory algorithms (target acquisition, terrain analysis, raycasting) 
+ * utilized by specific behavioral implementations.
+ * * @abstract
  */
 export class AIStrategy {
   /**
-   * Main AI loop.
+   * The core decision-making loop, invoked per frame or tick.
+   * Subclasses MUST override this method to provide specific behavioral logic.
+   * * @param {Object} bot - The bot entity executing this strategy.
+   * @param {Map} map - The current map instance for spatial awareness.
+   * @param {Array<Object>} players - The global registry of all active entities (players/bots) in the match.
+   * @returns {boolean} True if the bot has completed an action that concludes its turn (e.g., firing), false otherwise.
    */
   update(bot, map, players) {
     console.warn("Base AI update called - override this method.");
@@ -14,7 +26,11 @@ export class AIStrategy {
   }
 
   /**
-   * Helper: Finds the nearest living enemy (Human Player).
+   * Analyzes the entity registry to locate the nearest hostile, human-controlled target.
+   * Evaluates Manhattan distance as a performant heuristic for proximity.
+   * * @param {Object} bot - The bot requesting target acquisition.
+   * @param {Array<Object>} players - The global registry of all active entities.
+   * @returns {Object|null} Returns the closest hostile entity, or null if no valid targets remain.
    */
   findTarget(bot, players) {
     let nearest = null;
@@ -38,7 +54,13 @@ export class AIStrategy {
   }
 
   /**
-   * Checks if moving in a direction is safe.
+   * Predictive collision detection. Simulates a horizontal movement vector to evaluate 
+   * environmental safety, preventing the bot from pathing into hazards (like water/pits) 
+   * or attempting to walk through solid geometry.
+   * * @param {Object} bot - The bot evaluating movement.
+   * @param {Map} map - The current map instance.
+   * @param {number} direction - The normalized movement vector (1 for Right, -1 for Left).
+   * @returns {boolean} True if the calculated trajectory resolves to a walkable, non-hazardous surface.
    */
   isSafe(bot, map, direction) {
     const tileSize = map.tileSize;
@@ -66,8 +88,15 @@ export class AIStrategy {
   }
 
   /**
-   * Raycast to check if a friendly bot is in the line of fire.
-   * Includes a larger SAFETY MARGIN to account for projectile width.
+   * Implements a linear raycast algorithm to evaluate the projected trajectory of an attack.
+   * Determines if a friendly entity intersects with the firing line before impacting the terrain 
+   * or the intended target. Prevents AI from executing friendly fire.
+   * * @param {Object} bot - The acting bot.
+   * @param {number} aimAngle - The calculated trajectory angle in radians.
+   * @param {Map} map - The current map instance for checking solid geometry occlusion.
+   * @param {Array<Object>} players - The registry of entities to check against the raycast.
+   * @param {Object} target - The primary target entity (ignored if intersected).
+   * @returns {boolean} True if a friendly unit is within the expanded hit volume of the trajectory.
    */
   isFriendInLineOfFire(bot, aimAngle, map, players, target) {
     const cx = bot.x + bot.width / 2;
