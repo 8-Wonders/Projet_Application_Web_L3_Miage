@@ -7,6 +7,7 @@ import { gameState } from './state.js';
 import { upgrades } from './upgrades.js';
 import { initUI, updateDisplay } from './ui.js';
 import { setupEventListeners } from './events.js';
+import { initScoreUI } from './score.js';
 
 /**
  * The core simulation tick. Executes mathematical aggregations for passive 
@@ -68,6 +69,7 @@ function gameLoop() {
 function initGame() {
     initUI();
     setupEventListeners();
+	initScoreUI();
     updateDisplay(0, 1);
     
     setInterval(gameLoop, 1000);
