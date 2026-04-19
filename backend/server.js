@@ -20,6 +20,13 @@ app.use(cors({
   credentials: true
 }));
 
+// Required for cross-origin isolated context (SharedArrayBuffer/workers).
+app.use((req, res, next) => {
+  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  next();
+});
+
 // Routes API
 app.use('/api/scores', scoresRouter);
 app.use('/api/auth', authRouter);
@@ -45,22 +52,15 @@ const babylonDistPath = path.join(babylonPath, 'dist');
 const babylonDistAssetsPath = path.join(babylonDistPath, 'assets');
 const babylonDistEnginePath = path.join(babylonDistPath, 'engine');
 
-// SharedArrayBuffer in chess worker requires a cross-origin isolated context.
-const setCrossOriginIsolation = (req, res, next) => {
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
-  next();
-};
-
 app.use(express.static(menuPath));
 app.use('/dom', express.static(domPath));
 app.use('/canvas', express.static(canvasPath));
 app.use('/common', express.static(commonPath));
-app.use('/babylonjs', setCrossOriginIsolation, express.static(babylonPath));
+app.use('/babylonjs', express.static(babylonPath));
 // Keep chess dist assets at root paths used by frontend/babylonjs/dist/index.html.
 // Declared after menu static so menu /assets can still resolve first.
-app.use('/assets', setCrossOriginIsolation, express.static(babylonDistAssetsPath));
-app.use('/engine', setCrossOriginIsolation, express.static(babylonDistEnginePath));
+app.use('/assets', express.static(babylonDistAssetsPath));
+app.use('/engine', express.static(babylonDistEnginePath));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Avoid noisy favicon 404 in browser console.
