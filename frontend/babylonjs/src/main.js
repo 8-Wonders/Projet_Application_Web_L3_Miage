@@ -5,1628 +5,682 @@ import {
   Vector3,
   HemisphericLight,
   MeshBuilder,
-  PointerEventTypes,
   StandardMaterial,
   Color3,
   TransformNode,
-  SceneLoader,
   Sound,
 } from "@babylonjs/core";
 import "@babylonjs/core/Audio/audioEngine";
 import "@babylonjs/loaders";
 import "./style.css";
 import {
-  pieceAssets,
   pieceDefs,
   pieceLabels,
   pieceMoves,
+  pieceAssets,
   pieceYawFix,
   pieceYOffset,
 } from "./piece-data.js";
-import { buildPieceLibrary, getBounds, normalizeMeshes } from "./pieces.js";
 import { generateFEN } from "./game/fen.js";
 import { EngineClient } from "./game/engine-client.js";
-import { gemIcon } from "./ui/icons.js";
 import { UIManager } from "./ui/ui-manager.js";
+import { Board } from "./domain/Board.js";
+import { GameState } from "./domain/GameState.js";
+import { Shop } from "./domain/Shop.js";
+import { CombatRecord } from "./domain/CombatRecord.js";
+import { AIService } from "./services/AIService.js";
+import { ReviewService } from "./services/ReviewService.js";
+import { BoardRenderer } from "./rendering/BoardRenderer.js";
+import { PreviewRenderer } from "./rendering/PreviewRenderer.js";
+import { TimerDisplay } from "./rendering/TimerDisplay.js";
+import { CombatService } from "./services/CombatService.js";
+import { DragController } from "./input/DragController.js";
 
 const canvas = document.getElementById("renderCanvas");
-const engine = new Engine(canvas, true, { audioEngine: true });
 const previewCanvas = document.getElementById("previewCanvas");
 const previewNameEl = document.getElementById("previewName");
-const analysisBarEl = document.getElementById("analysisBar");
-const analysisFillEl = document.getElementById("analysisFill");
-const uiManager = new UIManager({ pieceDefs, pieceLabels, pieceMoves });
-let previewEngine = null;
-let previewScene = null;
-let previewRoot = null;
-let previewCamera = null;
 
-let detailedHistory = []; 
-let battleEndPlacedPieces = new Map(); // Snapshot of placedPieces exactly at combat end
-let savedNextRoundPieces = new Map();  // Safely stores your next round setup during review
-let currentPlyIndex = 0;
-let isReviewing = false; 
+const getPlayerTotalGold = (level) => 10 + (level - 1) * 5;
+const getAIBudget = (playerGold) => playerGold + 2;
 
-// --- 3+0 Timer UI Setup ---
-const timerContainer = document.createElement("div");
-timerContainer.id = "chess-timers";
-timerContainer.style.position = "absolute";
-timerContainer.style.top = "20px";
-timerContainer.style.left = "50%";
-timerContainer.style.transform = "translateX(-50%)";
-timerContainer.style.display = "none";
-timerContainer.style.flexDirection = "row";
-timerContainer.style.gap = "12px";
-timerContainer.style.zIndex = "1000";
-timerContainer.style.fontFamily = "'Space Grotesk', monospace";
-timerContainer.style.fontSize = "20px";
-timerContainer.style.fontWeight = "600";
-timerContainer.style.pointerEvents = "none";
+class GameController {
+  constructor() {
+    this.engine = new Engine(canvas, true, { audioEngine: true });
+    this.uiManager = new UIManager({ pieceDefs, pieceLabels, pieceMoves });
+    this.playerState = new GameState({ gold: 10, hp: 100, level: 1 });
+    this.board = new Board({ pieceDefs });
+    this.shop = new Shop({ pieceDefs, tier: 1, maxTier: 5 });
+    this.combatRecord = new CombatRecord();
+    this.aiService = new AIService({ pieceDefs });
+    this.reviewService = new ReviewService({ combatRecord: this.combatRecord });
 
-const blackTimerEl = document.createElement("div");
-blackTimerEl.style.backgroundColor = "rgba(17, 24, 42, 0.85)";
-blackTimerEl.style.color = "#8ea1c8";
-blackTimerEl.style.padding = "6px 14px";
-blackTimerEl.style.borderRadius = "12px";
-blackTimerEl.style.border = "1px solid #2a3555";
-blackTimerEl.style.backdropFilter = "blur(8px)";
-blackTimerEl.style.boxShadow = "0 4px 15px rgba(0,0,0,0.4)";
-blackTimerEl.innerText = "[03:00]";
+    this.scene = null;
+    this.camera = null;
+    this.previewRenderer = null;
+    this.boardRenderer = null;
+    this.timerDisplay = null;
+    this.combatService = null;
+    this.dragController = null;
+    this.benchTiles = [];
 
-const whiteTimerEl = document.createElement("div");
-whiteTimerEl.style.backgroundColor = "rgba(17, 24, 42, 0.85)";
-whiteTimerEl.style.color = "#e5e7ef";
-whiteTimerEl.style.padding = "6px 14px";
-whiteTimerEl.style.borderRadius = "12px";
-whiteTimerEl.style.border = "1px solid #2a3555";
-whiteTimerEl.style.backdropFilter = "blur(8px)";
-whiteTimerEl.style.boxShadow = "0 4px 15px rgba(0,0,0,0.4)";
-whiteTimerEl.innerText = "[03:00]";
-
-timerContainer.appendChild(whiteTimerEl); 
-timerContainer.appendChild(blackTimerEl); 
-document.body.appendChild(timerContainer);
-
-let timeWhite = 180;
-let timeBlack = 180;
-let timerInterval = null;
-
-const updateTimerVisuals = (turn) => {
-  whiteTimerEl.style.borderColor = "#2a3555";
-  whiteTimerEl.style.color = "#e5e7ef";
-  blackTimerEl.style.borderColor = "#2a3555";
-  blackTimerEl.style.color = "#8ea1c8";
-
-  if (turn === "white") {
-    whiteTimerEl.style.borderColor = "#4c6fff";
-    whiteTimerEl.style.color = "#fff";
-  } else {
-    blackTimerEl.style.borderColor = "#4c6fff";
-    blackTimerEl.style.color = "#fff";
-  }
-};
-// --------------------------
-
-canvas.addEventListener("contextmenu", (event) => {
-  event.preventDefault();
-});
-
-window.addEventListener(
-  "wheel",
-  (event) => {
-    if (event.ctrlKey) {
-      event.preventDefault();
-    }
-  },
-  { passive: false },
-);
-["gesturestart", "gesturechange", "gestureend"].forEach((type) => {
-  window.addEventListener(
-    type,
-    (event) => {
-      event.preventDefault();
-    },
-    { passive: false },
-  );
-});
-
-const createScene = async () => {
-  const scene = new Scene(engine);
-
-  const camera = new ArcRotateCamera(
-    "camera",
-    Math.PI / 4,
-    Math.PI / 3,
-    18,
-    new Vector3(0, 0, 0),
-    scene,
-  );
-  camera.attachControl(canvas, true);
-  camera.lowerBetaLimit = 0.3;
-  camera.upperBetaLimit = 1.2;
-  camera.wheelDeltaPercentage = 0.01;
-
-  if (camera.inputs.attached.keyboard) {
-    camera.inputs.remove(camera.inputs.attached.keyboard);
+    this.playerColor = null;
+    this.aiColor = null;
+    this.selectedPiece = null;
   }
 
-  const light = new HemisphericLight("light", new Vector3(0, 1, 0), scene);
-  light.intensity = 0.9;
+  async init() {
+    this.#configureBrowserEvents();
+    await this.#createScene();
+    this.#wireUi();
+    this.#wireKeyboardReviewControls();
+    await this.boardRenderer.loadPieces();
+    this.previewRenderer.init();
+    this.generateShopItems();
+    this.engine.runRenderLoop(() => this.scene.render());
+    window.addEventListener("resize", () => {
+      this.engine.resize();
+      this.previewRenderer?.engine?.resize();
+    });
+  }
 
-  const sounds = {
-    move: new Sound("move-self", "/assets/sounds/move-self.mp3", scene, null, {
-      volume: 0.4,
-    }),
-    capture: new Sound("capture", "/assets/sounds/capture.mp3", scene, null, {
-      volume: 0.5,
-    }),
-    castle: new Sound("castle", "/assets/sounds/castle.mp3", scene, null, {
-      volume: 0.5,
-    }),
-    promote: new Sound("promote", "/assets/sounds/promote.mp3", scene, null, {
-      volume: 0.55,
-    }),
-  };
+  #configureBrowserEvents() {
+    canvas?.addEventListener("contextmenu", (event) => event.preventDefault());
+    window.addEventListener(
+      "wheel",
+      (event) => {
+        if (event.ctrlKey) event.preventDefault();
+      },
+      { passive: false },
+    );
+    ["gesturestart", "gesturechange", "gestureend"].forEach((type) =>
+      window.addEventListener(type, (event) => event.preventDefault(), {
+        passive: false,
+      }),
+    );
+  }
 
-  const playSound = (sound) => {
-    if (!sound) {
-      return;
+  async #createScene() {
+    this.scene = new Scene(this.engine);
+    this.camera = new ArcRotateCamera(
+      "camera",
+      Math.PI / 4,
+      Math.PI / 3,
+      18,
+      Vector3.Zero(),
+      this.scene,
+    );
+    this.camera.attachControl(canvas, true);
+    this.camera.lowerBetaLimit = 0.3;
+    this.camera.upperBetaLimit = 1.2;
+    this.camera.wheelDeltaPercentage = 0.01;
+    if (this.camera.inputs.attached.keyboard) {
+      this.camera.inputs.remove(this.camera.inputs.attached.keyboard);
     }
-    if (sound.isPlaying) {
-      sound.stop();
+
+    const light = new HemisphericLight(
+      "light",
+      new Vector3(0, 1, 0),
+      this.scene,
+    );
+    light.intensity = 0.9;
+
+    const sounds = this.#createSounds();
+    this.#unlockAudioOnFirstInteraction();
+
+    const { tileSize, offset } = this.#buildBoardTiles();
+
+    this.board.setBudget("white", getPlayerTotalGold(this.playerState.level));
+    this.board.setBudget("black", getAIBudget(this.playerState.gold));
+
+    this.boardRenderer = new BoardRenderer({
+      scene: this.scene,
+      board: this.board,
+      pieceDefs,
+      pieceYOffset,
+      pieceYawFix,
+      tileSize,
+      offset,
+      sounds,
+    });
+
+    this.previewRenderer = new PreviewRenderer({
+      canvas: previewCanvas,
+      nameEl: previewNameEl,
+      pieceAssets,
+      pieceLabels,
+    });
+
+    this.timerDisplay = new TimerDisplay({ container: document.body });
+
+    this.combatService = new CombatService({
+      board: this.board,
+      playerState: this.playerState,
+      combatRecord: this.combatRecord,
+      engineClient: new EngineClient(
+        new URL("/engine/chess-worker.js", window.location.origin),
+      ),
+      boardRenderer: this.boardRenderer,
+      timerDisplay: this.timerDisplay,
+      uiManager: this.uiManager,
+      pieceDefs,
+      generateFEN,
+    });
+
+    this.dragController = new DragController({
+      scene: this.scene,
+      camera: this.camera,
+      board: this.board,
+      boardRenderer: this.boardRenderer,
+      uiManager: this.uiManager,
+      playerState: this.playerState,
+      pieceDefs,
+      shop: this.shop,
+      getUpgradeCost: () => this.getUpgradeCost(),
+    });
+
+    this.dragController.onSellPiece = () => {
+      this.uiManager.renderShop(
+        this.shop.currentShop,
+        this.playerState,
+        this.shop.tier,
+        this.getUpgradeCost(),
+      );
+    };
+    this.dragController.onBeforePointerDown = () => {
+      if (this.combatRecord.isReviewing) this.exitReviewMode();
+    };
+
+    this.combatService.onRoundEnd = ({ playerWon, damageTaken }) => {
+      this.dragController.attach();
+      this.generateShopItems();
+      this.board.setBudget("black", getAIBudget(this.playerState.gold));
+      this.board.resetCounts(this.aiColor);
+      this.randomizeAI();
+      this.uiManager.renderShop(
+        this.shop.currentShop,
+        this.playerState,
+        this.shop.tier,
+        this.getUpgradeCost(),
+      );
+    };
+
+    this.dragController.attach();
+  }
+
+  #createSounds() {
+    return {
+      move: new Sound("move-self", "/assets/sounds/move-self.mp3", this.scene, null, {
+        volume: 0.4,
+      }),
+      capture: new Sound("capture", "/assets/sounds/capture.mp3", this.scene, null, {
+        volume: 0.5,
+      }),
+      castle: new Sound("castle", "/assets/sounds/castle.mp3", this.scene, null, {
+        volume: 0.5,
+      }),
+      promote: new Sound("promote", "/assets/sounds/promote.mp3", this.scene, null, {
+        volume: 0.55,
+      }),
+    };
+  }
+
+  #unlockAudioOnFirstInteraction() {
+    const unlockAudio = () => {
+      const audioEngine = Engine.audioEngine || this.engine.getAudioEngine?.();
+      if (audioEngine && !audioEngine.unlocked) audioEngine.unlock();
+    };
+
+    canvas?.addEventListener("pointerdown", unlockAudio, { once: true });
+    document.addEventListener("pointerdown", unlockAudio, { once: true });
+    document.addEventListener("keydown", unlockAudio, { once: true });
+    this.unlockAudio = unlockAudio;
+  }
+
+  #buildBoardTiles() {
+    const boardRoot = new TransformNode("boardRoot", this.scene);
+    const tileSize = 1.8;
+    const offset = (7 * tileSize) / 2;
+
+    const lightTile = new StandardMaterial("lightTile", this.scene);
+    lightTile.diffuseColor = new Color3(0.91, 0.87, 0.8);
+    const darkTile = new StandardMaterial("darkTile", this.scene);
+    darkTile.diffuseColor = new Color3(0.33, 0.24, 0.19);
+    const benchMaterial = new StandardMaterial("benchMaterial", this.scene);
+    benchMaterial.diffuseColor = new Color3(0.5, 0.5, 0.6);
+
+    for (let row = 0; row < 8; row += 1) {
+      for (let col = 0; col < 8; col += 1) {
+        const tile = MeshBuilder.CreateBox(
+          `tile-${row}-${col}`,
+          { width: tileSize, depth: tileSize, height: 0.2 },
+          this.scene,
+        );
+        tile.position.set(col * tileSize - offset, -0.1, row * tileSize - offset);
+        tile.material = (row + col) % 2 === 0 ? lightTile : darkTile;
+        tile.metadata = { squareId: `${row}-${col}` };
+        tile.isPickable = true;
+        tile.parent = boardRoot;
+      }
     }
-    sound.play();
-  };
 
-  const unlockAudio = () => {
-    const audioEngine = Engine.audioEngine || engine.getAudioEngine?.();
-    if (audioEngine && !audioEngine.unlocked) {
-      audioEngine.unlock();
-    }
-  };
-
-  canvas.addEventListener("pointerdown", unlockAudio, { once: true });
-  document.addEventListener("pointerdown", unlockAudio, { once: true });
-  document.addEventListener("keydown", unlockAudio, { once: true });
-
-  const getPlayerTotalGold = (level) => 10 + (level - 1) * 5;
-  const getAIBudget = (playerGold) => playerGold + 2;
-
-  const boardRoot = new TransformNode("boardRoot", scene);
-
-  const lightTile = new StandardMaterial("lightTile", scene);
-  lightTile.diffuseColor = new Color3(0.91, 0.87, 0.8);
-
-  const darkTile = new StandardMaterial("darkTile", scene);
-  darkTile.diffuseColor = new Color3(0.33, 0.24, 0.19);
-
-  const tileSize = 1.8;
-  const offset = (7 * tileSize) / 2;
-
-  const tiles = [];
-  for (let row = 0; row < 8; row += 1) {
     for (let col = 0; col < 8; col += 1) {
       const tile = MeshBuilder.CreateBox(
-        `tile-${row}-${col}`,
-        { width: tileSize, depth: tileSize, height: 0.2 },
-        scene,
+        `bench-tile-${col}`,
+        { width: tileSize, depth: tileSize, height: 0.15 },
+        this.scene,
       );
-      tile.position.x = col * tileSize - offset;
-      tile.position.z = row * tileSize - offset;
-      tile.position.y = -0.1;
-      tile.material = (row + col) % 2 === 0 ? lightTile : darkTile;
-      tile.metadata = { squareId: `${row}-${col}` };
+      tile.position.set(col * tileSize - offset, -0.1, 8.5 * tileSize - offset);
+      tile.material = benchMaterial;
+      tile.metadata = { squareId: `bench-${col}`, isBench: true };
       tile.isPickable = true;
       tile.parent = boardRoot;
-      tiles.push(tile);
+      this.benchTiles.push(tile);
     }
+
+    return { tileSize, offset };
   }
 
-  const benchMaterial = new StandardMaterial("benchMaterial", scene);
-  benchMaterial.diffuseColor = new Color3(0.5, 0.5, 0.6);
-
-  const getBenchZPosForColor = (color) => (color === "black" ? -1.5 : 8.5);
-
-  const benchTiles = [];
-  for (let col = 0; col < 8; col += 1) {
-    const tile = MeshBuilder.CreateBox(
-      `bench-tile-${col}`,
-      { width: tileSize, depth: tileSize, height: 0.15 },
-      scene,
-    );
-
-    tile.position.x = col * tileSize - offset;
-    tile.position.z = getBenchZPosForColor("white") * tileSize - offset;
-    tile.position.y = -0.1;
-    tile.material = benchMaterial;
-    tile.metadata = { squareId: `bench-${col}`, isBench: true };
-    tile.isPickable = true;
-    tile.parent = boardRoot;
-    benchTiles.push(tile);
+  #wireUi() {
+    this.uiManager.onUpgradeShop = () => this.upgradeShop();
+    this.uiManager.onBuyPiece = (shopIndex) => this.buyFromShop(shopIndex);
+    this.uiManager.onReroll = () => this.rerollShop();
+    this.uiManager.onPickSide = (color) => this.setSide(color);
+    this.uiManager.onClearBoard = () => {
+      if (this.combatRecord.isReviewing) this.exitReviewMode();
+      if (this.playerColor) this.moveColorToBench(this.playerColor);
+    };
+    this.uiManager.onPieceSelected = (pieceId) => {
+      this.selectedPiece = pieceId;
+      if (!pieceId) return;
+      const [color, type] = pieceId.split("-");
+      this.previewRenderer.update(type, color);
+    };
+    this.uiManager.onStartBattle = () => this.startBattle();
+    this.uiManager.onPrevTurn = () => this.undoMove();
+    this.uiManager.onNextTurn = () => this.redoMove();
+    this.uiManager.onExitReview = () => this.exitReviewMode();
   }
 
-  const baseWhite = new StandardMaterial("whitePiece", scene);
-  baseWhite.diffuseColor = new Color3(0.95, 0.94, 0.9);
-  baseWhite.specularColor = new Color3(0.2, 0.2, 0.2);
-  baseWhite.alpha = 1;
-  baseWhite.useVertexAlpha = false;
+  #wireKeyboardReviewControls() {
+    document.addEventListener("keydown", (event) => {
+      if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+        event.preventDefault();
+      }
 
-  const baseBlack = new StandardMaterial("blackPiece", scene);
-  baseBlack.diffuseColor = new Color3(0.33, 0.24, 0.19);
-  baseBlack.specularColor = new Color3(0.08, 0.08, 0.08);
-  baseBlack.alpha = 1;
-  baseBlack.useVertexAlpha = false;
+      if (!this.combatService.gameInProgress && this.combatRecord.length === 0) return;
+      if (event.key === "ArrowLeft") this.undoMove();
+      if (event.key === "ArrowRight") this.redoMove();
+      if (event.key === "ArrowUp") this.goToFirstMove();
+      if (event.key === "ArrowDown") this.goToLastMove();
+    });
+  }
 
-  const ghostWhite = baseWhite.clone("ghostWhite");
-  ghostWhite.alpha = 0.45;
-  ghostWhite.backFaceCulling = false;
+  getUpgradeCost() {
+    return this.shop.getUpgradeCost(this.playerState.level);
+  }
 
-  const ghostBlack = baseBlack.clone("ghostBlack");
-  ghostBlack.alpha = 0.45;
-  ghostBlack.backFaceCulling = false;
-
-  const applyOpaqueMaterial = (mesh, material) => {
-    mesh.material = material;
-    mesh.hasVertexAlpha = false;
-  };
-
-  const pieceTemplates = {};
-
-  let previewWhiteMaterial = null;
-  let previewBlackMaterial = null;
-
-  const updatePreview = async (type, color) => {
-    if (!previewCanvas || !previewScene || !previewCamera) {
-      return;
-    }
-    const asset = pieceAssets[type];
-    if (!asset) {
-      return;
-    }
-    if (previewRoot) {
-      previewRoot.dispose();
-      previewRoot = null;
-    }
-    previewRoot = new TransformNode(`preview-${type}`, previewScene);
-    if (previewNameEl) {
-      previewNameEl.textContent = pieceLabels[type] || type;
-    }
-
-    let meshes = [];
-    try {
-      const result = await SceneLoader.ImportMeshAsync(
-        "",
-        "/assets/",
-        asset.file,
-        previewScene,
-      );
-      meshes = result.meshes.filter(
-        (mesh) => mesh.getTotalVertices && mesh.getTotalVertices() > 0,
-      );
-      meshes.forEach((mesh) => {
-        mesh.parent = previewRoot;
-      });
-      normalizeMeshes(
-        `preview-${type}`,
-        meshes,
-        previewRoot,
-        asset.height,
-        previewScene,
-      );
-    } catch (e) {
-      const fallback = MeshBuilder.CreateCylinder(
-        `preview-${type}-fallback`,
-        {
-          height: asset.height,
-          diameterTop: 0.8,
-          diameterBottom: 1,
-        },
-        previewScene,
-      );
-      meshes = [fallback];
-      normalizeMeshes(
-        `preview-${type}`,
-        meshes,
-        previewRoot,
-        asset.height,
-        previewScene,
-      );
-    }
-
-    const material =
-      color === "black" ? previewBlackMaterial : previewWhiteMaterial;
-    if (material) {
-      meshes.forEach((mesh) => {
-        mesh.material = material;
-      });
-    }
-
-    const bounds = getBounds(previewRoot.getChildMeshes());
-    const center = bounds.min.add(bounds.max).scale(0.5);
-    const size = bounds.max.subtract(bounds.min);
-    const maxDim = Math.max(size.x, size.y, size.z);
-    previewCamera.setTarget(center);
-    previewCamera.radius = Math.max(3, maxDim * 2.4);
-  };
-
-  const initPreview = () => {
-    if (!previewCanvas) {
-      return;
-    }
-    previewEngine = new Engine(previewCanvas, true);
-    previewScene = new Scene(previewEngine);
-    previewCamera = new ArcRotateCamera(
-      "previewCamera",
-      Math.PI / 2,
-      Math.PI / 3,
-      4,
-      Vector3.Zero(),
-      previewScene,
+  generateShopItems() {
+    this.shop.generate();
+    this.uiManager.clearShopSelection();
+    this.uiManager.renderShop(
+      this.shop.currentShop,
+      this.playerState,
+      this.shop.tier,
+      this.getUpgradeCost(),
     );
-    previewCamera.attachControl(previewCanvas, false);
-    previewCamera.inputs.clear();
-    previewCamera.lowerRadiusLimit = 3;
-    previewCamera.upperRadiusLimit = 6;
+  }
 
-    const previewLight = new HemisphericLight(
-      "previewLight",
-      new Vector3(0, 1, 0),
-      previewScene,
-    );
-    previewLight.intensity = 0.95;
-
-    previewWhiteMaterial = new StandardMaterial("previewWhite", previewScene);
-    previewWhiteMaterial.diffuseColor = new Color3(0.95, 0.94, 0.9);
-    previewWhiteMaterial.specularColor = new Color3(0.2, 0.2, 0.2);
-
-    previewBlackMaterial = new StandardMaterial("previewBlack", previewScene);
-    previewBlackMaterial.diffuseColor = new Color3(0.33, 0.24, 0.19);
-    previewBlackMaterial.specularColor = new Color3(0.08, 0.08, 0.08);
-
-    previewScene.onBeforeRenderObservable.add(() => {
-      if (previewRoot) {
-        previewRoot.rotation.y += 0.01;
-      }
-    });
-
-    previewEngine.runRenderLoop(() => {
-      previewScene.render();
-    });
-  };
-
-  const loadPieces = async () => {
-    const library = buildPieceLibrary(scene, pieceTemplates);
-    await library.loadAll();
-  };
-
-  const playerState = {
-    gold: 10,
-    hp: 100,
-    level: 1,
-  };
-
-  const placedPieces = new Map();
-  const budgets = {
-    white: getPlayerTotalGold(playerState.level),
-    black: getAIBudget(playerState.gold),
-  };
-
-  const counts = {
-    white: Object.fromEntries(Object.keys(pieceDefs).map((key) => [key, 0])),
-    black: Object.fromEntries(Object.keys(pieceDefs).map((key) => [key, 0])),
-  };
-
-  let currentShop = [null, null, null, null, null];
-
-  const generateShopItems = () => {
-    currentShop = [];
-    const pieceTypes = Object.keys(pieceDefs).filter((p) => p !== "fool");
-
-    for (let i = 0; i < 5; i++) {
-      const randomType =
-        pieceTypes[Math.floor(Math.random() * pieceTypes.length)];
-      currentShop.push(randomType);
+  upgradeShop() {
+    if (this.shop.tier >= this.shop.maxTier) return;
+    if (!this.shop.upgrade(this.playerState)) {
+      this.uiManager.showToast("Not enough gold to upgrade the shop!");
+      return;
     }
 
-    uiManager.clearShopSelection();
-    uiManager.renderShop(currentShop, playerState);
-  };
+    this.uiManager.showToast(
+      `Shop upgraded to Tier ${this.shop.tier}! Stronger pieces unlocked.`,
+    );
+    this.uiManager.clearShopSelection();
+    this.uiManager.renderShop(
+      this.shop.currentShop,
+      this.playerState,
+      this.shop.tier,
+      this.getUpgradeCost(),
+    );
+  }
 
-  // Safe Exit function for returning to real-time after scrubbing the timeline
-  const exitReviewMode = () => {
-    if (!isReviewing) return;
-    isReviewing = false;
+  rerollShop() {
+    if (this.combatRecord.isReviewing) this.exitReviewMode();
+    if (!this.shop.reroll(this.playerState)) {
+      this.uiManager.showToast("Not enough gold to reroll!");
+      return;
+    }
+    this.uiManager.clearShopSelection();
+    this.uiManager.renderShop(
+      this.shop.currentShop,
+      this.playerState,
+      this.shop.tier,
+      this.getUpgradeCost(),
+    );
+  }
 
-    // Hide all historical pieces
-    placedPieces.forEach((entry, sq) => {
-      if (!sq.startsWith("bench")) {
-        entry.root.setEnabled(false);
-      }
-    });
-
-    // Safely restore the next round state
-    placedPieces.clear();
-    savedNextRoundPieces.forEach((entry, sq) => {
-      placedPieces.set(sq, entry);
-      if (!sq.startsWith("bench")) {
-        entry.root.setEnabled(true);
-      }
-    });
-
-    currentPlyIndex = detailedHistory.length;
-    uiManager.updatePlaybackUI(currentPlyIndex, detailedHistory.length, isReviewing);
-  };
-
-  const buyFromShop = (shopIndex) => {
-    if (isReviewing) exitReviewMode();
-
-    const type = currentShop[shopIndex];
-    if (!type) return;
-    if (!playerColor) return;
+  buyFromShop(shopIndex) {
+    if (this.combatRecord.isReviewing) this.exitReviewMode();
+    const type = this.shop.get(shopIndex);
+    if (!type || !this.playerColor) return;
 
     const cost = pieceDefs[type].value;
-
-    if (playerState.gold >= cost) {
-      let emptyBenchIndex = -1;
-      for (let i = 0; i < 8; i++) {
-        if (!placedPieces.has(`bench-${i}`)) {
-          emptyBenchIndex = i;
-          break;
-        }
-      }
-
-      if (emptyBenchIndex !== -1) {
-        playerState.gold -= cost;
-        currentShop[shopIndex] = null;
-
-        selectedPiece = `${playerColor}-${type}`;
-        placePiece(`bench-${emptyBenchIndex}`);
-        selectedPiece = null;
-
-        uiManager.renderShop(currentShop, playerState);
-      } else {
-        console.warn("Your bench is full!");
-      }
-    } else {
-      console.warn("Not enough gold!");
-    }
-  };
-
-  uiManager.onBuyPiece = buyFromShop;
-
-  uiManager.onReroll = () => {
-    if (isReviewing) exitReviewMode();
-    if (playerState.gold >= 2) {
-      playerState.gold -= 2;
-      generateShopItems();
-    } else {
-      console.warn("Not enough gold to reroll!");
-    }
-  };
-
-  const positionBenchTiles = (color) => {
-    const benchZ = getBenchZPosForColor(color);
-    benchTiles.forEach((tile) => {
-      tile.position.z = benchZ * tileSize - offset;
-    });
-  };
-
-  let selectedPiece = null;
-  let playerColor = null;
-  let aiColor = null;
-
-  const removePiece = (squareId, isCombatDeath = false, softDelete = false) => {
-    const existing = placedPieces.get(squareId);
-    if (!existing) {
-      return null;
-    }
-    if (softDelete) {
-      existing.root.setEnabled(false); // Hide it instead of destroying
-    } else {
-      existing.root.dispose();
-    }
-    placedPieces.delete(squareId);
-
-    if (!isCombatDeath) {
-      budgets[existing.color] += existing.value;
-      counts[existing.color][existing.type] = Math.max(
-        0,
-        counts[existing.color][existing.type] - 1,
-      );
-    }
-    return existing; // Return it so we can save it in the history record
-  };
-
-  const getTileCoordinates = (squareId) => {
-    if (squareId.startsWith("bench-")) {
-      const col = parseInt(squareId.split("-")[1], 10);
-      return {
-        isBench: true,
-        row: -1,
-        col,
-        zPos: getBenchZPosForColor(playerColor || "white"),
-      };
-    }
-    const [row, col] = squareId.split("-").map(Number);
-    return { isBench: false, row, col, zPos: row };
-  };
-
-  const isAllowedPlacement = (color, squareId) => {
-    const coords = getTileCoordinates(squareId);
-    if (coords.isBench) {
-      return color === playerColor;
-    }
-    return color === "white" ? coords.row >= 4 : coords.row <= 3;
-  };
-
-  const placePiece = (squareId) => {
-    if (!selectedPiece) return;
-
-    const [color, type] = selectedPiece.split("-");
-    const coords = getTileCoordinates(squareId);
-
-    if (
-      type === "pawn" &&
-      !coords.isBench &&
-      (coords.row === 0 || coords.row === 7)
-    ) {
-      console.warn("Pawns cannot be placed on the first or last ranks.");
+    if (!this.playerState.deductGold(cost)) {
+      this.uiManager.showToast("Not enough gold!");
       return;
     }
 
-    const def = pieceDefs[type];
-    if (!def) return;
-    if (!isAllowedPlacement(color, squareId)) return;
+    const emptyBenchSquare = this.board.findFirstEmptyBenchSquare();
+    if (!emptyBenchSquare) {
+      this.playerState.addGold(cost);
+      this.uiManager.showToast("Your bench is full!");
+      return;
+    }
 
-    removePiece(squareId);
+    this.shop.markSold(shopIndex);
+    this.selectedPiece = `${this.playerColor}-${type}`;
+    this.boardRenderer.placePiece(emptyBenchSquare, this.selectedPiece);
+    this.selectedPiece = null;
 
-    const base = pieceTemplates[type];
-    if (!base) return;
-
-    const instanceRoot = base.clone(
-      `${selectedPiece}-${squareId}`,
-      null,
-      false,
+    this.uiManager.renderShop(
+      this.shop.currentShop,
+      this.playerState,
+      this.shop.tier,
+      this.getUpgradeCost(),
     );
-    console.log(`Placed piece: ${selectedPiece} at ${squareId}`);
+  }
 
-    instanceRoot.setEnabled(true);
-    instanceRoot.position.x = coords.col * tileSize - offset;
-    instanceRoot.position.z = coords.zPos * tileSize - offset;
-    instanceRoot.position.y = pieceYOffset[type] || 0;
-
-    const baseYaw = pieceYawFix[type] || 0;
-    instanceRoot.rotation = new Vector3(
-      0,
-      baseYaw + (color === "black" ? Math.PI : 0),
-      0,
-    );
-
-    instanceRoot.getChildMeshes().forEach((mesh) => {
-      applyOpaqueMaterial(mesh, color === "white" ? baseWhite : baseBlack);
-      mesh.metadata = { squareId, isPiece: true };
+  positionBenchTiles(color) {
+    const benchZ = color === "black" ? -1.5 : 8.5;
+    this.benchTiles.forEach((tile) => {
+      tile.position.z = benchZ * this.boardRenderer.tileSize - this.boardRenderer.offset;
     });
+  }
 
-    placedPieces.set(squareId, {
-      root: instanceRoot,
-      color,
-      type,
-      value: def.value,
-    });
-
-    if (color === aiColor) {
-      budgets[color] -= def.value;
-      counts[color][type] += 1;
-    }
-
-    playSound(sounds.move);
-    updateAnalysisBar();
-  };
-
-  const movePiece = (fromSq, toSq) => {
-    if (fromSq === toSq) return;
-
-    const entry = placedPieces.get(fromSq);
-    if (!entry) return;
-    if (placedPieces.has(toSq)) return;
-
-    const toCoords = getTileCoordinates(toSq);
-    if (!isAllowedPlacement(entry.color, toSq)) return;
-
-    if (
-      entry.type === "pawn" &&
-      !toCoords.isBench &&
-      (toCoords.row === 0 || toCoords.row === 7)
-    ) {
-      console.warn("Pawns cannot be placed on the first or last ranks.");
-      return;
-    }
-
-    entry.root.position.x = toCoords.col * tileSize - offset;
-    entry.root.position.z = toCoords.zPos * tileSize - offset;
-    entry.root.position.y = pieceYOffset[entry.type] || 0;
-
-    entry.root.getChildMeshes().forEach((mesh) => {
-      if (mesh.metadata) mesh.metadata.squareId = toSq;
-    });
-
-    placedPieces.delete(fromSq);
-    placedPieces.set(toSq, entry);
-    playSound(sounds.move);
-    updateAnalysisBar();
-  };
-
-  const moveColorToBench = (color) => {
-    let benchFull = false;
-    placedPieces.forEach((entry, squareId) => {
-      if (entry.color === color && !squareId.startsWith("bench")) {
-        // Find first empty bench square
-        let emptyBenchIndex = -1;
-        for (let i = 0; i < 8; i += 1) {
-          if (!placedPieces.has(`bench-${i}`)) {
-            emptyBenchIndex = i;
-            break;
-          }
-        }
-
-        if (emptyBenchIndex !== -1) {
-          movePiece(squareId, `bench-${emptyBenchIndex}`);
-        } else {
-          // Bench is full, keep it on board
-          benchFull = true;
-        }
-      }
-    });
-
-    if (benchFull) {
-      uiManager.showToast("Bench is full! Some pieces remained on board.");
-    }
-  };
-
-  const clearColor = (color) => {
-    placedPieces.forEach((entry, squareId) => {
-      if (entry.color === color) {
-        removePiece(squareId);
-      }
-    });
-  };
-
-  const setAnalysisVisible = (visible) => {
-    if (!analysisBarEl) {
-      return;
-    }
-    analysisBarEl.classList.toggle("hidden", !visible);
-  };
-
-  const updateAnalysisBar = () => {
-    if (!analysisFillEl) {
-      return;
-    }
-    let ratio = 0.5;
-    if (lastEvalScore) {
-      const { type, value } = lastEvalScore;
-      if (type === "mate") {
-        ratio = value >= 0 ? 0.98 : 0.02;
-      } else {
-        const capped = Math.min(1000, Math.max(-1000, value));
-        ratio = (capped + 1000) / 2000;
-      }
-    } else {
-      let whiteValue = 0;
-      let blackValue = 0;
-      placedPieces.forEach((entry, sq) => {
-        if (!sq.startsWith("bench")) {
-          if (entry.color === "white") {
-            whiteValue += entry.value;
-          } else {
-            blackValue += entry.value;
-          }
-        }
-      });
-      const total = whiteValue + blackValue;
-      if (total > 0) {
-        ratio = whiteValue / total;
-      }
-    }
-    const clamped = Math.min(0.98, Math.max(0.02, ratio));
-    analysisFillEl.style.height = `${Math.round(clamped * 100)}%`;
-  };
-
-  const randomizeAI = () => {
-    if (!aiColor) {
-      return;
-    }
-    clearColor(aiColor);
-    const squares = tiles
-      .map((tile) => tile.metadata.squareId)
-      .filter((squareId) => {
-        return isAllowedPlacement(aiColor, squareId);
-      });
-    for (let i = squares.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [squares[i], squares[j]] = [squares[j], squares[i]];
-    }
-
-    const placeRandomPiece = (squareId, type) => {
-      selectedPiece = `${aiColor}-${type}`;
-      placePiece(squareId);
-    };
-
-    squares.forEach((squareId) => {
-      const affordable = Object.entries(pieceDefs).filter(([type, def]) => {
-        const coords = getTileCoordinates(squareId);
-        if (
-          type === "pawn" &&
-          !coords.isBench &&
-          (coords.row === 0 || coords.row === 7)
-        )
-          return false;
-        return counts[aiColor][type] < def.max && budgets[aiColor] >= def.value;
-      });
-      if (affordable.length === 0) {
-        return;
-      }
-      const [type] = affordable[Math.floor(Math.random() * affordable.length)];
-      placeRandomPiece(squareId, type);
-    });
-
-    selectedPiece = null;
-    uiManager.clearSelection();
-  };
-
-  const setSide = (color) => {
-    playerColor = color;
-    aiColor = color === "white" ? "black" : "white";
-    uiManager.setPlayerColor(playerColor);
-    uiManager.setSidePickerVisible(false);
-    selectedPiece = null;
-    uiManager.clearSelection();
-    positionBenchTiles(playerColor);
-    placedPieces.forEach((entry) => entry.root.dispose());
-    placedPieces.clear();
-
-    budgets.white = getPlayerTotalGold(playerState.level);
-    budgets.black = getAIBudget(playerState.gold);
-
-    Object.keys(counts.white).forEach((key) => {
-      counts.white[key] = 0;
-      counts.black[key] = 0;
-    });
-    uiManager.renderShop(currentShop, playerState);
-    randomizeAI();
-  };
-
-  let gameInProgress = false;
-  let currentTurn = "white";
-  let initialFen = "";
-  let moveHistory = [];
-  let desyncRetries = 0;
-  const MAX_DESYNC_RETRIES = 2;
-  let noMoveCount = 0;
-  let moveStartTime = 0;
-  const engineClient = new EngineClient(
-    new URL("/engine/chess-worker.js", window.location.origin),
-  );
-  let lastEvalScore = null;
-
-  const fromAlgebraic = (sq) => {
-    const col = sq.charCodeAt(0) - 97;
-    const row = 8 - parseInt(sq[1]);
-    return { row, col };
-  };
-
-  const executeEngineMove = (move) => {
-    console.log("Executing move:", move, "Current turn:", currentTurn);
-    const from = move.substring(0, 2);
-    const to = move.substring(2, 4);
-    const fromCoord = fromAlgebraic(from);
-    const toCoord = fromAlgebraic(to);
-
-    const fromSq = `${fromCoord.row}-${fromCoord.col}`;
-    const toSq = `${toCoord.row}-${toCoord.col}`;
-
-    const piece = placedPieces.get(fromSq);
-    const actualKey = fromSq;
-
-    if (!piece) {
-      console.error(
-        "Move FAILED: No piece for turn",
-        currentTurn,
-        "at",
-        fromSq,
-      );
-      if (gameInProgress && desyncRetries < MAX_DESYNC_RETRIES) {
-        desyncRetries += 1;
-        console.warn("Resyncing engine position after desync attempt.");
-        initialFen = generateFEN(placedPieces, currentTurn);
-        moveHistory = [];
-        requestEngineMove();
-        return;
-      }
-      resolveAnnihilation();
-      return;
-    }
-
-    const historyRecord = {
-      move,
-      fromSq,
-      toSq,
-      pieceMoved: piece,
-      capturedPiece: null,
-      enPassantSq: null,
-      promotionInfo: null,
-    };
-
-    const isCapture = placedPieces.has(toSq);
-    let capturedPiece = false;
-
-    if (piece.type === "pawn" && fromCoord.col !== toCoord.col && !isCapture) {
-      const epSq = `${fromCoord.row}-${toCoord.col}`;
-      if (placedPieces.has(epSq)) {
-        console.log("En Passant capture! Removing piece at", epSq);
-        historyRecord.enPassantSq = epSq;
-        historyRecord.capturedPiece = removePiece(epSq, true, true); // Soft delete
-        capturedPiece = true;
-      }
-    }
-    if (isCapture) {
-      console.log("Capture! Removing piece at", toSq);
-      historyRecord.capturedPiece = removePiece(toSq, true, true); // Soft delete
-      capturedPiece = true;
-    }
-
-    if (piece.type === "pawn" || capturedPiece) {
-      noMoveCount = 0;
-    } else {
-      noMoveCount++;
-    }
-
-    piece.root.position.x = toCoord.col * tileSize - offset;
-    piece.root.position.z = toCoord.row * tileSize - offset;
-
-    piece.root.getChildMeshes().forEach((mesh) => {
-      if (mesh.metadata) mesh.metadata.squareId = toSq;
-    });
-
-    placedPieces.delete(actualKey);
-    placedPieces.set(toSq, piece);
-
-    const isPromotion = move.length > 4;
-    if (isPromotion) {
-      const promoChar = move[4].toLowerCase();
-      const promoMap = {
-        q: "queen",
-        r: "rook",
-        b: "bishop",
-        n: "knight",
-        a: "archbishop",
-        h: "chancellor",
-        c: "camel",
-        w: "wizzard",
-        z: "amazon",
-        i: "immobilizer",
-        f: "fool",
-        m: "mammoth",
-      };
-      const newType = promoMap[promoChar] || "queen";
-
-      historyRecord.promotionInfo = {
-        oldType: piece.type,
-        oldValue: piece.value,
-        oldRoot: piece.root, // Save the pawn mesh
-        newRoot: null, // Will fill in a second
-      };
-
-      piece.type = newType;
-      piece.value = pieceDefs[newType].value;
-
-      const oldRoot = piece.root;
-      const base = pieceTemplates[newType];
-      if (base) {
-        const newRoot = base.clone(
-          `${piece.color}-${newType}-${toSq}`,
-          null,
-          false,
-        );
-        newRoot.setEnabled(true);
-        newRoot.position.x = oldRoot.position.x;
-        newRoot.position.z = oldRoot.position.z;
-        newRoot.position.y = pieceYOffset[newType] || 0;
-        const baseYaw = pieceYawFix[newType] || 0;
-        newRoot.rotation = new Vector3(
-          0,
-          baseYaw + (piece.color === "black" ? Math.PI : 0),
-          0,
-        );
-        newRoot.getChildMeshes().forEach((mesh) => {
-          applyOpaqueMaterial(
-            mesh,
-            piece.color === "white" ? baseWhite : baseBlack,
-          );
-          mesh.metadata = { squareId: toSq, isPiece: true };
-        });
-        oldRoot.setEnabled(false); // Soft delete the pawn
-        piece.root = newRoot;
-        historyRecord.promotionInfo.newRoot = newRoot;
-      }
-    }
-
-    if (isPromotion) {
-      playSound(sounds.promote);
-    } else if (capturedPiece) {
-      playSound(sounds.capture);
-    } else {
-      playSound(sounds.move);
-    }
-    updateAnalysisBar();
-
-    moveHistory.push(move);
-    detailedHistory.push(historyRecord);
-    currentPlyIndex = detailedHistory.length;
-    uiManager.updatePlaybackUI(currentPlyIndex, detailedHistory.length, isReviewing);
-
-    desyncRetries = 0;
-
-    currentTurn = currentTurn === "white" ? "black" : "white";
-    updateTimerVisuals(currentTurn);
-
-    if (noMoveCount >= 20) {
-      console.log("Battle stagnated! Resolving by material...");
-      uiManager.showToast(
-        "Battle stagnated! Resolving based on surviving material...",
-      );
-      resolveAnnihilation();
-      return;
-    }
-
-    checkFinalWinner();
-    if (gameInProgress) {
-      requestEngineMove();
-    }
-  };
-
-  const undoMove = () => {
-    if (gameInProgress) {
-      uiManager.showToast("Wait for the round to end to review moves!");
-      return;
-    }
-    if (currentPlyIndex <= 0) return;
-
-    if (!isReviewing) {
-      // Safely freeze the next round setup layout to savedNextRoundPieces
-      savedNextRoundPieces = new Map(placedPieces);
-      
-      // Hide all the pieces from the current upcoming round
-      placedPieces.forEach((entry, sq) => {
-        if (!sq.startsWith("bench")) {
-          entry.root.setEnabled(false);
-        }
-      });
-      
-      // Inject the exact state from the end of the combat into the Map
-      placedPieces.clear();
-      battleEndPlacedPieces.forEach((entry, sq) => {
-        placedPieces.set(sq, entry);
-        if (!sq.startsWith("bench")) {
-          entry.root.setEnabled(true);
-        }
-      });
-    }
-
-    const record = detailedHistory[currentPlyIndex - 1];
-    const {
-      fromSq,
-      toSq,
-      pieceMoved,
-      capturedPiece,
-      enPassantSq,
-      promotionInfo,
-    } = record;
-
-    const fromCoord = fromAlgebraic(record.move.substring(0, 2));
-
-    // 1. Move the main piece back
-    pieceMoved.root.setEnabled(true);
-    pieceMoved.root.position.x = fromCoord.col * tileSize - offset;
-    pieceMoved.root.position.z = fromCoord.row * tileSize - offset;
-    pieceMoved.root.getChildMeshes().forEach((mesh) => {
-      if (mesh.metadata) mesh.metadata.squareId = fromSq;
-    });
-
-    placedPieces.delete(toSq);
-    placedPieces.set(fromSq, pieceMoved);
-
-    // 2. Undo Promotion (if any)
-    if (promotionInfo) {
-      promotionInfo.newRoot.setEnabled(false);
-      promotionInfo.oldRoot.setEnabled(true);
-      pieceMoved.root = promotionInfo.oldRoot;
-      pieceMoved.type = promotionInfo.oldType;
-      pieceMoved.value = promotionInfo.oldValue;
-    }
-
-    // 3. Restore Captured Piece (if any)
-    if (capturedPiece) {
-      const restoreSq = enPassantSq || toSq;
-      capturedPiece.root.setEnabled(true);
-      placedPieces.set(restoreSq, capturedPiece);
-    }
-
-    currentPlyIndex--;
-    isReviewing = true;
-    uiManager.updatePlaybackUI(currentPlyIndex, detailedHistory.length, isReviewing);
-    playSound(sounds.move);
-  };
-
-  const redoMove = () => {
-    if (gameInProgress) {
-      uiManager.showToast("Wait for the round to end to review moves!");
-      return;
-    }
-    if (currentPlyIndex >= detailedHistory.length) return;
-
-    if (!isReviewing) {
-      // Freezing logic to ensure absolute safety
-      savedNextRoundPieces = new Map(placedPieces);
-      placedPieces.forEach((entry, sq) => {
-        if (!sq.startsWith("bench")) {
-          entry.root.setEnabled(false);
-        }
-      });
-      placedPieces.clear();
-      battleEndPlacedPieces.forEach((entry, sq) => {
-        placedPieces.set(sq, entry);
-        if (!sq.startsWith("bench")) {
-          entry.root.setEnabled(true);
-        }
-      });
-    }
-
-    const record = detailedHistory[currentPlyIndex];
-    const {
-      fromSq,
-      toSq,
-      pieceMoved,
-      capturedPiece,
-      enPassantSq,
-      promotionInfo,
-    } = record;
-    const toCoord = fromAlgebraic(record.move.substring(2, 4));
-
-    // 1. Remove captured piece
-    if (capturedPiece) {
-      const removeSq = enPassantSq || toSq;
-      placedPieces.delete(removeSq);
-      capturedPiece.root.setEnabled(false);
-    }
-
-    // 2. Apply Promotion
-    if (promotionInfo) {
-      promotionInfo.oldRoot.setEnabled(false);
-      promotionInfo.newRoot.setEnabled(true);
-      pieceMoved.root = promotionInfo.newRoot;
-      const promoType = promotionInfo.newRoot.name.split("-")[1];
-      pieceMoved.type = promoType;
-      pieceMoved.value = pieceDefs[promoType]?.value || 9;
-    }
-
-    // 3. Move the main piece forward
-    pieceMoved.root.setEnabled(true);
-    pieceMoved.root.position.x = toCoord.col * tileSize - offset;
-    pieceMoved.root.position.z = toCoord.row * tileSize - offset;
-    pieceMoved.root.getChildMeshes().forEach((mesh) => {
-      if (mesh.metadata) mesh.metadata.squareId = toSq;
-    });
-
-    placedPieces.delete(fromSq);
-    placedPieces.set(toSq, pieceMoved);
-
-    currentPlyIndex++;
-    isReviewing = true;
-    uiManager.updatePlaybackUI(currentPlyIndex, detailedHistory.length, isReviewing);
-    playSound(sounds.move);
-  };
-
-  const goToFirstMove = () => {
-    if (gameInProgress || detailedHistory.length === 0) return;
-    while (currentPlyIndex > 0) {
-      undoMove();
-    }
-  };
-
-  const goToLastMove = () => {
-    if (gameInProgress || detailedHistory.length === 0) return;
-    while (currentPlyIndex < detailedHistory.length) {
-      redoMove();
-    }
-  };
-
-  let preCombatPlayerState = [];
-
-  const endCombat = (playerWon, damageTaken, timeout = false) => {
-    gameInProgress = false;
-
-    if (timerInterval) clearInterval(timerInterval);
-    timerContainer.style.display = "none";
-
-    uiManager.setStartBattleState({ inProgress: false });
-    setAnalysisVisible(false);
-
-    let dialogTitle = "";
-    let dialogText = "";
-    let onCloseCallback = null;
-
-    if (timeout) {
-      if (!playerWon) {
-        playerState.hp -= damageTaken;
-        if (playerState.hp <= 0) {
-          dialogTitle = "Game Over";
-          dialogText = `Time's up! You lost on time. You survived to Round ${playerState.level}.`;
-          onCloseCallback = () => location.reload();
-        } else {
-          dialogTitle = "Round Lost";
-          dialogText = `Time's up! You lost the round on time! Took ${damageTaken} damage.`;
-        }
-      } else {
-        dialogTitle = "Round Won";
-        dialogText = "Time's up! Black lost on time. You won the round!";
-      }
-    } else if (!playerWon && damageTaken > 0) {
-      playerState.hp -= damageTaken;
-      if (playerState.hp <= 0) {
-        dialogTitle = "Game Over";
-        dialogText = `Your HP dropped to 0! You survived to Round ${playerState.level}.`;
-        onCloseCallback = () => location.reload();
-      } else {
-        dialogTitle = "Round Lost";
-        dialogText = `You lost the round! Took ${damageTaken} damage.`;
-      }
-    } else if (playerWon) {
-      dialogTitle = "Victory";
-      dialogText = "You won the round!";
-    } else {
-      dialogTitle = "Draw";
-      dialogText = "Round ended in a draw!";
-    }
-
-    uiManager.showDialog(dialogTitle, dialogText, onCloseCallback);
-
-    playerState.level += 1;
-    playerState.gold += 5; // +5 Gold per round
-
-    // Capture the exact end-of-battle board state for the historical review map
-    battleEndPlacedPieces = new Map(placedPieces);
-
-    // Clean the board: hide all combat pieces from the main board
+  clearColor(color, { trackInventory = false } = {}) {
     const toRemove = [];
-    placedPieces.forEach((entry, sq) => {
-      const isPlayerBench =
-        sq.startsWith("bench") && entry.color === playerColor;
-      if (!isPlayerBench) {
-        toRemove.push(sq);
+    this.board.forEach((entry, squareId) => {
+      if (entry.color === color) toRemove.push(squareId);
+    });
+    toRemove.forEach((squareId) => {
+      this.boardRenderer.removePiece(squareId, false, false, { trackInventory });
+    });
+  }
+
+  moveColorToBench(color) {
+    let benchFull = false;
+    const moves = [];
+    this.board.forEach((entry, squareId) => {
+      if (entry.color === color && !squareId.startsWith("bench")) {
+        const benchSquare = this.board.findFirstEmptyBenchSquare();
+        if (benchSquare) moves.push([squareId, benchSquare]);
+        else benchFull = true;
       }
     });
-
-    toRemove.forEach((sq) => {
-      const piece = placedPieces.get(sq);
-      if (piece && piece.root) {
-        piece.root.setEnabled(false); // Hide instead of dispose to allow review
-      }
-      placedPieces.delete(sq);
-    });
-
-    // Restore the player's pre-combat board formation perfectly
-    preCombatPlayerState.forEach((saved) => {
-      selectedPiece = `${playerColor}-${saved.type}`;
-      placePiece(saved.squareId);
-    });
-    
-    selectedPiece = null;
-
-    generateShopItems();
-
-    budgets.black = getAIBudget(playerState.gold);
-    Object.keys(counts.black).forEach((k) => (counts.black[k] = 0));
-    randomizeAI();
-  };
-
-  const checkFinalWinner = () => {
-    let whiteBoardLeft = false;
-    let blackBoardLeft = false;
-
-    placedPieces.forEach((p, sq) => {
-      if (!sq.startsWith("bench")) {
-        if (p.color === "white") whiteBoardLeft = true;
-        if (p.color === "black") blackBoardLeft = true;
-      }
-    });
-
-    if (!whiteBoardLeft && !blackBoardLeft) {
-      endCombat(false, 0); // Draw
-    } else if (!whiteBoardLeft) {
-      let blackValue = 0;
-      placedPieces.forEach((p, sq) => {
-        if (p.color === "black" && !sq.startsWith("bench"))
-          blackValue += p.value;
-      });
-      endCombat(false, blackValue); // Black wins
-    } else if (!blackBoardLeft) {
-      endCombat(true, 0); // White wins
-    }
-  };
-
-  function resolveAnnihilation() {
-    let whiteValue = 0;
-    let blackValue = 0;
-    placedPieces.forEach((entry, sq) => {
-      if (!sq.startsWith("bench")) {
-        if (entry.color === "white") {
-          whiteValue += entry.value;
-        } else {
-          blackValue += entry.value;
-        }
-      }
-    });
-
-    if (whiteValue === 0 && blackValue === 0) {
-      endCombat(false, 0);
-    } else if (whiteValue === 0) {
-      endCombat(false, blackValue);
-    } else if (blackValue === 0) {
-      endCombat(true, 0);
-    } else if (whiteValue >= blackValue) {
-      endCombat(true, 0);
-    } else {
-      endCombat(false, blackValue - whiteValue);
+    moves.forEach(([fromSq, toSq]) => this.boardRenderer.movePiece(fromSq, toSq));
+    if (benchFull) {
+      this.uiManager.showToast("Bench is full! Some pieces remained on board.");
     }
   }
 
-  const requestEngineMove = () => {
-    if (!gameInProgress) return;
+  randomizeAI() {
+    if (!this.aiColor) return;
+    this.clearColor(this.aiColor, { trackInventory: true });
+    this.board.setBudget(this.aiColor, getAIBudget(this.playerState.gold));
+    this.board.resetCounts(this.aiColor);
 
-    moveStartTime = Date.now();
-    const historyStr =
-      moveHistory.length > 0 ? " moves " + moveHistory.join(" ") : "";
-    const positionCmd = `position fen ${initialFen}${historyStr}`;
-    console.log("Sending position:", positionCmd);
-
-    engineClient.requestMove(positionCmd, "go movetime 3900");
-  };
-
-  const initEngine = () => {
-    console.log("Initializing worker...");
-    engineClient.onLine = (line) => {
-      console.log("Engine says:", line);
-      if (line.includes("score ")) {
-        const match = line.match(/score (cp|mate) (-?\d+)/);
-        if (match) {
-          const type = match[1];
-          let value = Number(match[2]);
-          if (currentTurn === "black") {
-            value *= -1;
-          }
-          lastEvalScore = { type, value };
-          updateAnalysisBar();
-        }
-      }
-    };
-    engineClient.onBestMove = (move) => {
-      console.log("Best move received:", move);
-
-      const elapsed = Date.now() - moveStartTime;
-      const delay = Math.max(0, 4000 - elapsed);
-
-      if (move && move !== "(none)" && move !== "null") {
-        setTimeout(() => executeEngineMove(move), delay);
-        return;
-      }
-
-      console.log("Battle concluded (no moves left).");
-      if (!gameInProgress) {
-        return;
-      }
-
-      setTimeout(() => resolveAnnihilation(), delay);
-    };
-    engineClient.startBattle(() => {
-      if (gameInProgress) {
-        requestEngineMove();
-      }
+    const placements = this.aiService.planPlacement({
+      color: this.aiColor,
+      board: this.board,
+      shopTier: this.shop.tier,
     });
-  };
 
-  uiManager.onStartBattle = () => {
-    if (isReviewing) exitReviewMode(); // Absolutely ensures we leave history before calculating a state FEN
-    if (gameInProgress) return;
+    placements.forEach(({ squareId, type }) => {
+      this.boardRenderer.placePiece(squareId, `${this.aiColor}-${type}`, {
+        trackInventory: true,
+      });
+    });
+
+    this.uiManager.clearSelection();
+  }
+
+  setSide(color) {
+    this.playerColor = color;
+    this.aiColor = color === "white" ? "black" : "white";
+
+    this.board.setPlayerColor(this.playerColor);
+    this.uiManager.setPlayerColor(this.playerColor);
+    this.uiManager.setSidePickerVisible(false);
+    this.dragController.setPlayerColor(this.playerColor);
+    this.combatService.setSides({
+      playerColor: this.playerColor,
+      aiColor: this.aiColor,
+    });
+
+    this.selectedPiece = null;
+    this.uiManager.clearSelection();
+    this.positionBenchTiles(this.playerColor);
+
+    const toDispose = [];
+    this.board.forEach((entry, squareId) => {
+      toDispose.push(squareId);
+      entry.root.dispose();
+    });
+    toDispose.forEach((squareId) => this.board.delete(squareId));
+
+    this.board.setBudget("white", getPlayerTotalGold(this.playerState.level));
+    this.board.setBudget("black", getAIBudget(this.playerState.gold));
+    this.board.resetCounts("white");
+    this.board.resetCounts("black");
+
+    this.uiManager.renderShop(
+      this.shop.currentShop,
+      this.playerState,
+      this.shop.tier,
+      this.getUpgradeCost(),
+    );
+    this.randomizeAI();
+  }
+
+  startBattle() {
+    if (!this.playerColor) {
+      this.uiManager.showToast("Pick a side before starting the battle.");
+      return;
+    }
+    if (this.combatRecord.isReviewing) this.exitReviewMode();
+    if (this.combatService.gameInProgress) return;
 
     let hasBoardPieces = false;
-    placedPieces.forEach((p, sq) => {
-      if (p.color === "white" && !sq.startsWith("bench")) hasBoardPieces = true;
+    let hasBenchPieces = false;
+    this.board.forEach((entry, squareId) => {
+      if (entry.color !== this.playerColor) return;
+      if (squareId.startsWith("bench")) hasBenchPieces = true;
+      else hasBoardPieces = true;
     });
 
     if (!hasBoardPieces) {
-      uiManager.showToast("Place at least one piece on the board to fight!");
+      const cheapestShopPrice = this.shop.currentShop.reduce((min, type) => {
+        if (!type) return min;
+        return Math.min(min, pieceDefs[type].value);
+      }, Infinity);
+
+      if (!hasBenchPieces && !this.playerState.canAfford(cheapestShopPrice)) {
+        this.uiManager.showToast("No pieces and out of gold! Forfeiting the round...");
+        this.combatService.resolveAnnihilation();
+        return;
+      }
+
+      this.uiManager.showToast("Place at least one piece on the board to fight!");
       return;
     }
 
-    unlockAudio();
-    gameInProgress = true;
-    desyncRetries = 0;
-    noMoveCount = 0; 
-    lastEvalScore = null;
+    this.unlockAudio?.();
+    this.dragController.detach();
+    this.combatService.start();
+  }
 
-    detailedHistory = [];
-    currentPlyIndex = 0;
-    isReviewing = false;
-    uiManager.setPlaybackVisible(true);
-    uiManager.updatePlaybackUI(0, 0, isReviewing);
+  exitReviewMode() {
+    const nextRoundSnapshot = this.reviewService.exitReview(this.board.snapshot());
+    if (!nextRoundSnapshot) return;
 
-    setAnalysisVisible(true);
-    updateAnalysisBar();
-    uiManager.setStartBattleState({ inProgress: true });
-    currentTurn = "white";
-
-    preCombatPlayerState = [];
-    placedPieces.forEach((entry, squareId) => {
-      if (entry.color === playerColor && !squareId.startsWith("bench")) {
-        preCombatPlayerState.push({
-          squareId: squareId,
-          type: entry.type,
-        });
-      }
+    this.board.forEach((entry, squareId) => {
+      if (!squareId.startsWith("bench")) entry.root.setEnabled(false);
     });
 
-    initialFen = generateFEN(placedPieces, "white");
-    moveHistory = [];
+    this.board.clear();
+    nextRoundSnapshot.forEach((entry, squareId) => {
+      this.board.set(squareId, entry);
+      if (!squareId.startsWith("bench")) entry.root.setEnabled(true);
+    });
 
-    timeWhite = 180;
-    timeBlack = 180;
-    whiteTimerEl.innerText = "03:00";
-    blackTimerEl.innerText = "03:00";
-    timerContainer.style.display = "flex";
-    updateTimerVisuals(currentTurn);
-
-    if (timerInterval) clearInterval(timerInterval);
-    timerInterval = setInterval(() => {
-      if (!gameInProgress) return;
-
-      if (currentTurn === "white") {
-        timeWhite--;
-      } else {
-        timeBlack--;
-      }
-
-      const formatTime = (t) => {
-        const m = Math.floor(t / 60)
-          .toString()
-          .padStart(2, "0");
-        const s = (t % 60).toString().padStart(2, "0");
-        return `${m}:${s}`;
-      };
-
-      whiteTimerEl.innerText = formatTime(Math.max(0, timeWhite));
-      blackTimerEl.innerText = formatTime(Math.max(0, timeBlack));
-
-      if (timeWhite <= 0) {
-        clearInterval(timerInterval);
-        endCombat(false, 15, true); 
-      } else if (timeBlack <= 0) {
-        clearInterval(timerInterval);
-        endCombat(true, 0, true); 
-      }
-    }, 1000);
-
-    initEngine();
-  };
-
-  uiManager.onPrevTurn = undoMove;
-  uiManager.onNextTurn = redoMove;
-  uiManager.onExitReview = exitReviewMode;
-
-  document.addEventListener("keydown", (e) => {
-    if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
-      e.preventDefault();
-    }
-
-    if (!gameInProgress && detailedHistory.length === 0) return;
-
-    if (e.key === "ArrowLeft") {
-      undoMove();
-    } else if (e.key === "ArrowRight") {
-      redoMove();
-    } else if (e.key === "ArrowUp") {
-      goToFirstMove();
-    } else if (e.key === "ArrowDown") {
-      goToLastMove();
-    }
-  });
-
-  uiManager.onPickSide = (color) => setSide(color);
-  uiManager.onClearBoard = () => {
-    if (isReviewing) exitReviewMode();
-    if (!playerColor) {
-      return;
-    }
-    moveColorToBench(playerColor);
-  };
-  uiManager.onPieceSelected = (pieceId) => {
-    selectedPiece = pieceId;
-    if (selectedPiece) {
-      const [color, type] = selectedPiece.split("-");
-      updatePreview(type, color);
-    }
-  };
-
-  scene.onPointerObservable.add((pointerInfo) => {
-    if (gameInProgress) {
-      return;
-    }
-    const isPointerDown = pointerInfo.type === PointerEventTypes.POINTERDOWN;
-    const isPointerUp = pointerInfo.type === PointerEventTypes.POINTERUP;
-    const isPointerMove = pointerInfo.type === PointerEventTypes.POINTERMOVE;
-    if (!isPointerDown && !isPointerUp && !isPointerMove) {
-      return;
-    }
-
-    if (isPointerDown && isReviewing) {
-      exitReviewMode();
-    }
-
-    if (isPointerDown) {
-      const isRightClick = pointerInfo.event?.button === 2;
-      if (isRightClick) {
-        const pick = scene.pick(
-          scene.pointerX,
-          scene.pointerY,
-          (mesh) => !!mesh.metadata?.isPiece,
-        );
-        if (pick?.hit && pick.pickedMesh?.metadata?.squareId) {
-          const squareId = pick.pickedMesh.metadata.squareId;
-          const entry = placedPieces.get(squareId);
-          if (entry) {
-            const label = pieceLabels[entry.type] || entry.type;
-            const info =
-              pieceMoves[entry.type] || "No movement info available.";
-            uiManager.showMoveModal(`${label} (Cost: ${gemIcon} ${entry.value})`, info);
-          }
-        }
-        return;
-      }
-    }
-
-    if (!scene.metadata) {
-      scene.metadata = {};
-    }
-    if (!scene.metadata.dragState) {
-      scene.metadata.dragState = {
-        active: false,
-        fromSq: null,
-        entry: null,
-        ghost: null,
-        sellValue: 0,
-      };
-    }
-    const dragState = scene.metadata.dragState;
-
-    if (isPointerDown) {
-      const pickPiece = scene.pick(
-        scene.pointerX,
-        scene.pointerY,
-        (mesh) => !!mesh.metadata?.isPiece,
-      );
-      if (pickPiece?.hit && pickPiece.pickedMesh?.metadata?.squareId) {
-        const squareId = pickPiece.pickedMesh.metadata.squareId;
-        const entry = placedPieces.get(squareId);
-        if (entry && entry.color === playerColor) {
-          const ghost = entry.root.clone(
-            `${entry.color}-${entry.type}-${squareId}-ghost`,
-            null,
-            false,
-          );
-          ghost.setEnabled(true);
-          ghost.position.copyFrom(entry.root.position);
-          ghost.rotation.copyFrom(entry.root.rotation);
-          ghost.getChildMeshes().forEach((mesh) => {
-            mesh.material = entry.color === "white" ? ghostWhite : ghostBlack;
-            mesh.isPickable = false;
-          });
-          dragState.active = true;
-          dragState.fromSq = squareId;
-          dragState.entry = entry;
-          dragState.ghost = ghost;
-          dragState.sellValue = Math.max(1, Math.floor(entry.value * 0.7));
-          uiManager.showSellZone(dragState.sellValue);
-          camera.detachControl();
-          return;
-        }
-      }
-    }
-
-    if (isPointerMove && dragState.active) {
-      const pointerX = pointerInfo.event?.clientX ?? 0;
-      const pointerY = pointerInfo.event?.clientY ?? 0;
-      const isHoveringSell = uiManager.isPointerOverSellZone(
-        pointerX,
-        pointerY,
-      );
-      uiManager.highlightSellZone(isHoveringSell);
-
-      const pick = scene.pick(
-        scene.pointerX,
-        scene.pointerY,
-        (mesh) => !!mesh.metadata?.squareId && !mesh.metadata?.isPiece,
-      );
-      if (!pick?.hit || !pick.pickedMesh?.metadata?.squareId) {
-        return;
-      }
-      const squareId = pick.pickedMesh.metadata.squareId;
-
-      const coords = getTileCoordinates(squareId);
-      if (!isAllowedPlacement(dragState.entry.color, squareId)) {
-        return;
-      }
-      dragState.ghost.position.x = coords.col * tileSize - offset;
-      dragState.ghost.position.z = coords.zPos * tileSize - offset;
-
-      dragState.ghost.position.y = pieceYOffset[dragState.entry.type] || 0;
-      dragState.toSq = squareId;
-      return;
-    }
-
-    if (isPointerUp && dragState.active) {
-      const pointerX = pointerInfo.event?.clientX ?? 0;
-      const pointerY = pointerInfo.event?.clientY ?? 0;
-      const isSelling = uiManager.isPointerOverSellZone(pointerX, pointerY);
-
-      if (isSelling) {
-        playerState.gold += dragState.sellValue;
-        removePiece(dragState.fromSq);
-        uiManager.renderShop(currentShop, playerState);
-        playSound(sounds.capture);
-      } else {
-        const targetSq = dragState.toSq || dragState.fromSq;
-        if (
-          targetSq &&
-          targetSq !== dragState.fromSq &&
-          !placedPieces.has(targetSq)
-        ) {
-          movePiece(dragState.fromSq, targetSq);
-        }
-      }
-      if (dragState.ghost) {
-        dragState.ghost.dispose();
-      }
-      uiManager.hideSellZone();
-      camera.attachControl(canvas, true);
-      dragState.active = false;
-      dragState.fromSq = null;
-      dragState.toSq = null;
-      dragState.entry = null;
-      dragState.ghost = null;
-      dragState.sellValue = 0;
-      return;
-    }
-
-    if (!isPointerDown || dragState.active) {
-      return;
-    }
-  });
-
-  await loadPieces();
-  initPreview();
-  generateShopItems();
-  return scene;
-};
-
-const scene = await createScene();
-
-engine.runRenderLoop(() => {
-  scene.render();
-});
-
-window.addEventListener("resize", () => {
-  engine.resize();
-  if (previewEngine) {
-    previewEngine.resize();
+    this.uiManager.updatePlaybackUI(
+      this.combatRecord.currentPlyIndex,
+      this.combatRecord.length,
+      this.combatRecord.isReviewing,
+    );
+    this.boardRenderer.updateAnalysisBar();
   }
-});
+
+  fromAlgebraic(square) {
+    return {
+      col: square.charCodeAt(0) - 97,
+      row: 8 - parseInt(square[1], 10),
+    };
+  }
+
+  undoMove() {
+    if (this.combatService.gameInProgress) {
+      this.uiManager.showToast("Wait for the round to end to review moves!");
+      return;
+    }
+    if (!this.reviewService.canUndo({ gameInProgress: false })) return;
+
+    if (this.reviewService.ensureReviewSnapshot(this.board.snapshot())) {
+      this.board.forEach((entry, squareId) => {
+        if (!squareId.startsWith("bench")) entry.root.setEnabled(false);
+      });
+      this.board.clear();
+      this.combatRecord.battleEndPlacedPieces.forEach((entry, squareId) => {
+        this.board.set(squareId, entry);
+        if (!squareId.startsWith("bench")) entry.root.setEnabled(true);
+      });
+    }
+
+    const move = this.reviewService.getPreviousMove();
+    const fromCoord = this.fromAlgebraic(move.move.substring(0, 2));
+
+    move.pieceMoved.root.setEnabled(true);
+    move.pieceMoved.root.position.x =
+      fromCoord.col * this.boardRenderer.tileSize - this.boardRenderer.offset;
+    move.pieceMoved.root.position.z =
+      fromCoord.row * this.boardRenderer.tileSize - this.boardRenderer.offset;
+    move.pieceMoved.root.getChildMeshes().forEach((mesh) => {
+      if (mesh.metadata) mesh.metadata.squareId = move.fromSq;
+    });
+
+    this.board.delete(move.toSq);
+    this.board.set(move.fromSq, move.pieceMoved);
+
+    if (move.promotionInfo) {
+      move.promotionInfo.newRoot?.setEnabled(false);
+      move.promotionInfo.oldRoot?.setEnabled(true);
+      move.pieceMoved.root = move.promotionInfo.oldRoot;
+      move.pieceMoved.type = move.promotionInfo.oldType;
+      move.pieceMoved.value = move.promotionInfo.oldValue;
+    }
+
+    if (move.capturedPiece) {
+      const restoreSq = move.enPassantSq || move.toSq;
+      move.capturedPiece.root.setEnabled(true);
+      this.board.set(restoreSq, move.capturedPiece);
+    }
+
+    this.reviewService.stepBackward();
+    this.combatRecord.enterReview();
+    this.uiManager.updatePlaybackUI(
+      this.combatRecord.currentPlyIndex,
+      this.combatRecord.length,
+      this.combatRecord.isReviewing,
+    );
+    this.boardRenderer.playSound(this.boardRenderer.sounds.move);
+    this.boardRenderer.updateAnalysisBar();
+  }
+
+  redoMove() {
+    if (this.combatService.gameInProgress) {
+      this.uiManager.showToast("Wait for the round to end to review moves!");
+      return;
+    }
+    if (!this.reviewService.canRedo({ gameInProgress: false })) return;
+
+    if (this.reviewService.ensureReviewSnapshot(this.board.snapshot())) {
+      this.board.forEach((entry, squareId) => {
+        if (!squareId.startsWith("bench")) entry.root.setEnabled(false);
+      });
+      this.board.clear();
+      this.combatRecord.battleEndPlacedPieces.forEach((entry, squareId) => {
+        this.board.set(squareId, entry);
+        if (!squareId.startsWith("bench")) entry.root.setEnabled(true);
+      });
+    }
+
+    const move = this.reviewService.getNextMove();
+    const toCoord = this.fromAlgebraic(move.move.substring(2, 4));
+
+    if (move.capturedPiece) {
+      this.board.delete(move.enPassantSq || move.toSq);
+      move.capturedPiece.root.setEnabled(false);
+    }
+
+    if (move.promotionInfo) {
+      move.promotionInfo.oldRoot?.setEnabled(false);
+      move.promotionInfo.newRoot?.setEnabled(true);
+      move.pieceMoved.root = move.promotionInfo.newRoot;
+      const promoType = move.promotionInfo.newType || "queen";
+      move.pieceMoved.type = promoType;
+      move.pieceMoved.value = pieceDefs[promoType]?.value || 9;
+    }
+
+    move.pieceMoved.root.setEnabled(true);
+    move.pieceMoved.root.position.x =
+      toCoord.col * this.boardRenderer.tileSize - this.boardRenderer.offset;
+    move.pieceMoved.root.position.z =
+      toCoord.row * this.boardRenderer.tileSize - this.boardRenderer.offset;
+    move.pieceMoved.root.getChildMeshes().forEach((mesh) => {
+      if (mesh.metadata) mesh.metadata.squareId = move.toSq;
+    });
+
+    this.board.delete(move.fromSq);
+    this.board.set(move.toSq, move.pieceMoved);
+
+    this.reviewService.stepForward();
+    this.combatRecord.enterReview();
+    this.uiManager.updatePlaybackUI(
+      this.combatRecord.currentPlyIndex,
+      this.combatRecord.length,
+      this.combatRecord.isReviewing,
+    );
+    this.boardRenderer.playSound(this.boardRenderer.sounds.move);
+    this.boardRenderer.updateAnalysisBar();
+  }
+
+  goToFirstMove() {
+    if (!this.combatService.gameInProgress && this.combatRecord.length > 0) {
+      while (this.combatRecord.currentPlyIndex > 0) this.undoMove();
+    }
+  }
+
+  goToLastMove() {
+    if (!this.combatService.gameInProgress && this.combatRecord.length > 0) {
+      while (this.combatRecord.currentPlyIndex < this.combatRecord.length) this.redoMove();
+    }
+  }
+}
+
+const controller = new GameController();
+await controller.init();
