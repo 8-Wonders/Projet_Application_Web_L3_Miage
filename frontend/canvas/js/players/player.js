@@ -84,11 +84,6 @@ export class Player extends GraphicalObject {
     ctx.save();
     ctx.translate(this.x, this.y);
     
-    // 1. Draw Visible Hitbox Background (Semi-transparent black)
-    // You can delete this fillRect line if you ever want the boxes gone completely
-    ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; 
-    ctx.fillRect(0, 0, this.width, this.height);
-
     // 2. Draw Selection/Aiming Outline
     if (this.turnActive) {
       ctx.strokeStyle = this.isAiming ? "rgba(0, 0, 139, 0.9)" : "rgba(255, 255, 0, 0.9)";
@@ -116,6 +111,13 @@ export class Player extends GraphicalObject {
       const offsetY = 0;
 
       ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+    } else {
+      // 5. Fallback (ONLY draws if image is missing)
+      ctx.fillStyle = this.color;
+      // Map class names to actual colors if necessary
+      if (this.color === "archer") ctx.fillStyle = "green";
+      if (this.color === "mage") ctx.fillStyle = "red";
+      if (this.color === "goblin") ctx.fillStyle = "#27AE60";
       
       ctx.fillRect(0, 0, this.width, this.height);
     }

@@ -8,8 +8,6 @@
     <!-- Original right leg becomes left after mirror -->
     <rect x="7.5" y="10.5" width="2" height="4.8" rx="0.5" fill="#2C3E50" stroke="#263238" stroke-width="0.35"/>
 
-    <!-- Upper body group: leaning LEFT (counter-clockwise after mirror) -->
-    <g transform="translate(8,7.8) rotate(-9) translate(-8,-7.8)">
       <!-- Ragged tunic torso -->
       <rect x="4.8" y="4.5" width="4.4" height="6.8" rx="0.7" fill="#8B5A2B" stroke="#263238" stroke-width="0.4"/>
       <!-- Tunic tear detail -->
@@ -44,6 +42,5 @@
       <!-- Spikes on club -->
       <line x1="13.1" y1="6.9" x2="12.5" y2="6.1" stroke="#263238" stroke-width="0.25"/>
       <line x1="14.6" y1="7.1" x2="15.1" y2="6.4" stroke="#263238" stroke-width="0.25"/>
-    </g>
   </g>
 </svg>

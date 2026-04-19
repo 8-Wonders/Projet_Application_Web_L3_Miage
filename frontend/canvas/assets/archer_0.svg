@@ -7,8 +7,6 @@
     <!-- Original right leg becomes left after mirror -->
     <rect x="7.8" y="10.8" width="1.6" height="4.8" rx="0.4" fill="#26334A" stroke="#263238" stroke-width="0.3"/>
 
-    <!-- Upper body group: leaning LEFT (counter-clockwise after mirror) -->
-    <g transform="translate(8,7.5) rotate(-8) translate(-8,-7.5)">
       <!-- Quiver on back (now appears on right side after mirror) -->
       <rect x="3.5" y="4" width="1.8" height="6.5" rx="0.2" fill="#5C4033" stroke="#263238" stroke-width="0.4"/>
       <!-- Quiver arrows -->
@@ -43,6 +41,5 @@
       <path d="M 11.1,7.6 L 9.9,6.4 L 11.1,7.6 L 9.9,8.8 Z" fill="#E03E3E" stroke="none"/>
       <!-- Arrowhead (pointing left) -->
       <polygon points="15.2,7.1 16,7.6 15.2,8.1" fill="#263238"/>
-    </g>
   </g>
 </svg>
