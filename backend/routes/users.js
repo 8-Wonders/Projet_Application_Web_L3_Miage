@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const authMiddleware = require('../middleware/auth');
+const Score = require('../models/Score');
 
 const router = express.Router();
 
@@ -52,6 +53,29 @@ router.put('/me/avatar', authMiddleware, upload.single('avatar'), async (req, re
     res.json({ message: 'Avatar mis à jour', user: req.user });
   } catch (error) {
     console.error('Upload avatar error:', error);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+router.delete('/me', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const username = req.user.username;
+    const avatarPath = req.user.avatar;
+
+    if (typeof avatarPath === 'string' && avatarPath.startsWith('/uploads/')) {
+      const absoluteAvatarPath = path.join(__dirname, '..', avatarPath);
+      if (fs.existsSync(absoluteAvatarPath)) {
+        fs.unlinkSync(absoluteAvatarPath);
+      }
+    }
+
+    await Score.deleteMany({ username });
+    await req.user.deleteOne();
+
+    res.json({ message: 'Compte supprimé avec succès', deletedUserId: userId });
+  } catch (error) {
+    console.error('Delete account error:', error);
     res.status(500).json({ message: 'Erreur serveur' });
   }
 });

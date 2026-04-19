@@ -158,6 +158,43 @@ btnLogout.addEventListener('click', () => {
   window.location.href = 'index.html';
 });
 
+const btnDeleteAccount = document.getElementById('btn-delete-account');
+if (btnDeleteAccount) {
+  btnDeleteAccount.addEventListener('click', async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = 'index.html';
+      return;
+    }
+
+    const confirmed = window.confirm('Voulez-vous vraiment supprimer votre compte ? Cette action est irreversible.');
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`${API_URL}/users/me`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        alert(data?.message || 'Suppression du compte impossible');
+        return;
+      }
+
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      alert('Compte supprime avec succes.');
+      window.location.href = 'index.html';
+    } catch (error) {
+      console.error('Erreur suppression compte:', error);
+      alert('Erreur de connexion au serveur');
+    }
+  });
+}
+
 // Gérer le bouton de changement de photo de profil
 const btnChangeAvatar = document.getElementById('btn-change-avatar');
 const avatarInput = document.getElementById('avatar-input');

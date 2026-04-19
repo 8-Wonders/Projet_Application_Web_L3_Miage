@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 
 const scoreSchema = new mongoose.Schema({
+  game: {
+    type: String,
+    enum: ['dom', 'canvas', 'babylone'],
+    default: 'canvas',
+    index: true
+  },
   username: {
     type: String,
     required: true,
