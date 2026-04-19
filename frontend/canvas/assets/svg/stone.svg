@@ -1,4 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Base stone color -->
   <rect width="64" height="64" fill="#7f8c8d" />
-</svg>
 
+  <!-- Darker rocky patches -->
+  <rect x="3" y="4" width="22" height="18" rx="5" fill="#6a7880" />
+  <rect x="35" y="8" width="19" height="25" rx="4" fill="#6a7880" />
+  <rect x="5" y="35" width="18" height="15" rx="3" fill="#6a7880" />
+  <rect x="28" y="45" width="30" height="14" rx="6" fill="#6a7880" />
+  <rect x="45" y="3" width="15" height="12" rx="2" fill="#6a7880" />
+
+  <!-- Lighter highlights for 3D feel -->
+  <rect x="8" y="8" width="10" height="9" rx="2" fill="#9aa6ad" opacity="0.7" />
+  <rect x="40" y="15" width="8" height="10" rx="2" fill="#9aa6ad" opacity="0.6" />
+  <rect x="12" y="40" width="7" height="8" rx="2" fill="#9aa6ad" opacity="0.7" />
+
+  <!-- Cracks -->
+  <path d="M15,25 L25,35" fill="transparent" stroke="#5d6e77" stroke-width="1.5" />
+  <path d="M40,30 L52,44" fill="transparent" stroke="#5d6e77" stroke-width="1.2" />
+  <path d="M22,48 L36,53" fill="transparent" stroke="#5d6e77" stroke-width="1" />
+</svg>
