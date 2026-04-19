@@ -67,7 +67,10 @@ canvas {
   border-radius: 8px;
   font-size: 14px;
   cursor: pointer;
-  transition: transform 0.08s ease, border-color 0.08s ease, background 0.08s ease;
+  transition:
+    transform 0.08s ease,
+    border-color 0.08s ease,
+    background 0.08s ease;
 }
 
 #shopGroup .piece-btn {
@@ -179,9 +182,18 @@ canvas {
   min-width: 64px;
 }
 
-.stat-pill.hp { color: #ff4c4c; border-color: rgba(255, 76, 76, 0.3); }
-.stat-pill.level { color: #ffca28; border-color: rgba(255, 202, 40, 0.3); }
-.stat-pill.gold { color: #40e0d0; border-color: rgba(64, 224, 208, 0.3); }
+.stat-pill.hp {
+  color: #ff4c4c;
+  border-color: rgba(255, 76, 76, 0.3);
+}
+.stat-pill.level {
+  color: #ffca28;
+  border-color: rgba(255, 202, 40, 0.3);
+}
+.stat-pill.gold {
+  color: #40e0d0;
+  border-color: rgba(64, 224, 208, 0.3);
+}
 
 .icon {
   width: 16px;
@@ -442,7 +454,9 @@ canvas {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   font-family: sans-serif;
   font-weight: bold;
-  animation: slideIn 0.3s ease-out, fadeOut 0.3s ease-in 2.7s forwards;
+  animation:
+    slideIn 0.3s ease-out,
+    fadeOut 0.3s ease-in 2.7s forwards;
 }
 
 @keyframes slideIn {
@@ -491,7 +505,9 @@ canvas {
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 4px;
-  transition: background 0.1s, color 0.1s;
+  transition:
+    background 0.1s,
+    color 0.1s;
 }
 
 .playback-btn:hover {
@@ -513,3 +529,7 @@ canvas {
   font-variant-numeric: tabular-nums;
 }
 
+.stat-pill.round {
+  color: #b794f4;
+  border-color: rgba(183, 148, 244, 0.3);
+}

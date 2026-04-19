@@ -1,5 +1,6 @@
 const pieceCharMap = {
   pawn: "p",
+  vizier: "v",
   rook: "r",
   knight: "n",
   bishop: "b",
@@ -21,7 +22,6 @@ const toPieceChar = (type, color) => {
 
 export const generateFEN = (placedPieces, turn) => {
   let fen = "";
-
   let pieceCount = 0;
 
   for (let row = 0; row < 8; row += 1) {
@@ -29,35 +29,25 @@ export const generateFEN = (placedPieces, turn) => {
 
     for (let col = 0; col < 8; col += 1) {
       const squareId = `${row}-${col}`;
-
       const piece = placedPieces.get(squareId);
 
       if (piece) {
         pieceCount += 1;
-
         if (empty > 0) {
           fen += empty;
           empty = 0;
         }
-
         fen += toPieceChar(piece.type, piece.color);
       } else {
         empty += 1;
       }
     }
 
-    if (empty > 0) {
-      fen += empty;
-    }
-
-    if (row < 7) {
-      fen += "/";
-    }
+    if (empty > 0) fen += empty;
+    if (row < 7) fen += "/";
   }
 
   fen += ` ${turn === "white" ? "w" : "b"} - - 0 1`;
-
-  console.log("Generated FEN:", fen, "Pieces in FEN:", pieceCount);
-
+  console.log("Generated FEN:", fen, "Pieces:", pieceCount);
   return fen;
 };

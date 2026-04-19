@@ -36,99 +36,80 @@ const previewNameEl = document.getElementById("previewName");
 const analysisBarEl = document.getElementById("analysisBar");
 const analysisFillEl = document.getElementById("analysisFill");
 const uiManager = new UIManager({ pieceDefs, pieceLabels, pieceMoves });
+
 let previewEngine = null;
 let previewScene = null;
 let previewRoot = null;
 let previewCamera = null;
 
-let detailedHistory = []; 
-let battleEndPlacedPieces = new Map(); // Snapshot of placedPieces exactly at combat end
-let savedNextRoundPieces = new Map();  // Safely stores your next round setup during review
+let detailedHistory = [];
+let battleEndPlacedPieces = new Map();
+let savedNextRoundPieces = new Map();
 let currentPlyIndex = 0;
-let isReviewing = false; 
+let isReviewing = false;
 
-// --- 3+0 Timer UI Setup ---
+// ── Timer UI ──────────────────────────────────────────────────────────────────
 const timerContainer = document.createElement("div");
 timerContainer.id = "chess-timers";
-timerContainer.style.position = "absolute";
-timerContainer.style.top = "20px";
-timerContainer.style.left = "50%";
-timerContainer.style.transform = "translateX(-50%)";
-timerContainer.style.display = "none";
-timerContainer.style.flexDirection = "row";
-timerContainer.style.gap = "12px";
-timerContainer.style.zIndex = "1000";
-timerContainer.style.fontFamily = "'Space Grotesk', monospace";
-timerContainer.style.fontSize = "20px";
-timerContainer.style.fontWeight = "600";
-timerContainer.style.pointerEvents = "none";
-
-const blackTimerEl = document.createElement("div");
-blackTimerEl.style.backgroundColor = "rgba(17, 24, 42, 0.85)";
-blackTimerEl.style.color = "#8ea1c8";
-blackTimerEl.style.padding = "6px 14px";
-blackTimerEl.style.borderRadius = "12px";
-blackTimerEl.style.border = "1px solid #2a3555";
-blackTimerEl.style.backdropFilter = "blur(8px)";
-blackTimerEl.style.boxShadow = "0 4px 15px rgba(0,0,0,0.4)";
-blackTimerEl.innerText = "[03:00]";
-
-const whiteTimerEl = document.createElement("div");
-whiteTimerEl.style.backgroundColor = "rgba(17, 24, 42, 0.85)";
-whiteTimerEl.style.color = "#e5e7ef";
-whiteTimerEl.style.padding = "6px 14px";
-whiteTimerEl.style.borderRadius = "12px";
-whiteTimerEl.style.border = "1px solid #2a3555";
-whiteTimerEl.style.backdropFilter = "blur(8px)";
-whiteTimerEl.style.boxShadow = "0 4px 15px rgba(0,0,0,0.4)";
-whiteTimerEl.innerText = "[03:00]";
-
-timerContainer.appendChild(whiteTimerEl); 
-timerContainer.appendChild(blackTimerEl); 
-document.body.appendChild(timerContainer);
-
-let timeWhite = 180;
-let timeBlack = 180;
-let timerInterval = null;
-
-const updateTimerVisuals = (turn) => {
-  whiteTimerEl.style.borderColor = "#2a3555";
-  whiteTimerEl.style.color = "#e5e7ef";
-  blackTimerEl.style.borderColor = "#2a3555";
-  blackTimerEl.style.color = "#8ea1c8";
-
-  if (turn === "white") {
-    whiteTimerEl.style.borderColor = "#4c6fff";
-    whiteTimerEl.style.color = "#fff";
-  } else {
-    blackTimerEl.style.borderColor = "#4c6fff";
-    blackTimerEl.style.color = "#fff";
-  }
-};
-// --------------------------
-
-canvas.addEventListener("contextmenu", (event) => {
-  event.preventDefault();
+Object.assign(timerContainer.style, {
+  position: "absolute",
+  top: "20px",
+  left: "50%",
+  transform: "translateX(-50%)",
+  display: "none",
+  flexDirection: "row",
+  gap: "12px",
+  zIndex: "1000",
+  fontFamily: "'Space Grotesk', monospace",
+  fontSize: "20px",
+  fontWeight: "600",
+  pointerEvents: "none",
 });
 
+const makeTimerEl = (color) => {
+  const el = document.createElement("div");
+  Object.assign(el.style, {
+    backgroundColor: "rgba(17, 24, 42, 0.85)",
+    color: color === "white" ? "#e5e7ef" : "#8ea1c8",
+    padding: "6px 14px",
+    borderRadius: "12px",
+    border: "1px solid #2a3555",
+    backdropFilter: "blur(8px)",
+    boxShadow: "0 4px 15px rgba(0,0,0,0.4)",
+  });
+  el.innerText = "[03:00]";
+  return el;
+};
+
+const whiteTimerEl = makeTimerEl("white");
+const blackTimerEl = makeTimerEl("black");
+timerContainer.appendChild(whiteTimerEl);
+timerContainer.appendChild(blackTimerEl);
+document.body.appendChild(timerContainer);
+
+let timeWhite = 180,
+  timeBlack = 180,
+  timerInterval = null;
+
+const updateTimerVisuals = (turn) => {
+  whiteTimerEl.style.borderColor = turn === "white" ? "#4c6fff" : "#2a3555";
+  whiteTimerEl.style.color = turn === "white" ? "#fff" : "#e5e7ef";
+  blackTimerEl.style.borderColor = turn === "black" ? "#4c6fff" : "#2a3555";
+  blackTimerEl.style.color = turn === "black" ? "#fff" : "#8ea1c8";
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
+canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 window.addEventListener(
   "wheel",
-  (event) => {
-    if (event.ctrlKey) {
-      event.preventDefault();
-    }
+  (e) => {
+    if (e.ctrlKey) e.preventDefault();
   },
   { passive: false },
 );
-["gesturestart", "gesturechange", "gestureend"].forEach((type) => {
-  window.addEventListener(
-    type,
-    (event) => {
-      event.preventDefault();
-    },
-    { passive: false },
-  );
-});
+["gesturestart", "gesturechange", "gestureend"].forEach((t) =>
+  window.addEventListener(t, (e) => e.preventDefault(), { passive: false }),
+);
 
 const createScene = async () => {
   const scene = new Scene(engine);
@@ -138,17 +119,15 @@ const createScene = async () => {
     Math.PI / 4,
     Math.PI / 3,
     18,
-    new Vector3(0, 0, 0),
+    Vector3.Zero(),
     scene,
   );
   camera.attachControl(canvas, true);
   camera.lowerBetaLimit = 0.3;
   camera.upperBetaLimit = 1.2;
   camera.wheelDeltaPercentage = 0.01;
-
-  if (camera.inputs.attached.keyboard) {
+  if (camera.inputs.attached.keyboard)
     camera.inputs.remove(camera.inputs.attached.keyboard);
-  }
 
   const light = new HemisphericLight("light", new Vector3(0, 1, 0), scene);
   light.intensity = 0.9;
@@ -169,22 +148,15 @@ const createScene = async () => {
   };
 
   const playSound = (sound) => {
-    if (!sound) {
-      return;
-    }
-    if (sound.isPlaying) {
-      sound.stop();
-    }
+    if (!sound) return;
+    if (sound.isPlaying) sound.stop();
     sound.play();
   };
 
   const unlockAudio = () => {
-    const audioEngine = Engine.audioEngine || engine.getAudioEngine?.();
-    if (audioEngine && !audioEngine.unlocked) {
-      audioEngine.unlock();
-    }
+    const ae = Engine.audioEngine || engine.getAudioEngine?.();
+    if (ae && !ae.unlocked) ae.unlock();
   };
-
   canvas.addEventListener("pointerdown", unlockAudio, { once: true });
   document.addEventListener("pointerdown", unlockAudio, { once: true });
   document.addEventListener("keydown", unlockAudio, { once: true });
@@ -192,28 +164,25 @@ const createScene = async () => {
   const getPlayerTotalGold = (level) => 10 + (level - 1) * 5;
   const getAIBudget = (playerGold) => playerGold + 2;
 
+  // ── Board ──
   const boardRoot = new TransformNode("boardRoot", scene);
-
   const lightTile = new StandardMaterial("lightTile", scene);
   lightTile.diffuseColor = new Color3(0.91, 0.87, 0.8);
-
   const darkTile = new StandardMaterial("darkTile", scene);
   darkTile.diffuseColor = new Color3(0.33, 0.24, 0.19);
 
   const tileSize = 1.8;
   const offset = (7 * tileSize) / 2;
-
   const tiles = [];
-  for (let row = 0; row < 8; row += 1) {
-    for (let col = 0; col < 8; col += 1) {
+
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
       const tile = MeshBuilder.CreateBox(
         `tile-${row}-${col}`,
         { width: tileSize, depth: tileSize, height: 0.2 },
         scene,
       );
-      tile.position.x = col * tileSize - offset;
-      tile.position.z = row * tileSize - offset;
-      tile.position.y = -0.1;
+      tile.position.set(col * tileSize - offset, -0.1, row * tileSize - offset);
       tile.material = (row + col) % 2 === 0 ? lightTile : darkTile;
       tile.metadata = { squareId: `${row}-${col}` };
       tile.isPickable = true;
@@ -226,18 +195,19 @@ const createScene = async () => {
   benchMaterial.diffuseColor = new Color3(0.5, 0.5, 0.6);
 
   const getBenchZPosForColor = (color) => (color === "black" ? -1.5 : 8.5);
-
   const benchTiles = [];
-  for (let col = 0; col < 8; col += 1) {
+
+  for (let col = 0; col < 8; col++) {
     const tile = MeshBuilder.CreateBox(
       `bench-tile-${col}`,
       { width: tileSize, depth: tileSize, height: 0.15 },
       scene,
     );
-
-    tile.position.x = col * tileSize - offset;
-    tile.position.z = getBenchZPosForColor("white") * tileSize - offset;
-    tile.position.y = -0.1;
+    tile.position.set(
+      col * tileSize - offset,
+      -0.1,
+      getBenchZPosForColor("white") * tileSize - offset,
+    );
     tile.material = benchMaterial;
     tile.metadata = { squareId: `bench-${col}`, isBench: true };
     tile.isPickable = true;
@@ -245,22 +215,18 @@ const createScene = async () => {
     benchTiles.push(tile);
   }
 
+  // ── Materials ──
   const baseWhite = new StandardMaterial("whitePiece", scene);
   baseWhite.diffuseColor = new Color3(0.95, 0.94, 0.9);
   baseWhite.specularColor = new Color3(0.2, 0.2, 0.2);
-  baseWhite.alpha = 1;
-  baseWhite.useVertexAlpha = false;
 
   const baseBlack = new StandardMaterial("blackPiece", scene);
   baseBlack.diffuseColor = new Color3(0.33, 0.24, 0.19);
   baseBlack.specularColor = new Color3(0.08, 0.08, 0.08);
-  baseBlack.alpha = 1;
-  baseBlack.useVertexAlpha = false;
 
   const ghostWhite = baseWhite.clone("ghostWhite");
   ghostWhite.alpha = 0.45;
   ghostWhite.backFaceCulling = false;
-
   const ghostBlack = baseBlack.clone("ghostBlack");
   ghostBlack.alpha = 0.45;
   ghostBlack.backFaceCulling = false;
@@ -271,26 +237,19 @@ const createScene = async () => {
   };
 
   const pieceTemplates = {};
-
   let previewWhiteMaterial = null;
   let previewBlackMaterial = null;
 
   const updatePreview = async (type, color) => {
-    if (!previewCanvas || !previewScene || !previewCamera) {
-      return;
-    }
+    if (!previewCanvas || !previewScene || !previewCamera) return;
     const asset = pieceAssets[type];
-    if (!asset) {
-      return;
-    }
+    if (!asset) return;
     if (previewRoot) {
       previewRoot.dispose();
       previewRoot = null;
     }
     previewRoot = new TransformNode(`preview-${type}`, previewScene);
-    if (previewNameEl) {
-      previewNameEl.textContent = pieceLabels[type] || type;
-    }
+    if (previewNameEl) previewNameEl.textContent = pieceLabels[type] || type;
 
     let meshes = [];
     try {
@@ -301,11 +260,9 @@ const createScene = async () => {
         previewScene,
       );
       meshes = result.meshes.filter(
-        (mesh) => mesh.getTotalVertices && mesh.getTotalVertices() > 0,
+        (m) => m.getTotalVertices && m.getTotalVertices() > 0,
       );
-      meshes.forEach((mesh) => {
-        mesh.parent = previewRoot;
-      });
+      meshes.forEach((m) => (m.parent = previewRoot));
       normalizeMeshes(
         `preview-${type}`,
         meshes,
@@ -313,14 +270,10 @@ const createScene = async () => {
         asset.height,
         previewScene,
       );
-    } catch (e) {
+    } catch {
       const fallback = MeshBuilder.CreateCylinder(
         `preview-${type}-fallback`,
-        {
-          height: asset.height,
-          diameterTop: 0.8,
-          diameterBottom: 1,
-        },
+        { height: asset.height, diameterTop: 0.8, diameterBottom: 1 },
         previewScene,
       );
       meshes = [fallback];
@@ -335,24 +288,17 @@ const createScene = async () => {
 
     const material =
       color === "black" ? previewBlackMaterial : previewWhiteMaterial;
-    if (material) {
-      meshes.forEach((mesh) => {
-        mesh.material = material;
-      });
-    }
+    if (material) meshes.forEach((m) => (m.material = material));
 
     const bounds = getBounds(previewRoot.getChildMeshes());
     const center = bounds.min.add(bounds.max).scale(0.5);
     const size = bounds.max.subtract(bounds.min);
-    const maxDim = Math.max(size.x, size.y, size.z);
     previewCamera.setTarget(center);
-    previewCamera.radius = Math.max(3, maxDim * 2.4);
+    previewCamera.radius = Math.max(3, Math.max(size.x, size.y, size.z) * 2.4);
   };
 
   const initPreview = () => {
-    if (!previewCanvas) {
-      return;
-    }
+    if (!previewCanvas) return;
     previewEngine = new Engine(previewCanvas, true);
     previewScene = new Scene(previewEngine);
     previewCamera = new ArcRotateCamera(
@@ -363,10 +309,7 @@ const createScene = async () => {
       Vector3.Zero(),
       previewScene,
     );
-    previewCamera.attachControl(previewCanvas, false);
     previewCamera.inputs.clear();
-    previewCamera.lowerRadiusLimit = 3;
-    previewCamera.upperRadiusLimit = 6;
 
     const previewLight = new HemisphericLight(
       "previewLight",
@@ -384,14 +327,9 @@ const createScene = async () => {
     previewBlackMaterial.specularColor = new Color3(0.08, 0.08, 0.08);
 
     previewScene.onBeforeRenderObservable.add(() => {
-      if (previewRoot) {
-        previewRoot.rotation.y += 0.01;
-      }
+      if (previewRoot) previewRoot.rotation.y += 0.01;
     });
-
-    previewEngine.runRenderLoop(() => {
-      previewScene.render();
-    });
+    previewEngine.runRenderLoop(() => previewScene.render());
   };
 
   const loadPieces = async () => {
@@ -399,96 +337,122 @@ const createScene = async () => {
     await library.loadAll();
   };
 
-  const playerState = {
-    gold: 10,
-    hp: 100,
-    level: 1,
-  };
+  // ── Player state ──────────────────────────────────────────────────────────
+  const playerState = { gold: 10, hp: 100, level: 1 };
+
+  // ── Shop tier system ──────────────────────────────────────────────────────
+  const MAX_SHOP_TIER = 5;
+  let shopTier = 1;
+
+  /**
+   * Upgrade cost starts at 5 gold on round 1 and decreases by 1 each round,
+   * bottoming out at 2 gold (same formula as Hearthstone Battlegrounds).
+   */
+  const getUpgradeCost = () => Math.max(2, 6 - playerState.level);
+  // ─────────────────────────────────────────────────────────────────────────
 
   const placedPieces = new Map();
   const budgets = {
     white: getPlayerTotalGold(playerState.level),
     black: getAIBudget(playerState.gold),
   };
-
   const counts = {
-    white: Object.fromEntries(Object.keys(pieceDefs).map((key) => [key, 0])),
-    black: Object.fromEntries(Object.keys(pieceDefs).map((key) => [key, 0])),
+    white: Object.fromEntries(Object.keys(pieceDefs).map((k) => [k, 0])),
+    black: Object.fromEntries(Object.keys(pieceDefs).map((k) => [k, 0])),
   };
 
   let currentShop = [null, null, null, null, null];
 
+  // Generate a fresh shop from pieces available at the current tier
   const generateShopItems = () => {
     currentShop = [];
-    const pieceTypes = Object.keys(pieceDefs).filter((p) => p !== "fool");
-
+    const available = Object.keys(pieceDefs).filter(
+      (p) => pieceDefs[p].tier <= shopTier,
+    );
     for (let i = 0; i < 5; i++) {
-      const randomType =
-        pieceTypes[Math.floor(Math.random() * pieceTypes.length)];
-      currentShop.push(randomType);
+      currentShop.push(available[Math.floor(Math.random() * available.length)]);
     }
-
     uiManager.clearShopSelection();
-    uiManager.renderShop(currentShop, playerState);
+    uiManager.renderShop(currentShop, playerState, shopTier, getUpgradeCost());
   };
 
-  // Safe Exit function for returning to real-time after scrubbing the timeline
+  // ── Upgrade shop ──────────────────────────────────────────────────────────
+  const upgradeShop = () => {
+    if (shopTier >= MAX_SHOP_TIER) return;
+    const cost = getUpgradeCost();
+    if (playerState.gold < cost) {
+      uiManager.showToast("Not enough gold to upgrade the shop!");
+      return;
+    }
+    playerState.gold -= cost;
+    shopTier++;
+    generateShopItems(); // regenerate with new tier; updates gold display too
+    uiManager.showToast(
+      `Shop upgraded to Tier ${shopTier}! Stronger pieces unlocked.`,
+    );
+  };
+  uiManager.onUpgradeShop = upgradeShop;
+
+  // ── Review playback ───────────────────────────────────────────────────────
   const exitReviewMode = () => {
     if (!isReviewing) return;
     isReviewing = false;
 
-    // Hide all historical pieces
     placedPieces.forEach((entry, sq) => {
-      if (!sq.startsWith("bench")) {
-        entry.root.setEnabled(false);
-      }
+      if (!sq.startsWith("bench")) entry.root.setEnabled(false);
     });
 
-    // Safely restore the next round state
     placedPieces.clear();
     savedNextRoundPieces.forEach((entry, sq) => {
       placedPieces.set(sq, entry);
-      if (!sq.startsWith("bench")) {
-        entry.root.setEnabled(true);
-      }
+      if (!sq.startsWith("bench")) entry.root.setEnabled(true);
     });
 
     currentPlyIndex = detailedHistory.length;
-    uiManager.updatePlaybackUI(currentPlyIndex, detailedHistory.length, isReviewing);
+    uiManager.updatePlaybackUI(
+      currentPlyIndex,
+      detailedHistory.length,
+      isReviewing,
+    );
   };
 
+  // ── Buy from shop ─────────────────────────────────────────────────────────
   const buyFromShop = (shopIndex) => {
     if (isReviewing) exitReviewMode();
-
     const type = currentShop[shopIndex];
-    if (!type) return;
-    if (!playerColor) return;
+    if (!type || !playerColor) return;
 
     const cost = pieceDefs[type].value;
-
-    if (playerState.gold >= cost) {
-      let emptyBenchIndex = -1;
-      for (let i = 0; i < 8; i++) {
-        if (!placedPieces.has(`bench-${i}`)) {
-          emptyBenchIndex = i;
-          break;
-        }
-      }
-
-      if (emptyBenchIndex !== -1) {
-        playerState.gold -= cost;
-        currentShop[shopIndex] = null;
-
-        selectedPiece = `${playerColor}-${type}`;
-        placePiece(`bench-${emptyBenchIndex}`);
-        selectedPiece = null;
-
-        uiManager.renderShop(currentShop, playerState);
-      } else {
-        console.warn("Your bench is full!");
-      }
-    } else {
+    if (playerState.gold < cost) {
       console.warn("Not enough gold!");
+      return;
+    }
+
+    let emptyBenchIndex = -1;
+    for (let i = 0; i < 8; i++) {
+      if (!placedPieces.has(`bench-${i}`)) {
+        emptyBenchIndex = i;
+        break;
+      }
+    }
+
+    if (emptyBenchIndex !== -1) {
+      playerState.gold -= cost;
+      currentShop[shopIndex] = null;
+
+      selectedPiece = `${playerColor}-${type}`;
+      placePiece(`bench-${emptyBenchIndex}`);
+      selectedPiece = null;
+
+      uiManager.renderShop(
+        currentShop,
+        playerState,
+        shopTier,
+        getUpgradeCost(),
+      );
+    } else {
+      console.warn("Bench is full!");
+      uiManager.showToast("Your bench is full!");
     }
   };
 
@@ -500,33 +464,30 @@ const createScene = async () => {
       playerState.gold -= 2;
       generateShopItems();
     } else {
-      console.warn("Not enough gold to reroll!");
+      uiManager.showToast("Not enough gold to reroll!");
     }
   };
 
   const positionBenchTiles = (color) => {
     const benchZ = getBenchZPosForColor(color);
-    benchTiles.forEach((tile) => {
-      tile.position.z = benchZ * tileSize - offset;
-    });
+    benchTiles.forEach(
+      (tile) => (tile.position.z = benchZ * tileSize - offset),
+    );
   };
 
   let selectedPiece = null;
   let playerColor = null;
   let aiColor = null;
 
+  // ── Piece helpers ─────────────────────────────────────────────────────────
   const removePiece = (squareId, isCombatDeath = false, softDelete = false) => {
     const existing = placedPieces.get(squareId);
-    if (!existing) {
-      return null;
-    }
-    if (softDelete) {
-      existing.root.setEnabled(false); // Hide it instead of destroying
-    } else {
-      existing.root.dispose();
-    }
-    placedPieces.delete(squareId);
+    if (!existing) return null;
 
+    if (softDelete) existing.root.setEnabled(false);
+    else existing.root.dispose();
+
+    placedPieces.delete(squareId);
     if (!isCombatDeath) {
       budgets[existing.color] += existing.value;
       counts[existing.color][existing.type] = Math.max(
@@ -534,7 +495,7 @@ const createScene = async () => {
         counts[existing.color][existing.type] - 1,
       );
     }
-    return existing; // Return it so we can save it in the history record
+    return existing;
   };
 
   const getTileCoordinates = (squareId) => {
@@ -553,15 +514,12 @@ const createScene = async () => {
 
   const isAllowedPlacement = (color, squareId) => {
     const coords = getTileCoordinates(squareId);
-    if (coords.isBench) {
-      return color === playerColor;
-    }
+    if (coords.isBench) return color === playerColor;
     return color === "white" ? coords.row >= 4 : coords.row <= 3;
   };
 
   const placePiece = (squareId) => {
     if (!selectedPiece) return;
-
     const [color, type] = selectedPiece.split("-");
     const coords = getTileCoordinates(squareId);
 
@@ -588,13 +546,12 @@ const createScene = async () => {
       null,
       false,
     );
-    console.log(`Placed piece: ${selectedPiece} at ${squareId}`);
-
     instanceRoot.setEnabled(true);
-    instanceRoot.position.x = coords.col * tileSize - offset;
-    instanceRoot.position.z = coords.zPos * tileSize - offset;
-    instanceRoot.position.y = pieceYOffset[type] || 0;
-
+    instanceRoot.position.set(
+      coords.col * tileSize - offset,
+      pieceYOffset[type] || 0,
+      coords.zPos * tileSize - offset,
+    );
     const baseYaw = pieceYawFix[type] || 0;
     instanceRoot.rotation = new Vector3(
       0,
@@ -625,29 +582,25 @@ const createScene = async () => {
 
   const movePiece = (fromSq, toSq) => {
     if (fromSq === toSq) return;
-
     const entry = placedPieces.get(fromSq);
-    if (!entry) return;
-    if (placedPieces.has(toSq)) return;
+    if (!entry || placedPieces.has(toSq)) return;
 
     const toCoords = getTileCoordinates(toSq);
     if (!isAllowedPlacement(entry.color, toSq)) return;
-
     if (
       entry.type === "pawn" &&
       !toCoords.isBench &&
       (toCoords.row === 0 || toCoords.row === 7)
-    ) {
-      console.warn("Pawns cannot be placed on the first or last ranks.");
+    )
       return;
-    }
 
-    entry.root.position.x = toCoords.col * tileSize - offset;
-    entry.root.position.z = toCoords.zPos * tileSize - offset;
-    entry.root.position.y = pieceYOffset[entry.type] || 0;
-
-    entry.root.getChildMeshes().forEach((mesh) => {
-      if (mesh.metadata) mesh.metadata.squareId = toSq;
+    entry.root.position.set(
+      toCoords.col * tileSize - offset,
+      pieceYOffset[entry.type] || 0,
+      toCoords.zPos * tileSize - offset,
+    );
+    entry.root.getChildMeshes().forEach((m) => {
+      if (m.metadata) m.metadata.squareId = toSq;
     });
 
     placedPieces.delete(fromSq);
@@ -660,100 +613,71 @@ const createScene = async () => {
     let benchFull = false;
     placedPieces.forEach((entry, squareId) => {
       if (entry.color === color && !squareId.startsWith("bench")) {
-        // Find first empty bench square
         let emptyBenchIndex = -1;
-        for (let i = 0; i < 8; i += 1) {
+        for (let i = 0; i < 8; i++) {
           if (!placedPieces.has(`bench-${i}`)) {
             emptyBenchIndex = i;
             break;
           }
         }
-
-        if (emptyBenchIndex !== -1) {
+        if (emptyBenchIndex !== -1)
           movePiece(squareId, `bench-${emptyBenchIndex}`);
-        } else {
-          // Bench is full, keep it on board
-          benchFull = true;
-        }
+        else benchFull = true;
       }
     });
-
-    if (benchFull) {
+    if (benchFull)
       uiManager.showToast("Bench is full! Some pieces remained on board.");
-    }
   };
 
   const clearColor = (color) => {
     placedPieces.forEach((entry, squareId) => {
-      if (entry.color === color) {
-        removePiece(squareId);
-      }
+      if (entry.color === color) removePiece(squareId);
     });
   };
 
-  const setAnalysisVisible = (visible) => {
-    if (!analysisBarEl) {
-      return;
-    }
-    analysisBarEl.classList.toggle("hidden", !visible);
-  };
+  const setAnalysisVisible = (visible) =>
+    analysisBarEl?.classList.toggle("hidden", !visible);
 
   const updateAnalysisBar = () => {
-    if (!analysisFillEl) {
-      return;
-    }
+    if (!analysisFillEl) return;
     let ratio = 0.5;
     if (lastEvalScore) {
       const { type, value } = lastEvalScore;
-      if (type === "mate") {
-        ratio = value >= 0 ? 0.98 : 0.02;
-      } else {
-        const capped = Math.min(1000, Math.max(-1000, value));
-        ratio = (capped + 1000) / 2000;
-      }
+      if (type === "mate") ratio = value >= 0 ? 0.98 : 0.02;
+      else ratio = (Math.min(1000, Math.max(-1000, value)) + 1000) / 2000;
     } else {
-      let whiteValue = 0;
-      let blackValue = 0;
+      let w = 0,
+        b = 0;
       placedPieces.forEach((entry, sq) => {
         if (!sq.startsWith("bench")) {
-          if (entry.color === "white") {
-            whiteValue += entry.value;
-          } else {
-            blackValue += entry.value;
-          }
+          if (entry.color === "white") w += entry.value;
+          else b += entry.value;
         }
       });
-      const total = whiteValue + blackValue;
-      if (total > 0) {
-        ratio = whiteValue / total;
-      }
+      const total = w + b;
+      if (total > 0) ratio = w / total;
     }
-    const clamped = Math.min(0.98, Math.max(0.02, ratio));
-    analysisFillEl.style.height = `${Math.round(clamped * 100)}%`;
+    analysisFillEl.style.height = `${Math.round(Math.min(0.98, Math.max(0.02, ratio)) * 100)}%`;
   };
 
+  // ── AI placement – respects current shopTier ──────────────────────────────
   const randomizeAI = () => {
-    if (!aiColor) {
-      return;
-    }
+    if (!aiColor) return;
     clearColor(aiColor);
+
     const squares = tiles
-      .map((tile) => tile.metadata.squareId)
-      .filter((squareId) => {
-        return isAllowedPlacement(aiColor, squareId);
-      });
-    for (let i = squares.length - 1; i > 0; i -= 1) {
+      .map((t) => t.metadata.squareId)
+      .filter((sq) => isAllowedPlacement(aiColor, sq));
+
+    // Shuffle
+    for (let i = squares.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [squares[i], squares[j]] = [squares[j], squares[i]];
     }
 
-    const placeRandomPiece = (squareId, type) => {
-      selectedPiece = `${aiColor}-${type}`;
-      placePiece(squareId);
-    };
-
     squares.forEach((squareId) => {
       const affordable = Object.entries(pieceDefs).filter(([type, def]) => {
+        if (def.tier > shopTier) return false; // ← tier gate
         const coords = getTileCoordinates(squareId);
         if (
           type === "pawn" &&
@@ -763,11 +687,11 @@ const createScene = async () => {
           return false;
         return counts[aiColor][type] < def.max && budgets[aiColor] >= def.value;
       });
-      if (affordable.length === 0) {
-        return;
-      }
+      if (!affordable.length) return;
+
       const [type] = affordable[Math.floor(Math.random() * affordable.length)];
-      placeRandomPiece(squareId, type);
+      selectedPiece = `${aiColor}-${type}`;
+      placePiece(squareId);
     });
 
     selectedPiece = null;
@@ -782,20 +706,22 @@ const createScene = async () => {
     selectedPiece = null;
     uiManager.clearSelection();
     positionBenchTiles(playerColor);
-    placedPieces.forEach((entry) => entry.root.dispose());
+
+    placedPieces.forEach((e) => e.root.dispose());
     placedPieces.clear();
 
     budgets.white = getPlayerTotalGold(playerState.level);
     budgets.black = getAIBudget(playerState.gold);
-
-    Object.keys(counts.white).forEach((key) => {
-      counts.white[key] = 0;
-      counts.black[key] = 0;
+    Object.keys(counts.white).forEach((k) => {
+      counts.white[k] = 0;
+      counts.black[k] = 0;
     });
-    uiManager.renderShop(currentShop, playerState);
+
+    uiManager.renderShop(currentShop, playerState, shopTier, getUpgradeCost());
     randomizeAI();
   };
 
+  // ── Battle engine ─────────────────────────────────────────────────────────
   let gameInProgress = false;
   let currentTurn = "white";
   let initialFen = "";
@@ -804,40 +730,31 @@ const createScene = async () => {
   const MAX_DESYNC_RETRIES = 2;
   let noMoveCount = 0;
   let moveStartTime = 0;
+
   const engineClient = new EngineClient(
     new URL("/engine/chess-worker.js", window.location.origin),
   );
   let lastEvalScore = null;
 
-  const fromAlgebraic = (sq) => {
-    const col = sq.charCodeAt(0) - 97;
-    const row = 8 - parseInt(sq[1]);
-    return { row, col };
-  };
+  const fromAlgebraic = (sq) => ({
+    col: sq.charCodeAt(0) - 97,
+    row: 8 - parseInt(sq[1]),
+  });
 
   const executeEngineMove = (move) => {
-    console.log("Executing move:", move, "Current turn:", currentTurn);
+    console.log("Executing move:", move, "Turn:", currentTurn);
     const from = move.substring(0, 2);
     const to = move.substring(2, 4);
     const fromCoord = fromAlgebraic(from);
     const toCoord = fromAlgebraic(to);
-
     const fromSq = `${fromCoord.row}-${fromCoord.col}`;
     const toSq = `${toCoord.row}-${toCoord.col}`;
-
     const piece = placedPieces.get(fromSq);
-    const actualKey = fromSq;
 
     if (!piece) {
-      console.error(
-        "Move FAILED: No piece for turn",
-        currentTurn,
-        "at",
-        fromSq,
-      );
+      console.error("Move FAILED – no piece at", fromSq);
       if (gameInProgress && desyncRetries < MAX_DESYNC_RETRIES) {
-        desyncRetries += 1;
-        console.warn("Resyncing engine position after desync attempt.");
+        desyncRetries++;
         initialFen = generateFEN(placedPieces, currentTurn);
         moveHistory = [];
         requestEngineMove();
@@ -856,44 +773,40 @@ const createScene = async () => {
       enPassantSq: null,
       promotionInfo: null,
     };
-
-    const isCapture = placedPieces.has(toSq);
     let capturedPiece = false;
 
-    if (piece.type === "pawn" && fromCoord.col !== toCoord.col && !isCapture) {
+    // En passant
+    if (
+      piece.type === "pawn" &&
+      fromCoord.col !== toCoord.col &&
+      !placedPieces.has(toSq)
+    ) {
       const epSq = `${fromCoord.row}-${toCoord.col}`;
       if (placedPieces.has(epSq)) {
-        console.log("En Passant capture! Removing piece at", epSq);
         historyRecord.enPassantSq = epSq;
-        historyRecord.capturedPiece = removePiece(epSq, true, true); // Soft delete
+        historyRecord.capturedPiece = removePiece(epSq, true, true);
         capturedPiece = true;
       }
     }
-    if (isCapture) {
-      console.log("Capture! Removing piece at", toSq);
-      historyRecord.capturedPiece = removePiece(toSq, true, true); // Soft delete
+
+    if (placedPieces.has(toSq)) {
+      historyRecord.capturedPiece = removePiece(toSq, true, true);
       capturedPiece = true;
     }
 
-    if (piece.type === "pawn" || capturedPiece) {
-      noMoveCount = 0;
-    } else {
-      noMoveCount++;
-    }
+    noMoveCount = piece.type === "pawn" || capturedPiece ? 0 : noMoveCount + 1;
 
     piece.root.position.x = toCoord.col * tileSize - offset;
     piece.root.position.z = toCoord.row * tileSize - offset;
-
-    piece.root.getChildMeshes().forEach((mesh) => {
-      if (mesh.metadata) mesh.metadata.squareId = toSq;
+    piece.root.getChildMeshes().forEach((m) => {
+      if (m.metadata) m.metadata.squareId = toSq;
     });
-
-    placedPieces.delete(actualKey);
+    placedPieces.delete(fromSq);
     placedPieces.set(toSq, piece);
 
+    // Promotion
     const isPromotion = move.length > 4;
     if (isPromotion) {
-      const promoChar = move[4].toLowerCase();
       const promoMap = {
         q: "queen",
         r: "rook",
@@ -907,14 +820,15 @@ const createScene = async () => {
         i: "immobilizer",
         f: "fool",
         m: "mammoth",
+        v: "vizier", // ← NEW
       };
-      const newType = promoMap[promoChar] || "queen";
+      const newType = promoMap[move[4].toLowerCase()] || "queen";
 
       historyRecord.promotionInfo = {
         oldType: piece.type,
         oldValue: piece.value,
-        oldRoot: piece.root, // Save the pawn mesh
-        newRoot: null, // Will fill in a second
+        oldRoot: piece.root,
+        newRoot: null,
       };
 
       piece.type = newType;
@@ -938,40 +852,42 @@ const createScene = async () => {
           baseYaw + (piece.color === "black" ? Math.PI : 0),
           0,
         );
-        newRoot.getChildMeshes().forEach((mesh) => {
+        newRoot.getChildMeshes().forEach((m) => {
           applyOpaqueMaterial(
-            mesh,
+            m,
             piece.color === "white" ? baseWhite : baseBlack,
           );
-          mesh.metadata = { squareId: toSq, isPiece: true };
+          m.metadata = { squareId: toSq, isPiece: true };
         });
-        oldRoot.setEnabled(false); // Soft delete the pawn
+        oldRoot.setEnabled(false);
         piece.root = newRoot;
         historyRecord.promotionInfo.newRoot = newRoot;
       }
     }
 
-    if (isPromotion) {
-      playSound(sounds.promote);
-    } else if (capturedPiece) {
-      playSound(sounds.capture);
-    } else {
-      playSound(sounds.move);
-    }
+    playSound(
+      isPromotion
+        ? sounds.promote
+        : capturedPiece
+          ? sounds.capture
+          : sounds.move,
+    );
     updateAnalysisBar();
 
     moveHistory.push(move);
     detailedHistory.push(historyRecord);
     currentPlyIndex = detailedHistory.length;
-    uiManager.updatePlaybackUI(currentPlyIndex, detailedHistory.length, isReviewing);
-
+    uiManager.updatePlaybackUI(
+      currentPlyIndex,
+      detailedHistory.length,
+      isReviewing,
+    );
     desyncRetries = 0;
 
     currentTurn = currentTurn === "white" ? "black" : "white";
     updateTimerVisuals(currentTurn);
 
     if (noMoveCount >= 20) {
-      console.log("Battle stagnated! Resolving by material...");
       uiManager.showToast(
         "Battle stagnated! Resolving based on surviving material...",
       );
@@ -980,11 +896,10 @@ const createScene = async () => {
     }
 
     checkFinalWinner();
-    if (gameInProgress) {
-      requestEngineMove();
-    }
+    if (gameInProgress) requestEngineMove();
   };
 
+  // ── Playback ──────────────────────────────────────────────────────────────
   const undoMove = () => {
     if (gameInProgress) {
       uiManager.showToast("Wait for the round to end to review moves!");
@@ -993,27 +908,17 @@ const createScene = async () => {
     if (currentPlyIndex <= 0) return;
 
     if (!isReviewing) {
-      // Safely freeze the next round setup layout to savedNextRoundPieces
       savedNextRoundPieces = new Map(placedPieces);
-      
-      // Hide all the pieces from the current upcoming round
-      placedPieces.forEach((entry, sq) => {
-        if (!sq.startsWith("bench")) {
-          entry.root.setEnabled(false);
-        }
+      placedPieces.forEach((e, sq) => {
+        if (!sq.startsWith("bench")) e.root.setEnabled(false);
       });
-      
-      // Inject the exact state from the end of the combat into the Map
       placedPieces.clear();
-      battleEndPlacedPieces.forEach((entry, sq) => {
-        placedPieces.set(sq, entry);
-        if (!sq.startsWith("bench")) {
-          entry.root.setEnabled(true);
-        }
+      battleEndPlacedPieces.forEach((e, sq) => {
+        placedPieces.set(sq, e);
+        if (!sq.startsWith("bench")) e.root.setEnabled(true);
       });
     }
 
-    const record = detailedHistory[currentPlyIndex - 1];
     const {
       fromSq,
       toSq,
@@ -1021,22 +926,20 @@ const createScene = async () => {
       capturedPiece,
       enPassantSq,
       promotionInfo,
-    } = record;
+    } = detailedHistory[currentPlyIndex - 1];
+    const fromCoord = fromAlgebraic(
+      detailedHistory[currentPlyIndex - 1].move.substring(0, 2),
+    );
 
-    const fromCoord = fromAlgebraic(record.move.substring(0, 2));
-
-    // 1. Move the main piece back
     pieceMoved.root.setEnabled(true);
     pieceMoved.root.position.x = fromCoord.col * tileSize - offset;
     pieceMoved.root.position.z = fromCoord.row * tileSize - offset;
-    pieceMoved.root.getChildMeshes().forEach((mesh) => {
-      if (mesh.metadata) mesh.metadata.squareId = fromSq;
+    pieceMoved.root.getChildMeshes().forEach((m) => {
+      if (m.metadata) m.metadata.squareId = fromSq;
     });
-
     placedPieces.delete(toSq);
     placedPieces.set(fromSq, pieceMoved);
 
-    // 2. Undo Promotion (if any)
     if (promotionInfo) {
       promotionInfo.newRoot.setEnabled(false);
       promotionInfo.oldRoot.setEnabled(true);
@@ -1044,8 +947,6 @@ const createScene = async () => {
       pieceMoved.type = promotionInfo.oldType;
       pieceMoved.value = promotionInfo.oldValue;
     }
-
-    // 3. Restore Captured Piece (if any)
     if (capturedPiece) {
       const restoreSq = enPassantSq || toSq;
       capturedPiece.root.setEnabled(true);
@@ -1054,7 +955,11 @@ const createScene = async () => {
 
     currentPlyIndex--;
     isReviewing = true;
-    uiManager.updatePlaybackUI(currentPlyIndex, detailedHistory.length, isReviewing);
+    uiManager.updatePlaybackUI(
+      currentPlyIndex,
+      detailedHistory.length,
+      isReviewing,
+    );
     playSound(sounds.move);
   };
 
@@ -1066,23 +971,17 @@ const createScene = async () => {
     if (currentPlyIndex >= detailedHistory.length) return;
 
     if (!isReviewing) {
-      // Freezing logic to ensure absolute safety
       savedNextRoundPieces = new Map(placedPieces);
-      placedPieces.forEach((entry, sq) => {
-        if (!sq.startsWith("bench")) {
-          entry.root.setEnabled(false);
-        }
+      placedPieces.forEach((e, sq) => {
+        if (!sq.startsWith("bench")) e.root.setEnabled(false);
       });
       placedPieces.clear();
-      battleEndPlacedPieces.forEach((entry, sq) => {
-        placedPieces.set(sq, entry);
-        if (!sq.startsWith("bench")) {
-          entry.root.setEnabled(true);
-        }
+      battleEndPlacedPieces.forEach((e, sq) => {
+        placedPieces.set(sq, e);
+        if (!sq.startsWith("bench")) e.root.setEnabled(true);
       });
     }
 
-    const record = detailedHistory[currentPlyIndex];
     const {
       fromSq,
       toSq,
@@ -1090,17 +989,15 @@ const createScene = async () => {
       capturedPiece,
       enPassantSq,
       promotionInfo,
-    } = record;
-    const toCoord = fromAlgebraic(record.move.substring(2, 4));
+    } = detailedHistory[currentPlyIndex];
+    const toCoord = fromAlgebraic(
+      detailedHistory[currentPlyIndex].move.substring(2, 4),
+    );
 
-    // 1. Remove captured piece
     if (capturedPiece) {
-      const removeSq = enPassantSq || toSq;
-      placedPieces.delete(removeSq);
+      placedPieces.delete(enPassantSq || toSq);
       capturedPiece.root.setEnabled(false);
     }
-
-    // 2. Apply Promotion
     if (promotionInfo) {
       promotionInfo.oldRoot.setEnabled(false);
       promotionInfo.newRoot.setEnabled(true);
@@ -1110,62 +1007,58 @@ const createScene = async () => {
       pieceMoved.value = pieceDefs[promoType]?.value || 9;
     }
 
-    // 3. Move the main piece forward
     pieceMoved.root.setEnabled(true);
     pieceMoved.root.position.x = toCoord.col * tileSize - offset;
     pieceMoved.root.position.z = toCoord.row * tileSize - offset;
-    pieceMoved.root.getChildMeshes().forEach((mesh) => {
-      if (mesh.metadata) mesh.metadata.squareId = toSq;
+    pieceMoved.root.getChildMeshes().forEach((m) => {
+      if (m.metadata) m.metadata.squareId = toSq;
     });
-
     placedPieces.delete(fromSq);
     placedPieces.set(toSq, pieceMoved);
 
     currentPlyIndex++;
     isReviewing = true;
-    uiManager.updatePlaybackUI(currentPlyIndex, detailedHistory.length, isReviewing);
+    uiManager.updatePlaybackUI(
+      currentPlyIndex,
+      detailedHistory.length,
+      isReviewing,
+    );
     playSound(sounds.move);
   };
 
   const goToFirstMove = () => {
-    if (gameInProgress || detailedHistory.length === 0) return;
-    while (currentPlyIndex > 0) {
-      undoMove();
-    }
+    if (!gameInProgress && detailedHistory.length > 0)
+      while (currentPlyIndex > 0) undoMove();
   };
-
   const goToLastMove = () => {
-    if (gameInProgress || detailedHistory.length === 0) return;
-    while (currentPlyIndex < detailedHistory.length) {
-      redoMove();
-    }
+    if (!gameInProgress && detailedHistory.length > 0)
+      while (currentPlyIndex < detailedHistory.length) redoMove();
   };
 
+  // ── Combat end ────────────────────────────────────────────────────────────
   let preCombatPlayerState = [];
 
   const endCombat = (playerWon, damageTaken, timeout = false) => {
     gameInProgress = false;
-
     if (timerInterval) clearInterval(timerInterval);
     timerContainer.style.display = "none";
-
     uiManager.setStartBattleState({ inProgress: false });
     setAnalysisVisible(false);
 
-    let dialogTitle = "";
-    let dialogText = "";
-    let onCloseCallback = null;
+    let dialogTitle = "",
+      dialogText = "",
+      onCloseCallback = null;
 
     if (timeout) {
       if (!playerWon) {
         playerState.hp -= damageTaken;
         if (playerState.hp <= 0) {
           dialogTitle = "Game Over";
-          dialogText = `Time's up! You lost on time. You survived to Round ${playerState.level}.`;
+          dialogText = `Time's up! You survived to Round ${playerState.level}.`;
           onCloseCallback = () => location.reload();
         } else {
           dialogTitle = "Round Lost";
-          dialogText = `Time's up! You lost the round on time! Took ${damageTaken} damage.`;
+          dialogText = `Time's up! Took ${damageTaken} damage.`;
         }
       } else {
         dialogTitle = "Round Won";
@@ -1179,11 +1072,11 @@ const createScene = async () => {
         onCloseCallback = () => location.reload();
       } else {
         dialogTitle = "Round Lost";
-        dialogText = `You lost the round! Took ${damageTaken} damage.`;
+        dialogText = `You lost round ${playerState.level}! Took ${damageTaken} damage.`;
       }
     } else if (playerWon) {
-      dialogTitle = "Victory";
-      dialogText = "You won the round!";
+      dialogTitle = "Victory!";
+      dialogText = `You won round ${playerState.level}!`;
     } else {
       dialogTitle = "Draw";
       dialogText = "Round ended in a draw!";
@@ -1191,128 +1084,102 @@ const createScene = async () => {
 
     uiManager.showDialog(dialogTitle, dialogText, onCloseCallback);
 
+    // Advance round
     playerState.level += 1;
-    playerState.gold += 5; // +5 Gold per round
+    playerState.gold += 5;
 
-    // Capture the exact end-of-battle board state for the historical review map
+    // Snapshot board for playback
     battleEndPlacedPieces = new Map(placedPieces);
 
-    // Clean the board: hide all combat pieces from the main board
+    // Clear combat pieces (keep player bench)
     const toRemove = [];
     placedPieces.forEach((entry, sq) => {
       const isPlayerBench =
         sq.startsWith("bench") && entry.color === playerColor;
-      if (!isPlayerBench) {
-        toRemove.push(sq);
-      }
+      if (!isPlayerBench) toRemove.push(sq);
     });
-
     toRemove.forEach((sq) => {
       const piece = placedPieces.get(sq);
-      if (piece && piece.root) {
-        piece.root.setEnabled(false); // Hide instead of dispose to allow review
-      }
+      if (piece?.root) piece.root.setEnabled(false);
       placedPieces.delete(sq);
     });
 
-    // Restore the player's pre-combat board formation perfectly
+    // Restore player's pre-combat formation
     preCombatPlayerState.forEach((saved) => {
       selectedPiece = `${playerColor}-${saved.type}`;
       placePiece(saved.squareId);
     });
-    
     selectedPiece = null;
 
+    // Refresh shop (new round, lower upgrade cost)
     generateShopItems();
 
+    // Refresh AI
     budgets.black = getAIBudget(playerState.gold);
     Object.keys(counts.black).forEach((k) => (counts.black[k] = 0));
     randomizeAI();
   };
 
   const checkFinalWinner = () => {
-    let whiteBoardLeft = false;
-    let blackBoardLeft = false;
-
+    let w = false,
+      b = false;
     placedPieces.forEach((p, sq) => {
       if (!sq.startsWith("bench")) {
-        if (p.color === "white") whiteBoardLeft = true;
-        if (p.color === "black") blackBoardLeft = true;
+        if (p.color === "white") w = true;
+        if (p.color === "black") b = true;
       }
     });
-
-    if (!whiteBoardLeft && !blackBoardLeft) {
-      endCombat(false, 0); // Draw
-    } else if (!whiteBoardLeft) {
-      let blackValue = 0;
+    if (!w && !b) endCombat(false, 0);
+    else if (!w) {
+      let bv = 0;
       placedPieces.forEach((p, sq) => {
-        if (p.color === "black" && !sq.startsWith("bench"))
-          blackValue += p.value;
+        if (p.color === "black" && !sq.startsWith("bench")) bv += p.value;
       });
-      endCombat(false, blackValue); // Black wins
-    } else if (!blackBoardLeft) {
-      endCombat(true, 0); // White wins
-    }
+      endCombat(false, bv);
+    } else if (!b) endCombat(true, 0);
   };
 
-  function resolveAnnihilation() {
-    let whiteValue = 0;
-    let blackValue = 0;
-    placedPieces.forEach((entry, sq) => {
+  const resolveAnnihilation = () => {
+    let wv = 0,
+      bv = 0;
+    placedPieces.forEach((e, sq) => {
       if (!sq.startsWith("bench")) {
-        if (entry.color === "white") {
-          whiteValue += entry.value;
-        } else {
-          blackValue += entry.value;
-        }
+        if (e.color === "white") wv += e.value;
+        else bv += e.value;
       }
     });
+    if (wv === 0 && bv === 0) endCombat(false, 0);
+    else if (wv === 0) endCombat(false, bv);
+    else if (bv === 0) endCombat(true, 0);
+    else if (wv >= bv) endCombat(true, 0);
+    else endCombat(false, bv - wv);
+  };
 
-    if (whiteValue === 0 && blackValue === 0) {
-      endCombat(false, 0);
-    } else if (whiteValue === 0) {
-      endCombat(false, blackValue);
-    } else if (blackValue === 0) {
-      endCombat(true, 0);
-    } else if (whiteValue >= blackValue) {
-      endCombat(true, 0);
-    } else {
-      endCombat(false, blackValue - whiteValue);
-    }
-  }
-
+  // ── Engine ────────────────────────────────────────────────────────────────
   const requestEngineMove = () => {
     if (!gameInProgress) return;
-
     moveStartTime = Date.now();
     const historyStr =
       moveHistory.length > 0 ? " moves " + moveHistory.join(" ") : "";
-    const positionCmd = `position fen ${initialFen}${historyStr}`;
-    console.log("Sending position:", positionCmd);
-
-    engineClient.requestMove(positionCmd, "go movetime 3900");
+    engineClient.requestMove(
+      `position fen ${initialFen}${historyStr}`,
+      "go movetime 3900",
+    );
   };
 
   const initEngine = () => {
-    console.log("Initializing worker...");
     engineClient.onLine = (line) => {
-      console.log("Engine says:", line);
       if (line.includes("score ")) {
         const match = line.match(/score (cp|mate) (-?\d+)/);
         if (match) {
-          const type = match[1];
           let value = Number(match[2]);
-          if (currentTurn === "black") {
-            value *= -1;
-          }
-          lastEvalScore = { type, value };
+          if (currentTurn === "black") value *= -1;
+          lastEvalScore = { type: match[1], value };
           updateAnalysisBar();
         }
       }
     };
     engineClient.onBestMove = (move) => {
-      console.log("Best move received:", move);
-
       const elapsed = Date.now() - moveStartTime;
       const delay = Math.max(0, 4000 - elapsed);
 
@@ -1320,30 +1187,22 @@ const createScene = async () => {
         setTimeout(() => executeEngineMove(move), delay);
         return;
       }
-
-      console.log("Battle concluded (no moves left).");
-      if (!gameInProgress) {
-        return;
-      }
-
       setTimeout(() => resolveAnnihilation(), delay);
     };
     engineClient.startBattle(() => {
-      if (gameInProgress) {
-        requestEngineMove();
-      }
+      if (gameInProgress) requestEngineMove();
     });
   };
 
+  // ── Start battle ──────────────────────────────────────────────────────────
   uiManager.onStartBattle = () => {
-    if (isReviewing) exitReviewMode(); // Absolutely ensures we leave history before calculating a state FEN
+    if (isReviewing) exitReviewMode();
     if (gameInProgress) return;
 
     let hasBoardPieces = false;
     placedPieces.forEach((p, sq) => {
       if (p.color === "white" && !sq.startsWith("bench")) hasBoardPieces = true;
     });
-
     if (!hasBoardPieces) {
       uiManager.showToast("Place at least one piece on the board to fight!");
       return;
@@ -1352,33 +1211,31 @@ const createScene = async () => {
     unlockAudio();
     gameInProgress = true;
     desyncRetries = 0;
-    noMoveCount = 0; 
+    noMoveCount = 0;
     lastEvalScore = null;
 
     detailedHistory = [];
     currentPlyIndex = 0;
     isReviewing = false;
     uiManager.setPlaybackVisible(true);
-    uiManager.updatePlaybackUI(0, 0, isReviewing);
-
+    uiManager.updatePlaybackUI(0, 0, false);
     setAnalysisVisible(true);
     updateAnalysisBar();
     uiManager.setStartBattleState({ inProgress: true });
     currentTurn = "white";
 
+    // Snapshot pre-combat player formation
     preCombatPlayerState = [];
     placedPieces.forEach((entry, squareId) => {
       if (entry.color === playerColor && !squareId.startsWith("bench")) {
-        preCombatPlayerState.push({
-          squareId: squareId,
-          type: entry.type,
-        });
+        preCombatPlayerState.push({ squareId, type: entry.type });
       }
     });
 
     initialFen = generateFEN(placedPieces, "white");
     moveHistory = [];
 
+    // Timers
     timeWhite = 180;
     timeBlack = 180;
     whiteTimerEl.innerText = "03:00";
@@ -1389,114 +1246,72 @@ const createScene = async () => {
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = setInterval(() => {
       if (!gameInProgress) return;
+      if (currentTurn === "white") timeWhite--;
+      else timeBlack--;
 
-      if (currentTurn === "white") {
-        timeWhite--;
-      } else {
-        timeBlack--;
-      }
-
-      const formatTime = (t) => {
+      const fmt = (t) => {
         const m = Math.floor(t / 60)
           .toString()
           .padStart(2, "0");
         const s = (t % 60).toString().padStart(2, "0");
         return `${m}:${s}`;
       };
-
-      whiteTimerEl.innerText = formatTime(Math.max(0, timeWhite));
-      blackTimerEl.innerText = formatTime(Math.max(0, timeBlack));
+      whiteTimerEl.innerText = fmt(Math.max(0, timeWhite));
+      blackTimerEl.innerText = fmt(Math.max(0, timeBlack));
 
       if (timeWhite <= 0) {
         clearInterval(timerInterval);
-        endCombat(false, 15, true); 
+        endCombat(false, 15, true);
       } else if (timeBlack <= 0) {
         clearInterval(timerInterval);
-        endCombat(true, 0, true); 
+        endCombat(true, 0, true);
       }
     }, 1000);
 
     initEngine();
   };
 
+  // ── Playback wiring ───────────────────────────────────────────────────────
   uiManager.onPrevTurn = undoMove;
   uiManager.onNextTurn = redoMove;
   uiManager.onExitReview = exitReviewMode;
 
   document.addEventListener("keydown", (e) => {
-    if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
+    if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key))
       e.preventDefault();
-    }
-
     if (!gameInProgress && detailedHistory.length === 0) return;
-
-    if (e.key === "ArrowLeft") {
-      undoMove();
-    } else if (e.key === "ArrowRight") {
-      redoMove();
-    } else if (e.key === "ArrowUp") {
-      goToFirstMove();
-    } else if (e.key === "ArrowDown") {
-      goToLastMove();
-    }
+    if (e.key === "ArrowLeft") undoMove();
+    if (e.key === "ArrowRight") redoMove();
+    if (e.key === "ArrowUp") goToFirstMove();
+    if (e.key === "ArrowDown") goToLastMove();
   });
 
+  // ── Other UI callbacks ────────────────────────────────────────────────────
   uiManager.onPickSide = (color) => setSide(color);
   uiManager.onClearBoard = () => {
     if (isReviewing) exitReviewMode();
-    if (!playerColor) {
-      return;
-    }
-    moveColorToBench(playerColor);
+    if (playerColor) moveColorToBench(playerColor);
   };
   uiManager.onPieceSelected = (pieceId) => {
     selectedPiece = pieceId;
-    if (selectedPiece) {
-      const [color, type] = selectedPiece.split("-");
+    if (pieceId) {
+      const [color, type] = pieceId.split("-");
       updatePreview(type, color);
     }
   };
 
+  // ── Pointer / drag ────────────────────────────────────────────────────────
   scene.onPointerObservable.add((pointerInfo) => {
-    if (gameInProgress) {
-      return;
-    }
-    const isPointerDown = pointerInfo.type === PointerEventTypes.POINTERDOWN;
-    const isPointerUp = pointerInfo.type === PointerEventTypes.POINTERUP;
-    const isPointerMove = pointerInfo.type === PointerEventTypes.POINTERMOVE;
-    if (!isPointerDown && !isPointerUp && !isPointerMove) {
-      return;
-    }
+    if (gameInProgress) return;
 
-    if (isPointerDown && isReviewing) {
-      exitReviewMode();
-    }
+    const isDown = pointerInfo.type === PointerEventTypes.POINTERDOWN;
+    const isUp = pointerInfo.type === PointerEventTypes.POINTERUP;
+    const isMove = pointerInfo.type === PointerEventTypes.POINTERMOVE;
+    if (!isDown && !isUp && !isMove) return;
 
-    if (isPointerDown) {
-      const isRightClick = pointerInfo.event?.button === 2;
-      if (isRightClick) {
-        const pick = scene.pick(
-          scene.pointerX,
-          scene.pointerY,
-          (mesh) => !!mesh.metadata?.isPiece,
-        );
-        if (pick?.hit && pick.pickedMesh?.metadata?.squareId) {
-          const squareId = pick.pickedMesh.metadata.squareId;
-          const entry = placedPieces.get(squareId);
-          if (entry) {
-            const label = pieceLabels[entry.type] || entry.type;
-            const info =
-              pieceMoves[entry.type] || "No movement info available.";
-            uiManager.showMoveModal(`${label} (Cost: ${gemIcon} ${entry.value})`, info);
-          }
-        }
-        return;
-      }
-    }
+    if (isDown && isReviewing) exitReviewMode();
 
-    if (!scene.metadata) {
-      scene.metadata = {};
-    }
+    if (!scene.metadata) scene.metadata = {};
     if (!scene.metadata.dragState) {
       scene.metadata.dragState = {
         active: false,
@@ -1508,14 +1323,34 @@ const createScene = async () => {
     }
     const dragState = scene.metadata.dragState;
 
-    if (isPointerDown) {
-      const pickPiece = scene.pick(
+    // Right-click → move info
+    if (isDown && pointerInfo.event?.button === 2) {
+      const pick = scene.pick(
         scene.pointerX,
         scene.pointerY,
-        (mesh) => !!mesh.metadata?.isPiece,
+        (m) => !!m.metadata?.isPiece,
       );
-      if (pickPiece?.hit && pickPiece.pickedMesh?.metadata?.squareId) {
-        const squareId = pickPiece.pickedMesh.metadata.squareId;
+      if (pick?.hit && pick.pickedMesh?.metadata?.squareId) {
+        const entry = placedPieces.get(pick.pickedMesh.metadata.squareId);
+        if (entry) {
+          uiManager.showMoveModal(
+            `${pieceLabels[entry.type] || entry.type} (Cost: ${gemIcon} ${entry.value})`,
+            pieceMoves[entry.type] || "No movement info available.",
+          );
+        }
+      }
+      return;
+    }
+
+    // Drag start
+    if (isDown) {
+      const pick = scene.pick(
+        scene.pointerX,
+        scene.pointerY,
+        (m) => !!m.metadata?.isPiece,
+      );
+      if (pick?.hit && pick.pickedMesh?.metadata?.squareId) {
+        const squareId = pick.pickedMesh.metadata.squareId;
         const entry = placedPieces.get(squareId);
         if (entry && entry.color === playerColor) {
           const ghost = entry.root.clone(
@@ -1526,9 +1361,9 @@ const createScene = async () => {
           ghost.setEnabled(true);
           ghost.position.copyFrom(entry.root.position);
           ghost.rotation.copyFrom(entry.root.rotation);
-          ghost.getChildMeshes().forEach((mesh) => {
-            mesh.material = entry.color === "white" ? ghostWhite : ghostBlack;
-            mesh.isPickable = false;
+          ghost.getChildMeshes().forEach((m) => {
+            m.material = entry.color === "white" ? ghostWhite : ghostBlack;
+            m.isPickable = false;
           });
           dragState.active = true;
           dragState.fromSq = squareId;
@@ -1542,46 +1377,45 @@ const createScene = async () => {
       }
     }
 
-    if (isPointerMove && dragState.active) {
-      const pointerX = pointerInfo.event?.clientX ?? 0;
-      const pointerY = pointerInfo.event?.clientY ?? 0;
-      const isHoveringSell = uiManager.isPointerOverSellZone(
-        pointerX,
-        pointerY,
-      );
-      uiManager.highlightSellZone(isHoveringSell);
+    // Drag move
+    if (isMove && dragState.active) {
+      const px = pointerInfo.event?.clientX ?? 0;
+      const py = pointerInfo.event?.clientY ?? 0;
+      uiManager.highlightSellZone(uiManager.isPointerOverSellZone(px, py));
 
       const pick = scene.pick(
         scene.pointerX,
         scene.pointerY,
-        (mesh) => !!mesh.metadata?.squareId && !mesh.metadata?.isPiece,
+        (m) => !!m.metadata?.squareId && !m.metadata?.isPiece,
       );
-      if (!pick?.hit || !pick.pickedMesh?.metadata?.squareId) {
-        return;
-      }
+      if (!pick?.hit || !pick.pickedMesh?.metadata?.squareId) return;
       const squareId = pick.pickedMesh.metadata.squareId;
+      if (!isAllowedPlacement(dragState.entry.color, squareId)) return;
 
       const coords = getTileCoordinates(squareId);
-      if (!isAllowedPlacement(dragState.entry.color, squareId)) {
-        return;
-      }
-      dragState.ghost.position.x = coords.col * tileSize - offset;
-      dragState.ghost.position.z = coords.zPos * tileSize - offset;
-
-      dragState.ghost.position.y = pieceYOffset[dragState.entry.type] || 0;
+      dragState.ghost.position.set(
+        coords.col * tileSize - offset,
+        pieceYOffset[dragState.entry.type] || 0,
+        coords.zPos * tileSize - offset,
+      );
       dragState.toSq = squareId;
       return;
     }
 
-    if (isPointerUp && dragState.active) {
-      const pointerX = pointerInfo.event?.clientX ?? 0;
-      const pointerY = pointerInfo.event?.clientY ?? 0;
-      const isSelling = uiManager.isPointerOverSellZone(pointerX, pointerY);
+    // Drag end / drop
+    if (isUp && dragState.active) {
+      const px = pointerInfo.event?.clientX ?? 0;
+      const py = pointerInfo.event?.clientY ?? 0;
 
-      if (isSelling) {
+      if (uiManager.isPointerOverSellZone(px, py)) {
         playerState.gold += dragState.sellValue;
         removePiece(dragState.fromSq);
-        uiManager.renderShop(currentShop, playerState);
+        uiManager.renderShop(
+          currentShop,
+          playerState,
+          shopTier,
+          getUpgradeCost(),
+        );
         playSound(sounds.capture);
       } else {
         const targetSq = dragState.toSq || dragState.fromSq;
@@ -1593,25 +1427,23 @@ const createScene = async () => {
           movePiece(dragState.fromSq, targetSq);
         }
       }
-      if (dragState.ghost) {
-        dragState.ghost.dispose();
-      }
+
+      if (dragState.ghost) dragState.ghost.dispose();
       uiManager.hideSellZone();
       camera.attachControl(canvas, true);
-      dragState.active = false;
-      dragState.fromSq = null;
-      dragState.toSq = null;
-      dragState.entry = null;
-      dragState.ghost = null;
-      dragState.sellValue = 0;
-      return;
-    }
-
-    if (!isPointerDown || dragState.active) {
+      Object.assign(dragState, {
+        active: false,
+        fromSq: null,
+        toSq: null,
+        entry: null,
+        ghost: null,
+        sellValue: 0,
+      });
       return;
     }
   });
 
+  // ── Boot ──────────────────────────────────────────────────────────────────
   await loadPieces();
   initPreview();
   generateShopItems();
@@ -1619,14 +1451,8 @@ const createScene = async () => {
 };
 
 const scene = await createScene();
-
-engine.runRenderLoop(() => {
-  scene.render();
-});
-
+engine.runRenderLoop(() => scene.render());
 window.addEventListener("resize", () => {
   engine.resize();
-  if (previewEngine) {
-    previewEngine.resize();
-  }
+  if (previewEngine) previewEngine.resize();
 });
