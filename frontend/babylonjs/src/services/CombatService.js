@@ -1,3 +1,5 @@
+import { fromAlgebraic } from "../game/coordinates.js";
+
 const PROMOTION_MAP = {
   q: "queen",
   r: "rook",
@@ -290,8 +292,8 @@ export class CombatService {
   #applyMoveLogic(move) {
     const from = move.substring(0, 2);
     const to = move.substring(2, 4);
-    const fromCoord = this.#fromAlgebraic(from);
-    const toCoord = this.#fromAlgebraic(to);
+    const fromCoord = fromAlgebraic(from);
+    const toCoord = fromAlgebraic(to);
     const fromSq = `${fromCoord.row}-${fromCoord.col}`;
     const toSq = `${toCoord.row}-${toCoord.col}`;
     const piece = this.board.get(fromSq);
@@ -348,12 +350,5 @@ export class CombatService {
     }
 
     return historyRecord;
-  }
-
-  #fromAlgebraic(square) {
-    return {
-      col: square.charCodeAt(0) - 97,
-      row: 8 - parseInt(square[1], 10),
-    };
   }
 }

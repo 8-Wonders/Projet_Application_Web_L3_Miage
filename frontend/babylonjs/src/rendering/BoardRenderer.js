@@ -270,6 +270,44 @@ export class BoardRenderer {
     this.updateAnalysisBar();
   }
 
+  applyUndoVisuals(move) {
+    if (!move?.pieceMoved) return;
+
+    move.pieceMoved.root.setEnabled(true);
+    this.syncEntryToSquare(move.fromSq, move.pieceMoved);
+
+    if (move.promotionInfo) {
+      move.promotionInfo.newRoot?.setEnabled(false);
+      move.promotionInfo.oldRoot?.setEnabled(true);
+      move.pieceMoved.root = move.promotionInfo.oldRoot;
+      move.pieceMoved.type = move.promotionInfo.oldType;
+      move.pieceMoved.value = move.promotionInfo.oldValue;
+    }
+
+    if (move.capturedPiece) {
+      move.capturedPiece.root.setEnabled(true);
+    }
+  }
+
+  applyRedoVisuals(move) {
+    if (!move?.pieceMoved) return;
+
+    if (move.capturedPiece) {
+      move.capturedPiece.root.setEnabled(false);
+    }
+
+    if (move.promotionInfo) {
+      move.promotionInfo.oldRoot?.setEnabled(false);
+      move.promotionInfo.newRoot?.setEnabled(true);
+      move.pieceMoved.root = move.promotionInfo.newRoot;
+      move.pieceMoved.type = move.promotionInfo.newType;
+      move.pieceMoved.value = this.pieceDefs[move.promotionInfo.newType].value;
+    }
+
+    move.pieceMoved.root.setEnabled(true);
+    this.syncEntryToSquare(move.toSq, move.pieceMoved);
+  }
+
   updateAnalysisBar() {
     if (!this.analysisFillEl) return;
     let ratio = 0.5;
