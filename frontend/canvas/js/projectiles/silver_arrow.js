@@ -1,38 +1,63 @@
+/**
+ * @module silver_arrow
+ * @description Specialized ballistic asset. Showcases polymorphism and Runtime Type Identification (RTTI) 
+ * to apply unique payload modifiers against designated entity archetypes (e.g., Bosses).
+ */
+
 import { Arrow } from "./arrow.js";
 
+/**
+ * * @extends Arrow
+ */
 export class SilverArrow extends Arrow {
+  /**
+   * * @param {number} x 
+   * @param {number} y 
+   * @param {number} angle 
+   * @param {Player} owner 
+   */
   constructor(x, y, angle, owner) {
-    // 1. Inherit from Arrow
-    // Arrow's constructor sets base damage to 25
+    // 1. Inherit from standard Arrow archetype
+    // Constructor delegates to Arrow, setting the baseline payload to 25.
     super(x, y, angle, owner);
     
     this.color = "silver";
     
-    // We do NOT set this.damage = 35 anymore. 
-    // It now uses the parent's base damage (25).
+    // We do NOT explicitly set this.damage here. 
+    // It relies on dynamic scaling defined in the _handleImpact override.
   }
 
+  /**
+   * Overrides payload resolution. Identifies the target class constructor and scales 
+   * damage accordingly (+100% vs Dragon, -50% vs standard entities).
+   * * @override
+   * @protected
+   * @param {Player} target 
+   */
   _handleImpact(target) {
-    // 2. Identify Target
-    // Checks class name or a specific 'name' property
+    // 2. Identify Target via RTTI
+    // Evaluates the constructor name (JS specific implementation of type-checking)
     const isDragon = target.constructor.name === "Dragon" || target.name === "Dragon";
 
     if (isDragon) {
-        // Case A: Dragon -> 100% More Damage (Double)
+        // Case A: Critical Multiplier
         // 25 * 2 = 50 Damage
         target.takeDamage(this.damage * 2); 
         console.log("Silver Arrow hit Dragon! Critical damage.");
     } else {
-        // Case B: Non-Dragon -> 50% Less Damage (Half)
+        // Case B: Ineffective Multiplier
         // 25 * 0.5 = 12.5 (Floored to 12)
         target.takeDamage(Math.floor(this.damage * 0.5));
         console.log("Silver Arrow ineffective against non-dragon.");
     }
     
-    // Destroy projectile
+    // Terminate lifecycle
     this.active = false;
   }
 
+  /**
+   * * @override
+   */
   draw(ctx) {
     if (!this.active) return;
     
@@ -67,6 +92,9 @@ export class SilverArrow extends Arrow {
     ctx.restore();
   }
 
+  /**
+   * * @override
+   */
   static drawIcon(ctx, x, y, size) {
     ctx.fillStyle = "#222";
     ctx.fillRect(x, y, size, size); 

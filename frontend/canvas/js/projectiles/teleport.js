@@ -1,48 +1,64 @@
+/**
+ * @module teleport
+ * @description Implements an instantaneous spatial manipulation ability. 
+ * Architecturally masquerades as a Projectile to conform to the unified hotbar array interface, 
+ * but bypasses standard physics integration to execute an immediate state mutation on the owner.
+ */
+
 import { Projectile } from "./projectile.js";
 
 /**
- * An ability that instantly moves the player to the target location.
- * Checks for walls before moving.
+ * * @extends Projectile
  */
 export class Teleport extends Projectile {
   /**
-   * @param {number} x - Origin X (not used for movement, but required by parent)
-   * @param {number} y - Origin Y
-   * @param {number} angle - (not used)
-   * @param {Player} owner - The player to move
-   * @param {number} targetX - The mouse X position
-   * @param {number} targetY - The mouse Y position
+   * Executes the spatial translation immediately upon instantiation.
+   * * @param {number} x - Origin X (not used for movement, required by parent contract)
+   * @param {number} y - Origin Y (not used)
+   * @param {number} angle - Unused for instant abilities.
+   * @param {Player} owner - The entity executing the translation.
+   * @param {number} targetX - Resolved absolute mouse X coordinate.
+   * @param {number} targetY - Resolved absolute mouse Y coordinate.
    */
   constructor(x, y, angle, owner, targetX, targetY) {
-    super(x, y, angle, owner, 0); // 0 damage
-    this.active = false; // Instant effect, doesn't exist in world loop
+    super(x, y, angle, owner, 0); // Initialize with 0 payload
+    // Flagged false immediately; this entity will be garbage collected on the next frame loop.
+    this.active = false; 
 
     // 1. Calculate Grid Coordinates of Target
-    // We adjust by half width/height to center the player on the cursor
+    // Applies an offset to ensure the destination coordinate represents the center-mass of the player hitbox
     const destX = targetX - owner.width / 2;
     const destY = targetY - owner.height / 2;
 
-    // 2. Teleport Logic
-    // Ideally, we should check for walls here, but since Projectiles don't have
-    // direct access to the Map in the constructor, we perform the move and rely
-    // on the Player's next physics update to push them out of walls if they stuck.
+    // 2. Execute Immediate State Mutation
+    // Teleport injects the entity directly into the target coordinates.
+    // Note: To prevent gridlock, we rely on the Player's subsequent native checkCollision() loop 
+    // to eject the entity safely if they teleported into solid geometry.
     owner.x = destX;
     owner.y = destY;
-    owner.vx = 0; // Reset inertia
-    owner.dy = 0; // Reset fall speed
-    owner.grounded = false; // Assume air until collision proves otherwise
+    owner.vx = 0; // Strip horizontal inertia to prevent sliding out of teleport
+    owner.dy = 0; // Strip vertical momentum
+    owner.grounded = false; // Strip grounded flag to force gravity re-evaluation
   }
 
-  // Override update: Teleport has no physics loop
+  /**
+   * Overrides the lifecycle loop to guarantee this object processes 0 frames.
+   * * @override
+   * @param {Map} map 
+   * @param {Array<Player>} players 
+   */
   update(map, players) {
       this.active = false; 
   }
 
+  /**
+   * * @override
+   */
   static drawIcon(ctx, x, y, size) {
     ctx.fillStyle = "#4B0082"; // Indigo
     ctx.fillRect(x, y, size, size);
 
-    // Draw Spiral/Portal thing
+    // Draw Spiral/Portal motif
     ctx.strokeStyle = "cyan";
     ctx.lineWidth = 2;
     ctx.beginPath();

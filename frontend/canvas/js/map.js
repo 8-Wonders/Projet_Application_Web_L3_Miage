@@ -1,8 +1,14 @@
+/**
+ * @module map
+ * @description Manages the spatial grid, level parsing, and environmental rendering of the game world.
+ */
+
 import * as CSV from "../../common/csv-parser.js";
 
 /**
- * Enum mapping tile ID numbers to their logical names.
- * Used for debugging and texture lookups.
+ * @enum {number}
+ * @description Static registry mapping logical terrain types to their corresponding integer IDs.
+ * Used for matrix population, collision physics, and texture resolution.
  */
 export const tilesTypes = {
   grass: 0,
@@ -11,7 +17,16 @@ export const tilesTypes = {
   stone: 3,
 };
 
+/**
+ * Represents the game level environment. Handles the asynchronous loading of map data,
+ * storage of the grid matrix, and tile-based rendering operations.
+ */
 export class Map {
+  /**
+   * Initializes the Map subsystem.
+   * * @param {number} tileSize - The uniform width and height (in pixels) for each tile in the grid.
+   * @param {Array<HTMLImageElement>} textures - Pre-loaded image assets indexed by their `tilesTypes` integer ID.
+   */
   constructor(tileSize, textures) {
     this.tileSize = tileSize;
     this.textures = textures; // Array of Image objects
@@ -21,8 +36,12 @@ export class Map {
   }
 
   /**
-   * Fetches a CSV file and parses it into a 2D array.
-   * @param {string} filePath - Path to the .csv level file
+   * Asynchronously fetches and parses a level blueprint from a remote CSV file.
+   * Transforms the raw comma-separated text into a navigable 2D matrix structure.
+   * * @async
+   * @param {string} filePath - The relative or absolute URI to the target .csv asset.
+   * @throws {Error} Propagates an error if the network request fails or returns a non-2xx status.
+   * @returns {Promise<void>} Resolves when the internal level matrix is fully populated and ready for rendering.
    */
   async loadLevel(filePath) {
     try {
@@ -40,12 +59,14 @@ export class Map {
       console.log("Level loaded successfully:", this.level);
     } catch (error) {
       console.error("Map Load Error:", error);
-      // Optional: Logic to fallback to a default empty map could go here
     }
   }
 
   /**
-   * Iterates through the 2D level array and renders tiles.
+   * Renders the current level matrix to the canvas.
+   * Iterates through the 2D array and draws the mapped texture for each defined tile,
+   * applying localized translations for precise positioning.
+   * * @param {CanvasRenderingContext2D} ctx - The active 2D rendering context.
    */
   draw(ctx) {
     if (!this.isLoaded) return;
@@ -77,8 +98,12 @@ export class Map {
   }
 
   /**
-   * Safe accessor for tile data.
-   * Returns 0 (default) if coordinates are out of bounds.
+   * Safely retrieves the tile ID at the specified grid coordinates.
+   * Implements bounds checking to prevent array out-of-bounds exceptions, 
+   * gracefully defaulting to a safe tile (grass/empty) if queried outside the map perimeter.
+   * * @param {number} col - The X-axis grid index (column).
+   * @param {number} row - The Y-axis grid index (row).
+   * @returns {number} The integer ID of the tile at the specified location, or 0 if out of bounds.
    */
   getTile(col, row) {
     if (

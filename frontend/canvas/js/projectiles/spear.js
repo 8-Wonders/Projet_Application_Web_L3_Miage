@@ -1,14 +1,33 @@
+/**
+ * @module spear
+ * @description A heavy, high-damage variant of the Arrow class. Utilizes identical ballistics 
+ * but features expanded geometry and modified payload values.
+ */
+
 import { Arrow } from "./arrow.js";
 
+/**
+ * * @extends Arrow
+ */
 export class Spear extends Arrow {
+  /**
+   * * @param {number} x 
+   * @param {number} y 
+   * @param {number} angle 
+   * @param {Player} owner 
+   */
   constructor(x, y, angle, owner) {
     super(x, y, angle, owner);
     
+    // Override inherited combat/spatial properties
     this.damage = 35;
     this.width = 50;  
     this.height = 5;  
   }
 
+  /**
+   * * @override
+   */
   draw(ctx) {
     if (!this.active) return;
     

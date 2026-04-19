@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Base water color -->
+  <rect width="64" height="64" fill="#3498db" />
+
+  <!-- Layered ripples (darker deeper, lighter on top) -->
+  
+  <!-- Deepest wave -->
+  <path d="M0,45 Q8,40 16,45 T32,45 T48,45 T64,45" fill="transparent" stroke="#2878b0" stroke-width="4" />
+  
+  <!-- Mid-depth wave -->
+  <path d="M0,38 Q10,33 20,38 T40,38 T64,38" fill="transparent" stroke="#2878b0" stroke-width="3.5" />
+  
+  <!-- Higher wave (lighter) -->
+  <path d="M0,28 Q6,24 15,28 T30,28 T45,28 T64,28" fill="transparent" stroke="#4eb8e6" stroke-width="3" />
+  
+  <!-- Top wave (brightest) -->
+  <path d="M0,20 Q12,16 22,20 T42,20 T64,20" fill="transparent" stroke="#5ac0eb" stroke-width="2.5" />
+
+  <!-- Extra subtle ripple near bottom -->
+  <path d="M0,50 Q7,47 18,50 T35,50 T55,50 T64,50" fill="transparent" stroke="#2878b0" stroke-width="2" />
+
+  <!-- Tiny bubbles for extra life -->
+  <circle r="1.5" cx="12" cy="55" fill="#b0e0f5" opacity="0.7" />
+  <circle r="2" cx="45" cy="52" fill="#b0e0f5" opacity="0.6" />
+  <circle r="1" cx="28" cy="58" fill="#b0e0f5" opacity="0.8" />
+</svg>

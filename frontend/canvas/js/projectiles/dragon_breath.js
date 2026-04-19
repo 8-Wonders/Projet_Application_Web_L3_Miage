@@ -1,10 +1,26 @@
+/**
+ * @module dragon_breath
+ * @description Advanced AoE (Area of Effect) projectile featuring damage fall-off (scalar decay) 
+ * based on distance traveled, and persistent status effect application (DoT).
+ */
+
 import { Projectile } from "./projectile.js";
 import { tilesTypes } from "../map.js";
 
+/**
+ * * @extends Projectile
+ */
 export class DragonBreath extends Projectile {
+  /**
+   * * @param {number} x 
+   * @param {number} y 
+   * @param {number} angle 
+   * @param {Player} owner 
+   */
   constructor(x, y, angle, owner) {
-    super(x, y, angle, owner, 0); // 0 base damage (calculated later)
+    super(x, y, angle, owner, 0); // 0 base damage (calculated dynamically on hit)
     
+    // Cache origin point for Euclidean distance scalar calculations
     this.startX = x;
     this.startY = y;
     
@@ -19,6 +35,13 @@ export class DragonBreath extends Projectile {
     this.maxRange = 250;
   }
 
+  /**
+   * Overrides the standard collision routine to calculate dynamic damage fall-off.
+   * Entities closer to the emission origin suffer drastically higher damage than those at the periphery.
+   * * @override
+   * @param {Map} map 
+   * @param {Array<Player>} players 
+   */
   checkCollisions(map, players) {
     const mapWidth = map.level[0].length * map.tileSize;
     const mapHeight = map.level.length * map.tileSize;
@@ -38,7 +61,7 @@ export class DragonBreath extends Projectile {
       return;
     }
 
-    // Entity Check
+    // Entity Check (AABB Intersection)
     for (const player of players) {
       if (player !== this.owner && player.health > 0) {
         if (
@@ -48,14 +71,15 @@ export class DragonBreath extends Projectile {
           this.y + this.height > player.y
         ) {
           
-          // Distance Drop-off Logic
+          // Distance Drop-off Logic (Inverse Scaling)
           const dist = Math.hypot(this.x - this.startX, this.y - this.startY);
           let factor = 1 - (dist / this.maxRange);
-          if (factor < 0.2) factor = 0.2; 
+          if (factor < 0.2) factor = 0.2; // Floor to guarantee at least 20% effectiveness
 
           const maxDamage = 55; 
           const finalDamage = Math.floor(maxDamage * factor);
 
+          // Apply calculated burst and inject a persistent 'BURNING' status to the target's queue
           player.takeDamage(finalDamage);
           player.applyStatus("BURNING", 3); 
 
@@ -66,6 +90,9 @@ export class DragonBreath extends Projectile {
     }
   }
 
+  /**
+   * * @override
+   */
   draw(ctx) {
     if (!this.active) return;
     ctx.save();
