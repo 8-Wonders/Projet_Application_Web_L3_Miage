@@ -3,22 +3,55 @@ const router = express.Router();
 const Score = require('../models/Score');
 const authMiddleware = require('../middleware/auth');
 
+const normalizeGame = (rawGame) => {
+  if (typeof rawGame !== 'string') return null;
+
+  const value = rawGame.trim().toLowerCase();
+  if (value === 'dom') return 'dom';
+  if (value === 'canvas') return 'canvas';
+  if (value === 'babylone' || value === 'babylon' || value === 'babylonjs') return 'babylone';
+
+  return null;
+};
+
+const resolveGameFromReferer = (referer) => {
+  if (typeof referer !== 'string' || !referer.trim()) return null;
+
+  try {
+    const pathname = new URL(referer).pathname.toLowerCase();
+    if (pathname.includes('/dom/')) return 'dom';
+    if (pathname.includes('/canvas/')) return 'canvas';
+    if (pathname.includes('/babylonjs/')) return 'babylone';
+  } catch (error) {
+    return null;
+  }
+
+  return null;
+};
+
 // Submit a new score
 router.post('/', authMiddleware, async (req, res) => {
   try {
-  const { score, game } = req.body;
+    const { score, game } = req.body;
 
     if (score === undefined || score === null || Number.isNaN(Number(score))) {
-        return res.status(400).json({ message: 'Score invalide' });
+      return res.status(400).json({ message: 'Score invalide' });
     }
 
-  const validGames = ['dom', 'canvas', 'babylone'];
-  const normalizedGame = validGames.includes(game) ? game : 'canvas';
+    const normalizedGame =
+      normalizeGame(game) ||
+      resolveGameFromReferer(req.headers.referer || req.headers.referrer || '');
+
+    if (!normalizedGame) {
+      return res.status(400).json({
+        message: 'Jeu invalide. Valeurs acceptees: dom, canvas, babylone.'
+      });
+    }
 
     const newScore = new Score({
-        username: req.user.username,
-    score: Number(score),
-    game: normalizedGame
+      username: req.user.username,
+      score: Number(score),
+      game: normalizedGame
     });
 
     await newScore.save();
