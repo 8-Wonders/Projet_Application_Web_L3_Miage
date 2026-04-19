@@ -4,7 +4,7 @@
 <img src="https://img.shields.io/badge/status-development-blue" />
 </div>
 
-Ce dépôt contient le rendu de projet pour l'UE Application Web (Licence 3 MIAGE) à l'Université Côte d'Azur. L'objectif était de concevoir et développer une suite de trois jeux web distincts utilisant chacun une technologie de rendu différente (Canvas, DOM, et BabylonJS), le tout unifié par une architecture backend commune gérant les scores et l'authentification.
+Ce dépôt contient le rendu de projet pour l'UE Application Web (Licence 3 MIAGE) à l'Université Côte d'Azur. L'objectif était de concevoir et développer une plateforme qui hébèrge une suite de trois jeux web distincts utilisant chacun une technologie de rendu différente (Canvas, DOM, et BabylonJS), le tout unifié par une architecture backend commune gérant les scores et l'authentification.
 
 L'équipe :
 
