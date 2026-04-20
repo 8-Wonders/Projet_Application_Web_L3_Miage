@@ -1,0 +1,244 @@
+classDiagram
+    %% Core Engine
+    class Game {
+        +canvas: HTMLCanvasElement
+        +ctx: CanvasRenderingContext2D
+        +loader: AssetLoader
+        +ui: UIManager
+        +levelManager: LevelManager
+        +turnManager: TurnManager
+        +currentState: GAME_STATE
+        +players: Array~Player~
+        +init()
+        +loop()
+        +update()
+        +draw()
+        +startGame()
+        +startLevel()
+        +advanceLevel()
+        +submitScore()
+    }
+
+    class UIManager {
+        +canvas: HTMLCanvasElement
+        +ctx: CanvasRenderingContext2D
+        +toggleMenuScreen(show: boolean)
+        +toggleVictoryScreen(show: boolean, seconds: number)
+        +bindMenuActions(onStartGame: Function)
+        +bindSubmitAction(callback: Function)
+        +drawHUD(level: number, seconds: number)
+        +drawLoadout(player: Player)
+    }
+
+    class LevelManager {
+        +loader: AssetLoader
+        +tileSize: number
+        +entityTypes: Object
+        +loadLevelMap(levelNum: number): Promise~Map~
+        +createEntities(levelNum: number, playerClass: string): Array~Player~
+    }
+
+    class TurnManager {
+        +turnIndex: number
+        +getCurrentPlayer(players: Array~Player~): Player
+        +nextTurn(players: Array~Player~): Player
+        +checkGameState(players: Array~Player~): WIN_STATE
+    }
+
+    class Map {
+        +tileSize: number
+        +textures: Array~HTMLImageElement~
+        +level: Array~Array~number~~
+        +loadLevel(filePath: string): Promise~void~
+        +draw(ctx: CanvasRenderingContext2D)
+        +getTile(col: number, row: number): number
+    }
+
+    class ScoreService {
+        +submit(username: string, score: number, game: string): Promise~Object~
+    }
+
+    Game *-- UIManager
+    Game *-- LevelManager
+    Game *-- TurnManager
+    Game *-- Map
+    Game ..> ScoreService : uses
+
+    %% Base Entities
+    class GraphicalObject {
+        +x: number
+        +y: number
+        +width: number
+        +height: number
+        +color: string
+        +draw(ctx: CanvasRenderingContext2D)
+    }
+
+    class Player {
+        +health: number
+        +maxHealth: number
+        +damage: number
+        +vx: number
+        +dy: number
+        +grounded: boolean
+        +turnActive: boolean
+        +isAiming: boolean
+        +abilities: Array~Ability/Projectile~
+        +projectiles: Array~Projectile~
+        +move(keys: Object, map: Map, players: Array~Player~)
+        +draw(ctx: CanvasRenderingContext2D, loader: AssetLoader)
+        +takeDamage(amount: number)
+        +applyKnockback(forceX: number, forceY: number)
+        +shoot()
+        +checkCollision(map: Map, axis: string)
+    }
+    GraphicalObject <|-- Player
+
+    %% Projectiles
+    class Projectile {
+        +owner: Player
+        +damage: number
+        +angle: number
+        +active: boolean
+        +update(map: Map, players: Array~Player~)
+        +updatePhysics()
+        +checkCollisions(map: Map, players: Array~Player~)
+        +_handleImpact(target: Player)
+    }
+    GraphicalObject <|-- Projectile
+
+    class Arrow {
+        +gravity: number
+        +updatePhysics()
+    }
+    Projectile <|-- Arrow
+
+    class Spear {
+        +damage: number
+    }
+    Arrow <|-- Spear
+
+    class SilverArrow {
+        +_handleImpact(target: Player)
+    }
+    Arrow <|-- SilverArrow
+
+    class Fireball {
+        +traveled: number
+        +maxDistance: number
+        +updatePhysics()
+        +draw(ctx: CanvasRenderingContext2D)
+    }
+    Projectile <|-- Fireball
+
+    class DragonBreath {
+        +maxRange: number
+        +checkCollisions(map: Map, players: Array~Player~)
+    }
+    Projectile <|-- DragonBreath
+
+    class Teleport {
+        +update(map: Map, players: Array~Player~)
+    }
+    Projectile <|-- Teleport
+    
+    class Heal {
+        +healPercent: number
+    }
+    Projectile <|-- Heal
+
+    Player "1" *-- "*" Projectile : owns
+
+    %% Player Classes
+    class Archer {
+        +abilities: [Arrow, SilverArrow, Teleport]
+    }
+    Player <|-- Archer
+
+    class Mage {
+        +abilities: [Fireball, Heal, Teleport]
+    }
+    Player <|-- Mage
+
+    class Bot {
+        +strategy: AIStrategy
+        +setStrategy(strategy: AIStrategy)
+        +updateBotLogic(map: Map, players: Array~Player~): boolean
+    }
+    Player <|-- Bot
+
+    class Goblin {
+        +abilities: [Spear]
+    }
+    Bot <|-- Goblin
+
+    class Dragon {
+        +abilities: [DragonBreath]
+    }
+    Bot <|-- Dragon
+
+    %% AI Strategies
+    class AIStrategy {
+        <<abstract>>
+        +update(bot: Bot, map: Map, players: Array~Player~): boolean
+        +findTarget(bot: Bot, players: Array~Player~): Player
+        +isSafe(bot: Bot, map: Map, direction: number): boolean
+        +isFriendInLineOfFire(bot: Bot, aimAngle: number, map: Map, players: Array~Player~, target: Player): boolean
+    }
+
+    class DumbAI {
+        +update(bot: Bot, map: Map, players: Array~Player~): boolean
+    }
+    AIStrategy <|-- DumbAI
+
+    class SmartAI {
+        +update(bot: Bot, map: Map, players: Array~Player~): boolean
+    }
+    AIStrategy <|-- SmartAI
+
+    class StationaryAI {
+        +update(bot: Bot, map: Map, players: Array~Player~): boolean
+    }
+    AIStrategy <|-- StationaryAI
+
+    Bot *-- AIStrategy : uses
+
+    %% Abilities
+    class Ability {
+        +name: string
+        +maxCooldown: number
+        +currentCooldown: number
+        +activate(owner: Player, context: Object): Projectile
+        +updateCooldown()
+        +canActivate(): boolean
+        +drawIcon(ctx: CanvasRenderingContext2D, x: number, y: number, size: number)
+    }
+    
+    class ShootAbility {
+        +ProjectileClass: class
+        +activate(owner: Player, context: Object): Projectile
+    }
+    Ability <|-- ShootAbility
+    
+    class FireballSpell {
+        +activate(owner: Player, context: Object): Projectile
+    }
+    Ability <|-- FireballSpell
+    
+    class DragonBreathAttack {
+        +activate(owner: Player, context: Object): Projectile
+    }
+    Ability <|-- DragonBreathAttack
+    
+    class HealAbility {
+        +healPercent: number
+        +activate(owner: Player, context: Object): Projectile
+    }
+    Ability <|-- HealAbility
+    
+    class TeleportAbility {
+        +activate(owner: Player, context: Object): Projectile
+    }
+    Ability <|-- TeleportAbility
+
+    Player "1" *-- "*" Ability : uses

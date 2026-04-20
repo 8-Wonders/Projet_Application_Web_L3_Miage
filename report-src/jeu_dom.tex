@@ -1,0 +1,23 @@
+\section{Conception du Jeu DOM}
+
+Le second jeu de notre suite, baptisé Dev Clicker, représente l'implémentation la plus simple de notre projet d'un point de vue architectural et algorithmique. Ce choix de conception minimaliste a été dicté en grande partie par des contraintes de temps, l'intégration complexe de BabylonJS et de WebAssembly ayant consommé la majorité de nos ressources de développement. Cependant, malgré cette simplicité apparente, le genre du jeu incrémental s'est avéré être le candidat absolument parfait pour démontrer notre maîtrise des mécanismes natifs du Document Object Model. En effet, un jeu de type clicker repose presque exclusivement sur la création d'éléments à la volée, la mise à jour massive de nœuds textuels en temps réel et l'écoute continue d'événements asynchrones, ce qui correspondait exactement aux exigences pédagogiques de cette partie de l'UE.
+
+D'un point de vue technique, nous avons opté pour une architecture fonctionnelle basée sur des modules ES6, séparant de manière stricte la logique d'état, l'interface utilisateur et la gestion des entrées. Au cœur du système se trouve un objet d'état global faisant office de source de vérité unique pour toutes les métriques économiques, telles que les lignes de code générées, les multiplicateurs de rendement et les compteurs de cycles d'intelligence artificielle. Ce choix permet d'éviter l'éparpillement des données au sein des éléments HTML et garantit que la logique métier reste totalement découplée de la vue. La boucle principale du jeu interroge cet état à intervalles réguliers, agrège les rendements passifs de toutes les améliorations achetées, puis ordonne un rafraîchissement global des données à l'écran.
+
+% ==========================================
+% INSERTION DU DIAGRAMME : ARCHITECTURE DOM
+% Ce diagramme montre l'interaction entre Main, GameState, UI et Events.
+% ==========================================
+\FloatBarrier
+\begin{figure}[H]
+	\centering
+	% Remplacez 'dom_architecture.png' par le nom exact de votre image exportée
+	\includegraphics[width=1\textwidth]{dom.png}
+	\caption{Architecture modulaire et flux de données du jeu DOM}
+	\label{fig:dom_architecture}
+\end{figure}
+\FloatBarrier
+
+Le gestionnaire d'interface agit comme le bras armé de l'application en manipulant directement l'arbre DOM. Au lancement du jeu, il lit un registre statique contenant la configuration de toutes les améliorations disponibles au magasin et génère dynamiquement les fragments HTML correspondants, les injectant ensuite dans le document de manière optimisée. De plus, il intègre un composant visuel original simulant un éditeur de code, dont le contenu se met à jour en repeignant sélectivement le DOM en fonction de l'accumulation historique des lignes de code du joueur. Les interactions de l'utilisateur avec ces éléments sont interceptées par un gestionnaire d'événements dédié, qui se charge de vérifier les conditions de ressources, de muter l'état global en conséquence, et d'ordonner une actualisation localisée de l'interface graphique pour refléter les nouveaux coûts.
+
+Enfin, pour relier cette application purement client à notre écosystème global, un module de service dédié au score gère la fin de session. Ce service a pour rôle de créer et d'injecter une fenêtre modale de soumission directement dans le DOM, de figer la boucle de simulation pour empêcher toute triche de dernière minute, puis d'extraire la charge utile finale depuis le contenu textuel de l'éditeur virtuel. Cette valeur est ensuite encapsulée et expédiée vers notre interface de programmation applicative serveur sécurisée par un jeton d'authentification, bouclant ainsi l'expérience de manière fluide et persistante.

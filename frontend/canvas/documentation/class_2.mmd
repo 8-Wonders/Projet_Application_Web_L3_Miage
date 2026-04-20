@@ -1,0 +1,46 @@
+classDiagram
+    class GraphicalObject {
+        +x: number
+        +y: number
+        +width: number
+        +height: number
+        +draw(ctx: CanvasRenderingContext2D)
+    }
+
+    class Player {
+        +health: number
+        +vx: number
+        +dy: number
+        +turnActive: boolean
+        +move(keys: Object, map: Map, players: Array~Player~)
+        +takeDamage(amount: number)
+        +shoot()
+    }
+
+    class Bot {
+        +updateBotLogic(map: Map, players: Array~Player~): boolean
+    }
+
+    class Archer {
+        +abilities: [Arrow, SilverArrow, Teleport]
+    }
+
+    class Mage {
+        +abilities: [Fireball, Heal, Teleport]
+    }
+
+    class Goblin {
+        +abilities: [Spear]
+    }
+
+    class Dragon {
+        +abilities: [DragonBreath]
+    }
+
+    GraphicalObject <|-- Player
+    Player <|-- Archer
+    Player <|-- Mage
+    Player <|-- Bot
+    
+    Bot <|-- Goblin
+    Bot <|-- Dragon

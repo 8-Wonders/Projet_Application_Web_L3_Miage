@@ -1,0 +1,34 @@
+classDiagram
+    class TFTManager {
+        +economy: EconomyManager
+        +shop: ShopManager
+        +synergies: SynergyManager
+        +currentPhase: string
+        +startDraftPhase()
+        +startCombatPhase()
+    }
+
+    class EconomyManager {
+        +gold: number
+        +interest: number
+        +addGold(amount: number)
+        +spendGold(amount: number): boolean
+        +calculateInterest()
+    }
+
+    class ShopManager {
+        +currentOfferings: Array~PieceData~
+        +refreshShop()
+        +buyPiece(id: string)
+        +sellPiece(piece: ChessPiece3D)
+    }
+
+    class SynergyManager {
+        +activeTraits: Map~string, number~
+        +calculateSynergies(board: Board3D)
+        +applyBuffs()
+    }
+
+    TFTManager *-- EconomyManager
+    TFTManager *-- ShopManager
+    TFTManager *-- SynergyManager

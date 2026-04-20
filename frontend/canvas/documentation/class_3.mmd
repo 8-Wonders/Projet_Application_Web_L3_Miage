@@ -1,0 +1,55 @@
+classDiagram
+    class GraphicalObject {
+        +x, y, width, height
+    }
+
+    class Projectile {
+        <<Abstract>>
+        +owner: Player
+        +damage: number
+        +active: boolean
+        +update(map: Map, players: Array~Player~)
+        +updatePhysics()
+        +checkCollisions(map: Map, players: Array~Player~)
+        #_handleImpact(target: Player)
+    }
+
+    class Arrow {
+        +gravity: number
+        +updatePhysics()
+    }
+
+    class Spear {
+        +damage: 35
+    }
+
+    class SilverArrow {
+        #_handleImpact(target: Player)
+    }
+
+    class Fireball {
+        +traveled: number
+        +maxDistance: number
+    }
+
+    class DragonBreath {
+        +maxRange: number
+        +checkCollisions(map: Map, players: Array~Player~)
+    }
+
+    class Teleport {
+        +update(map: Map, players: Array~Player~)
+    }
+    
+    class Heal {
+        +healPercent: number
+    }
+
+    GraphicalObject <|-- Projectile
+    Projectile <|-- Arrow
+    Arrow <|-- Spear
+    Arrow <|-- SilverArrow
+    Projectile <|-- Fireball
+    Projectile <|-- DragonBreath
+    Projectile <|-- Teleport
+    Projectile <|-- Heal

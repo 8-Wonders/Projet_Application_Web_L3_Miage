@@ -1,0 +1,49 @@
+classDiagram
+    class Game {
+        +canvas: HTMLCanvasElement
+        +ctx: CanvasRenderingContext2D
+        +currentState: GAME_STATE
+        +players: Array~Player~
+        +init()
+        +loop()
+        +update()
+        +draw()
+        +startGame()
+    }
+
+    class UIManager {
+        +toggleMenuScreen(show: boolean)
+        +toggleVictoryScreen(show: boolean, seconds: number)
+        +drawHUD(level: number, seconds: number)
+        +drawLoadout(player: Player)
+    }
+
+    class LevelManager {
+        +tileSize: number
+        +loadLevelMap(levelNum: number): Promise~Map~
+        +createEntities(levelNum: number, playerClass: string): Array~Player~
+    }
+
+    class TurnManager {
+        +turnIndex: number
+        +getCurrentPlayer(players: Array~Player~): Player
+        +nextTurn(players: Array~Player~): Player
+        +checkGameState(players: Array~Player~): WIN_STATE
+    }
+
+    class Map {
+        +level: Array~Array~number~~
+        +loadLevel(filePath: string): Promise~void~
+        +draw(ctx: CanvasRenderingContext2D)
+    }
+
+    class ScoreService {
+        <<Service>>
+        +submit(username: string, score: number, game: string): Promise~Object~
+    }
+
+    Game *-- UIManager : manages UI
+    Game *-- LevelManager : loads levels
+    Game *-- TurnManager : orchestrates turns
+    Game *-- Map : contains
+    Game ..> ScoreService : uses

@@ -1,0 +1,71 @@
+classDiagram
+    %% AI Strategy Pattern
+    class AIStrategy {
+        <<Abstract Strategy>>
+        +update(bot: Bot, map: Map, players: Array~Player~): boolean
+        +findTarget(...)
+        +isSafe(...)
+    }
+
+    class DumbAI {
+        +update(...)
+    }
+
+    class SmartAI {
+        +update(...)
+    }
+
+    class StationaryAI {
+        +update(...)
+    }
+
+    AIStrategy <|-- DumbAI
+    AIStrategy <|-- SmartAI
+    AIStrategy <|-- StationaryAI
+
+    %% Abilities Command Pattern
+    class Ability {
+        <<Abstract Command>>
+        +name: string
+        +currentCooldown: number
+        +activate(owner: Player, context: Object): Projectile
+        +canActivate(): boolean
+    }
+    
+    class ShootAbility {
+        +ProjectileClass: class
+        +activate(...)
+    }
+    
+    class FireballSpell {
+        +activate(...)
+    }
+    
+    class DragonBreathAttack {
+        +activate(...)
+    }
+    
+    class HealAbility {
+        +activate(...)
+    }
+    
+    class TeleportAbility {
+        +activate(...)
+    }
+
+    Ability <|-- ShootAbility
+    Ability <|-- FireballSpell
+    Ability <|-- DragonBreathAttack
+    Ability <|-- HealAbility
+    Ability <|-- TeleportAbility
+
+    %% Context connections
+    class Bot {
+        +strategy: AIStrategy
+    }
+    class Player {
+        +abilities: Array~Ability~
+    }
+    
+    Bot *-- AIStrategy : delegates to
+    Player *-- Ability : executes

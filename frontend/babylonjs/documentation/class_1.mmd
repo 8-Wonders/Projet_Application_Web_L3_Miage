@@ -1,0 +1,31 @@
+classDiagram
+    class ViteEntry {
+        <<Entry Point>>
+        +main.js
+        +init()
+    }
+
+    class GameController {
+        <<Orchestrator>>
+        +sceneManager: SceneManager
+        +engineBridge: EngineBridge
+        +tftManager: TFTManager
+        +startGame()
+        +pauseGame()
+        +endRound()
+    }
+
+    class ScoreService {
+        <<Service>>
+        +submit(username: string, score: number, game: string)
+    }
+
+    class UIManager {
+        +updateShopUI()
+        +updateEconomy()
+        +showVictoryScreen()
+    }
+
+    ViteEntry --> GameController : instancie
+    GameController *-- UIManager : met à jour
+    GameController ..> ScoreService : utilise

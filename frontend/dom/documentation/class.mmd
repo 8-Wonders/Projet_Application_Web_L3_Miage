@@ -1,0 +1,66 @@
+classDiagram
+    class Main {
+        +gameLoop()
+        +initGame()
+    }
+
+    class GameState {
+        <<Module / Store>>
+        +linesOfCode: number
+        +totalLinesOfCode: number
+        +linesPerClick: number
+        +hasCloudModel: boolean
+        +aiCycleActive: boolean
+        +companies: Object
+    }
+
+    class Upgrades {
+        <<Registry>>
+        +upgrades: Array~Upgrade~
+    }
+
+    class Upgrade {
+        <<Data Structure>>
+        +id: string
+        +name: string
+        +type: string
+        +company: string
+        +isCloud: boolean
+        +boost: number
+        +currentCost: number
+        +count: number
+    }
+
+    class UIManager {
+        <<Module>>
+        +initUI()
+        +renderIDE()
+        +updateDisplay(currentLps: number, synergy: number)
+        +updateUpgradeUI(index: number)
+    }
+
+    class EventManager {
+        <<Module>>
+        +setupEventListeners()
+    }
+
+    class ScoreService {
+        <<Service>>
+        +initScoreUI()
+        +submit(username: string, score: number, game: string)
+    }
+
+    class Utils {
+        +formatNumber(number: number): string
+    }
+
+    Upgrades *-- Upgrade : contient
+    Main --> GameState : lit/modifie (boucle)
+    Main --> UIManager : appelle
+    Main --> EventManager : initialise
+    Main --> ScoreService : initialise
+    EventManager --> GameState : modifie (clics)
+    EventManager --> UIManager : déclenche mise à jour
+    UIManager --> GameState : lit
+    UIManager --> Upgrades : lit
+    UIManager ..> Utils : utilise

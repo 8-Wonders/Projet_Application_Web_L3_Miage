@@ -1,0 +1,25 @@
+classDiagram
+    class EngineBridge {
+        <<Interface>>
+        +worker: Worker
+        +isEngineReady: boolean
+        +initWASM()
+        +sendCommand(cmd: string)
+        +parseBestMove(response: string): Move
+    }
+
+    class StockfishWASM {
+        <<WebWorker>>
+        +memory: WebAssembly.Memory
+        +evaluatePosition(fen: string)
+        +calculateMove(depth: number)
+    }
+
+    class GameStateFEN {
+        +currentFEN: string
+        +updateFromBoard(board: Board3D)
+        +generateFEN(): string
+    }
+
+    EngineBridge --> StockfishWASM : Web Worker API (postMessage)
+    EngineBridge --> GameStateFEN : lit l'état

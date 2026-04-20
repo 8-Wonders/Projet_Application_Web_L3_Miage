@@ -1,0 +1,34 @@
+classDiagram
+    class SceneManager {
+        <<BabylonJS>>
+        +engine: BABYLON.Engine
+        +scene: BABYLON.Scene
+        +camera: BABYLON.ArcRotateCamera
+        +light: BABYLON.HemisphericLight
+        +initScene()
+        +renderLoop()
+    }
+
+    class AssetLoader {
+        +loadModel(path: string, fileName: string): Promise~Mesh~
+        +loadCustomPieces()
+    }
+
+    class Board3D {
+        +grid: Array~Array~Tile3D~~
+        +generateTiles()
+        +highlightTile(x: number, y: number)
+        +getTileAtPosition(x: number, y: number)
+    }
+
+    class ChessPiece3D {
+        +mesh: BABYLON.Mesh
+        +logicalType: string
+        +moveTo(target: Vector3)
+        +playAttackAnimation()
+        +playDeathAnimation()
+    }
+
+    SceneManager *-- AssetLoader : utilise
+    SceneManager *-- Board3D : contient
+    Board3D "1" *-- "*" ChessPiece3D : place

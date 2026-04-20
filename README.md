@@ -25,6 +25,12 @@ L'équipe :
 
 * **Le jeu BabylonJS (Auto-Chess)** : Nous avons choisi d'utiliser la 3D pour créer un jeu hybride ambitieux mélangeant les mécaniques de Teamfight Tactics (TFT) et des Échecs. C'est un auto-chess avec des pièces personnalisées, le tout propulsé par WebAssembly. C'était l'occasion pour nous de relever un vrai défi technique en mariant la 3D à un moteur externe extrêmement performant.
 
+### Démos en vidéo
+
+* **Jeu DOM (Dev Clicker)** : [Voir la démo sur YouTube](https://youtu.be/3Z7BMFcVLAM).
+* **Jeu Canvas (Worms-like)** : [Voir la démo sur YouTube](https://youtu.be/aV_uZ5Rx_kc).
+* **Jeu BabylonJS (Auto-Chess)** : [Voir la démo sur YouTube](https://youtu.be/J3baV50jk4l).
+
 ## Difficultés Rencontrées
 
 La partie la plus complexe et la plus difficile du projet a été, de loin, le jeu BabylonJS.

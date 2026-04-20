@@ -1,0 +1,49 @@
+\documentclass[11pt, a4paper]{scrartcl}
+
+% Encodage et langue
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+
+% Mise en page et graphismes
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage{hyperref}
+\usepackage{scrlayer-scrpage}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{placeins}
+
+\DeclareUnicodeCharacter{251C}{\mbox{|}}
+\DeclareUnicodeCharacter{2500}{\mbox{-}}
+\DeclareUnicodeCharacter{2514}{\mbox{`}}
+\DeclareUnicodeCharacter{2502}{\mbox{|}}
+
+% Variables globales pour la page de garde
+\def\VARcompany{Application Web - L3 MIAGE}
+\def\VARtitle{Rapport de Conception Logicielle}
+\def\VARdate{\today}
+
+\begin{document}
+	\shorthandoff{:}
+	
+	% Inclusion de la page de garde (cover.tex)
+	\input{cover.tex}
+	
+	\newpage
+	
+	\pagenumbering{arabic} % Réactive la numérotation normale
+	\setcounter{page}{1}   % Force cette page à être la page 1
+	\cfoot{}
+	\ofoot{Page \thepage}  % Place "Page X" en bas à droite (Outer FOOT)
+	
+	% Inclusion des chapitres
+	\input{introduction.tex}
+	\newpage
+	\input{jeu_canvas.tex}
+	\input{jeu_dom.tex}
+	\input{jeu_babylon.tex}
+	
+\end{document}
